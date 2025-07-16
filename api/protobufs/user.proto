@@ -1,0 +1,77 @@
+// api/protobufs/user.proto
+syntax = "proto3";
+
+// Định nghĩa gói (package) cho protobuf
+package user;
+
+// Tùy chọn cho Go:
+// go_package chỉ định đường dẫn import cho gói Go được tạo ra.
+// Nó sẽ tạo ra các file Go trong thư mục "gen/go/user".
+option go_package = "github.com/datngth03/ecommerce-go-app/pkg/client/user;user_client";
+
+// Định nghĩa dịch vụ User Service
+service UserService {
+  // RPC để đăng ký người dùng mới
+  rpc RegisterUser (RegisterUserRequest) returns (RegisterUserResponse);
+
+  // RPC để đăng nhập người dùng
+  rpc LoginUser (LoginUserRequest) returns (LoginUserResponse);
+
+  // RPC để lấy thông tin hồ sơ người dùng
+  rpc GetUserProfile (GetUserProfileRequest) returns (UserProfileResponse);
+
+  // RPC để cập nhật hồ sơ người dùng
+  rpc UpdateUserProfile (UpdateUserProfileRequest) returns (UserProfileResponse);
+}
+
+// Định nghĩa cấu trúc tin nhắn (message) cho yêu cầu đăng ký người dùng
+message RegisterUserRequest {
+  string email = 1;
+  string password = 2;
+  string full_name = 3;
+}
+
+// Định nghĩa cấu trúc tin nhắn cho phản hồi đăng ký người dùng
+message RegisterUserResponse {
+  string user_id = 1;
+  string message = 2;
+  // Bạn có thể thêm token hoặc thông tin khác nếu quy trình yêu cầu
+}
+
+// Định nghĩa cấu trúc tin nhắn cho yêu cầu đăng nhập người dùng
+message LoginUserRequest {
+  string email = 1;
+  string password = 2;
+}
+
+// Định nghĩa cấu trúc tin nhắn cho phản hồi đăng nhập người dùng
+message LoginUserResponse {
+  string user_id = 1;
+  string access_token = 2; // JWT access token
+  string refresh_token = 3; // JWT refresh token
+  int64 expires_in = 4; // Thời gian hết hạn của access token (giây)
+}
+
+// Định nghĩa cấu trúc tin nhắn cho yêu cầu lấy thông tin hồ sơ người dùng
+message GetUserProfileRequest {
+  string user_id = 1; // ID của người dùng cần lấy thông tin
+}
+
+// Định nghĩa cấu trúc tin nhắn cho phản hồi thông tin hồ sơ người dùng
+message UserProfileResponse {
+  string user_id = 1;
+  string email = 2;
+  string full_name = 3;
+  string phone_number = 4;
+  string address = 5;
+  // Các trường thông tin khác của người dùng
+}
+
+// Định nghĩa cấu trúc tin nhắn cho yêu cầu cập nhật hồ sơ người dùng
+message UpdateUserProfileRequest {
+  string user_id = 1;
+  string full_name = 2;
+  string phone_number = 3;
+  string address = 4;
+  // Các trường có thể cập nhật
+}
