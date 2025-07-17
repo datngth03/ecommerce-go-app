@@ -4,7 +4,7 @@ package main
 import (
 	"fmt"
 	"log"
-	"os" // Để đọc biến môi trường
+	"os"
 
 	"github.com/gin-gonic/gin" // Import Gin Gonic framework
 

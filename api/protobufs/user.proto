@@ -35,7 +35,6 @@ message RegisterUserRequest {
 message RegisterUserResponse {
   string user_id = 1;
   string message = 2;
-  // Bạn có thể thêm token hoặc thông tin khác nếu quy trình yêu cầu
 }
 
 // Định nghĩa cấu trúc tin nhắn cho yêu cầu đăng nhập người dùng
@@ -54,7 +53,7 @@ message LoginUserResponse {
 
 // Định nghĩa cấu trúc tin nhắn cho yêu cầu lấy thông tin hồ sơ người dùng
 message GetUserProfileRequest {
-  string user_id = 1; // ID của người dùng cần lấy thông tin
+  string user_id = 1; 
 }
 
 // Định nghĩa cấu trúc tin nhắn cho phản hồi thông tin hồ sơ người dùng
