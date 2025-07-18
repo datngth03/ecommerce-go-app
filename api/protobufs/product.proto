@@ -1,0 +1,138 @@
+// api/protobufs/product.proto
+syntax = "proto3";
+
+// Define the package for protobuf
+package product;
+
+// Go options:
+// go_package specifies the import path for the generated Go package.
+// It will create Go files in the "pkg/client/product" directory.
+option go_package = "github.com/datngth03/ecommerce-go-app/pkg/client/product;product_client";
+
+// ProductService defines the gRPC service for product management.
+service ProductService {
+  // RPC to create a new product
+  rpc CreateProduct (CreateProductRequest) returns (ProductResponse);
+
+  // RPC to get product details by ID
+  rpc GetProductById (GetProductByIdRequest) returns (ProductResponse);
+
+  // RPC to update product information
+  rpc UpdateProduct (UpdateProductRequest) returns (ProductResponse);
+
+  // RPC to delete a product
+  rpc DeleteProduct (DeleteProductRequest) returns (DeleteProductResponse);
+
+  // RPC to list products with optional filters and pagination
+  rpc ListProducts (ListProductsRequest) returns (ListProductsResponse);
+
+  // RPC to create a new category
+  rpc CreateCategory (CreateCategoryRequest) returns (CategoryResponse);
+
+  // RPC to get category details by ID
+  rpc GetCategoryById (GetCategoryByIdRequest) returns (CategoryResponse);
+
+  // RPC to list all categories
+  rpc ListCategories (ListCategoriesRequest) returns (ListCategoriesResponse);
+}
+
+// Message for product details
+message Product {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  double price = 4;
+  string category_id = 5;
+  repeated string image_urls = 6;
+  int32 stock_quantity = 7; // This might be pulled from Inventory Service
+  string created_at = 8; // ISO 8601 string
+  string updated_at = 9; // ISO 8601 string
+}
+
+// Request to create a product
+message CreateProductRequest {
+  string name = 1;
+  string description = 2;
+  double price = 3;
+  string category_id = 4;
+  repeated string image_urls = 5;
+}
+
+// Response for product operations
+message ProductResponse {
+  Product product = 1;
+}
+
+// Request to get product by ID
+message GetProductByIdRequest {
+  string id = 1;
+}
+
+// Request to update product information
+message UpdateProductRequest {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  double price = 4;
+  string category_id = 5;
+  repeated string image_urls = 6;
+}
+
+// Request to delete a product
+message DeleteProductRequest {
+  string id = 1;
+}
+
+// Response for product deletion
+message DeleteProductResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Request to list products
+message ListProductsRequest {
+  string category_id = 1; // Optional filter by category
+  int32 limit = 2;        // Pagination limit
+  int32 offset = 3;       // Pagination offset
+}
+
+// Response for listing products
+message ListProductsResponse {
+  repeated Product products = 1;
+  int32 total_count = 2; // Total number of products matching criteria
+}
+
+// Message for category details
+message Category {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string created_at = 4; // ISO 8601 string
+  string updated_at = 5; // ISO 8601 string
+}
+
+// Request to create a category
+message CreateCategoryRequest {
+  string name = 1;
+  string description = 2;
+}
+
+// Response for category operations
+message CategoryResponse {
+  Category category = 1;
+}
+
+// Request to get category by ID
+message GetCategoryByIdRequest {
+  string id = 1;
+}
+
+// Request to list categories
+message ListCategoriesRequest {
+  // No specific fields for now, but can add filters later
+}
+
+// Response for listing categories
+message ListCategoriesResponse {
+  repeated Category categories = 1;
+}
