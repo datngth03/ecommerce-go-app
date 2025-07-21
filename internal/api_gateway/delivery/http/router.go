@@ -2,29 +2,42 @@
 package http
 
 import (
-	"net/http" // Thư viện HTTP chuẩn của Go
-
-	"github.com/gin-gonic/gin" // Import Gin Gonic framework
+	"github.com/gin-gonic/gin"
 )
 
-// RegisterRoutes đăng ký tất cả các routes cho API Gateway.
-// Nó nhận một con trỏ đến gin.Engine (router chính) làm đối số.
-func RegisterRoutes(router *gin.Engine) {
-	// Định nghĩa một route GET cho đường dẫn "/health"
-	// Đây là một endpoint phổ biến để kiểm tra trạng thái hoạt động của service
-	router.GET("/health", healthCheckHandler)
+// RegisterRoutes registers all routes for the API Gateway.
+// It takes a pointer to gin.Engine (the main router) and an instance of GatewayHandlers.
+func RegisterRoutes(router *gin.Engine, handlers *GatewayHandlers) {
+	// Health check endpoint
+	router.GET("/health", handlers.HealthCheckHandler)
 
-	// Bạn có thể thêm các routes khác ở đây khi phát triển các chức năng mới
-	// Ví dụ: router.POST("/users", userHandler.CreateUser)
-	//        router.GET("/products", productHandler.GetProducts)
-}
+	// User Service Routes
+	userGroup := router.Group("/api/v1/users")
+	{
+		userGroup.POST("/register", handlers.RegisterUser)
+		userGroup.POST("/login", handlers.LoginUser)
+		userGroup.GET("/:id", handlers.GetUserProfile) // Example: GET /api/v1/users/123
+		// userGroup.PUT("/:id", handlers.UpdateUserProfile) // Add this when implementing UpdateUserProfile
+	}
 
-// healthCheckHandler là hàm xử lý cho endpoint "/health".
-// Nó trả về một phản hồi JSON đơn giản để cho biết service đang hoạt động.
-func healthCheckHandler(c *gin.Context) {
-	// gin.Context cung cấp các phương thức để xử lý yêu cầu và phản hồi
-	c.JSON(http.StatusOK, gin.H{
-		"status":  "healthy",
-		"message": "API Gateway đang hoạt động!",
-	})
+	// Product Service Routes
+	productGroup := router.Group("/api/v1/products")
+	{
+		productGroup.POST("/", handlers.CreateProduct)
+		productGroup.GET("/:id", handlers.GetProductById) // Example: GET /api/v1/products/abc
+		productGroup.GET("/", handlers.ListProducts)      // Example: GET /api/v1/products?category_id=xyz&limit=10
+		// productGroup.PUT("/:id", handlers.UpdateProduct) // Add this when implementing UpdateProduct
+		// productGroup.DELETE("/:id", handlers.DeleteProduct) // Add this when implementing DeleteProduct
+	}
+
+	// Category Service Routes (part of Product Service)
+	categoryGroup := router.Group("/api/v1/categories")
+	{
+		categoryGroup.POST("/", handlers.CreateCategory)
+		categoryGroup.GET("/:id", handlers.GetCategoryById) // Example: GET /api/v1/categories/def
+		categoryGroup.GET("/", handlers.ListCategories)
+		// categoryGroup.DELETE("/:id", handlers.DeleteCategory) // Add this when implementing DeleteCategory
+	}
+
+	// Add other service routes here as you develop them
 }
