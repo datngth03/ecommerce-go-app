@@ -1,0 +1,90 @@
+// api/protobufs/order.proto
+syntax = "proto3";
+
+// Define the package for protobuf
+package order;
+
+// Go options:
+// go_package specifies the import path for the generated Go package.
+// It will create Go files in the "pkg/client/order" directory.
+option go_package = "github.com/datngth03/ecommerce-go-app/pkg/client/order;order_client";
+
+// OrderService defines the gRPC service for order management.
+service OrderService {
+  // RPC to create a new order
+  rpc CreateOrder (CreateOrderRequest) returns (OrderResponse);
+
+  // RPC to get order details by ID
+  rpc GetOrderById (GetOrderByIdRequest) returns (OrderResponse);
+
+  // RPC to update order status (e.g., from pending to paid/shipped)
+  rpc UpdateOrderStatus (UpdateOrderStatusRequest) returns (OrderResponse);
+
+  // RPC to cancel an order
+  rpc CancelOrder (CancelOrderRequest) returns (OrderResponse);
+
+  // RPC to list orders for a specific user or with filters
+  rpc ListOrders (ListOrdersRequest) returns (ListOrdersResponse);
+}
+
+// Message for an order item (product within an order)
+message OrderItem {
+  string product_id = 1;
+  string product_name = 2;
+  double price = 3;
+  int32 quantity = 4;
+}
+
+// Message for order details
+message Order {
+  string id = 1;
+  string user_id = 2;
+  repeated OrderItem items = 3;
+  double total_amount = 4;
+  string status = 5; // e.g., "pending", "paid", "shipped", "cancelled"
+  string shipping_address = 6;
+  string created_at = 7; // ISO 8601 string
+  string updated_at = 8; // ISO 8601 string
+}
+
+// Request to create an order
+message CreateOrderRequest {
+  string user_id = 1;
+  repeated OrderItem items = 2;
+  string shipping_address = 3;
+}
+
+// Response for order operations
+message OrderResponse {
+  Order order = 1;
+}
+
+// Request to get order by ID
+message GetOrderByIdRequest {
+  string id = 1;
+}
+
+// Request to update order status
+message UpdateOrderStatusRequest {
+  string order_id = 1;
+  string new_status = 2; // e.g., "paid", "shipped", "cancelled"
+}
+
+// Request to cancel an order
+message CancelOrderRequest {
+  string order_id = 1;
+}
+
+// Request to list orders
+message ListOrdersRequest {
+  string user_id = 1; // Optional filter by user ID
+  string status = 2;  // Optional filter by status
+  int32 limit = 3;    // Pagination limit
+  int32 offset = 4;   // Pagination offset
+}
+
+// Response for listing orders
+message ListOrdersResponse {
+  repeated Order orders = 1;
+  int32 total_count = 2; // Total number of orders matching criteria
+}

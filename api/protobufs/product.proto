@@ -2,7 +2,7 @@
 syntax = "proto3";
 
 // Define the package for protobuf
-package product;
+package product; 
 
 // Go options:
 // go_package specifies the import path for the generated Go package.
