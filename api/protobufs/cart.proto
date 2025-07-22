@@ -1,0 +1,81 @@
+// api/protobufs/cart.proto
+syntax = "proto3";
+
+// Define the package for protobuf
+package cart;
+
+// Go options:
+// go_package specifies the import path for the generated Go package.
+// It will create Go files in the "pkg/client/cart" directory.
+option go_package = "github.com/datngth03/ecommerce-go-app/pkg/client/cart;cart_client";
+
+// CartService defines the gRPC service for shopping cart management.
+service CartService {
+  // RPC to add an item to the user's cart
+  rpc AddItemToCart (AddItemToCartRequest) returns (CartResponse);
+
+  // RPC to update the quantity of an item in the cart
+  rpc UpdateCartItemQuantity (UpdateCartItemQuantityRequest) returns (CartResponse);
+
+  // RPC to remove an item from the cart
+  rpc RemoveItemFromCart (RemoveItemFromCartRequest) returns (CartResponse);
+
+  // RPC to get the current state of the user's cart
+  rpc GetCart (GetCartRequest) returns (CartResponse);
+
+  // RPC to clear all items from the user's cart
+  rpc ClearCart (ClearCartRequest) returns (CartResponse);
+}
+
+// Message for a single item in the shopping cart
+message CartItem {
+  string product_id = 1;
+  string product_name = 2; // Denormalized for quick display
+  double price = 3;
+  int32 quantity = 4;
+}
+
+// Message for the shopping cart details
+message Cart {
+  string user_id = 1;
+  repeated CartItem items = 2;
+  double total_amount = 3;
+  string last_updated_at = 4; // ISO 8601 string
+}
+
+// Request to add an item to cart
+message AddItemToCartRequest {
+  string user_id = 1;
+  string product_id = 2;
+  string product_name = 3;
+  double price = 4;
+  int32 quantity = 5;
+}
+
+// Request to update item quantity in cart
+message UpdateCartItemQuantityRequest {
+  string user_id = 1;
+  string product_id = 2;
+  int32 quantity = 3; // New quantity
+}
+
+// Request to remove an item from cart
+message RemoveItemFromCartRequest {
+  string user_id = 1;
+  string product_id = 2;
+}
+
+// Request to get cart
+message GetCartRequest {
+  string user_id = 1;
+}
+
+// Request to clear cart
+message ClearCartRequest {
+  string user_id = 1;
+}
+
+// Response for cart operations
+message CartResponse {
+  Cart cart = 1;
+}

@@ -2,24 +2,42 @@
 version: "3.8" # Phiên bản Docker Compose
 
 services:
-   # Dịch vụ PostgreSQL cho User Service
-   user_db:
+   # Dịch vụ PostgreSQL cho User, Product, Order Services
+   core_db:
       image: postgres:16-alpine # Sử dụng image PostgreSQL phiên bản 16 (phiên bản alpine nhỏ gọn)
-      container_name: ecommerce_user_db # Tên container
+      container_name: ecommerce_core_db_container # Tên container
       environment: # Các biến môi trường để cấu hình PostgreSQL
-         POSTGRES_DB: user_service_db # Tên cơ sở dữ liệu
+         POSTGRES_DB: ecommerce_core_db # Tên cơ sở dữ liệu
          POSTGRES_USER: user # Tên người dùng
          POSTGRES_PASSWORD: password # Mật khẩu
+         PGDATA: /var/lib/postgresql/data/pgdata # Đặt PGDATA để PostgreSQL biết nơi lưu trữ dữ liệu và cấu hình
       ports:
          - "5432:5432" # Ánh xạ cổng 5432 của container ra cổng 5432 của host
       volumes:
-         - user_db_data:/var/lib/postgresql/data # Lưu trữ dữ liệu vào volume để dữ liệu không bị mất khi container dừng
+         - ecommerce_db_data:/var/lib/postgresql/data # Lưu trữ dữ liệu vào volume để dữ liệu không bị mất khi container dừng
+         - ./docker/postgres/core_db/pg_hba.conf:/etc/postgresql/pg_hba.conf # Mount file pg_hba.conf tùy chỉnh
       healthcheck: # Kiểm tra sức khỏe của DB
-         test: ["CMD-SHELL", "pg_isready -U user -d user_service_db"]
+         test: ["CMD-SHELL", "pg_isready -U user -d ecommerce_core_db"]
+         interval: 5s
+         timeout: 5s
+         retries: 5
+      restart: always # Luôn khởi động lại container nếu có sự cố
+
+   # Dịch vụ Redis cho Cart Service
+   redis:
+      image: redis:7-alpine # Sử dụng image Redis phiên bản 7 (phiên bản alpine nhỏ gọn)
+      container_name: ecommerce_redis # Tên container
+      ports:
+         - "6379:6379" # Ánh xạ cổng 6379 của container ra cổng 6379 của host
+      volumes:
+         - redis_data:/data # Lưu trữ dữ liệu vào volume
+      healthcheck: # Kiểm tra sức khỏe của Redis
+         test: ["CMD", "redis-cli", "ping"]
          interval: 5s
          timeout: 5s
          retries: 5
       restart: always # Luôn khởi động lại container nếu có sự cố
 
 volumes:
-   user_db_data: # Định nghĩa volume để lưu trữ dữ liệu bền vững
+   ecommerce_db_data: # Định nghĩa volume để lưu trữ dữ liệu bền vững
+   redis_data: # Định nghĩa volume mới cho Redis
