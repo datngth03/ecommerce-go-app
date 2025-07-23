@@ -39,5 +39,46 @@ func RegisterRoutes(router *gin.Engine, handlers *GatewayHandlers) {
 		// categoryGroup.DELETE("/:id", handlers.DeleteCategory) // Add this when implementing DeleteCategory
 	}
 
+	// Order Service Routes (placeholder for future integration)
+	orderGroup := router.Group("/api/v1/orders")
+	{
+		orderGroup.POST("/", handlers.CreateOrder)
+		orderGroup.GET("/:id", handlers.GetOrderById)
+		orderGroup.PUT("/:id/status", handlers.UpdateOrderStatus) // Update status of an order
+		orderGroup.PUT("/:id/cancel", handlers.CancelOrder)       // Cancel an order
+		orderGroup.GET("/", handlers.ListOrders)                  // List orders
+	}
+
+	// Payment Service Routes
+	paymentGroup := router.Group("/api/v1/payments")
+	{
+		paymentGroup.POST("/", handlers.CreatePayment)         // Create a new payment
+		paymentGroup.GET("/:id", handlers.GetPaymentById)      // Get payment details by ID
+		paymentGroup.POST("/confirm", handlers.ConfirmPayment) // Confirm payment (e.g., webhook callback)
+		paymentGroup.POST("/refund", handlers.RefundPayment)   // Refund a payment
+		paymentGroup.GET("/", handlers.ListPayments)           // List payments
+	}
+
+	// Cart Service Routes (ĐÃ THÊM PHẦN NÀY)
+	cartGroup := router.Group("/api/v1/carts")
+	{
+		cartGroup.POST("/add", handlers.AddItemToCart)
+		cartGroup.PUT("/update-quantity", handlers.UpdateCartItemQuantity)
+		cartGroup.DELETE("/remove", handlers.RemoveItemFromCart)
+		cartGroup.GET("/:user_id", handlers.GetCart)            // Get cart for a specific user
+		cartGroup.DELETE("/:user_id/clear", handlers.ClearCart) // Clear cart for a specific user
+	}
+
+	// Shipping Service Routes
+	shippingGroup := router.Group("/api/v1/shipping")
+	{
+		shippingGroup.POST("/calculate-cost", handlers.CalculateShippingCost) // Calculate shipping cost
+		shippingGroup.POST("/", handlers.CreateShipment)                      // Create a new shipment
+		shippingGroup.GET("/:id", handlers.GetShipmentById)                   // Get shipment details by ID
+		shippingGroup.PUT("/:id/status", handlers.UpdateShipmentStatus)       // Update shipment status
+		shippingGroup.GET("/:id/track", handlers.TrackShipment)               // Track shipment
+		shippingGroup.GET("/", handlers.ListShipments)                        // List shipments
+	}
+
 	// Add other service routes here as you develop them
 }

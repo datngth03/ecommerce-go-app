@@ -39,14 +39,42 @@ func main() {
 		log.Printf("No PRODUCT_GRPC_ADDR environment variable found, using default: %s", productSvcAddr)
 	}
 
+	// Get gRPC address for Order Service from environment variable "ORDER_GRPC_ADDR"
+	orderSvcAddr := os.Getenv("ORDER_GRPC_ADDR")
+	if orderSvcAddr == "" {
+		orderSvcAddr = "localhost:50053" // Default port for Order Service
+		log.Printf("No ORDER_GRPC_ADDR environment variable found, using default: %s", orderSvcAddr)
+	}
+
+	// Get gRPC address for Payment Service from environment variable "PAYMENT_GRPC_ADDR"
+	paymentSvcAddr := os.Getenv("PAYMENT_GRPC_ADDR")
+	if paymentSvcAddr == "" {
+		paymentSvcAddr = "localhost:50055" // Default port for Payment Service
+		log.Printf("No PAYMENT_GRPC_ADDR environment variable found, using default: %s", paymentSvcAddr)
+	}
+
+	// Get gRPC address for Cart Service from environment variable "CART_GRPC_ADDR"
+	cartSvcAddr := os.Getenv("CART_GRPC_ADDR")
+	if cartSvcAddr == "" {
+		cartSvcAddr = "localhost:50054" // Default port for Cart Service
+		log.Printf("No CART_GRPC_ADDR environment variable found, using default: %s", cartSvcAddr)
+	}
+
+	// Get gRPC address for Shipping Service from environment variable "SHIPPING_GRPC_ADDR"
+	shippingSvcAddr := os.Getenv("SHIPPING_GRPC_ADDR")
+	if shippingSvcAddr == "" {
+		shippingSvcAddr = "localhost:50056" // Default port for Shipping Service
+		log.Printf("No SHIPPING_GRPC_ADDR environment variable found, using default: %s", shippingSvcAddr)
+	}
+
 	// Set Gin to Release Mode for performance optimization and to suppress debug logs
 	gin.SetMode(gin.ReleaseMode)
 
 	// Create a default Gin router
 	router := gin.Default()
 
-	// Initialize GatewayHandlers with gRPC clients
-	handlers, err := router_http.NewGatewayHandlers(userSvcAddr, productSvcAddr)
+	// Initialize GatewayHandlers with all gRPC clients
+	handlers, err := router_http.NewGatewayHandlers(userSvcAddr, productSvcAddr, orderSvcAddr, paymentSvcAddr, cartSvcAddr, shippingSvcAddr)
 	if err != nil {
 		log.Fatalf("Failed to initialize Gateway Handlers: %v", err)
 	}
