@@ -67,6 +67,13 @@ func main() {
 		log.Printf("No SHIPPING_GRPC_ADDR environment variable found, using default: %s", shippingSvcAddr)
 	}
 
+	// Get gRPC address for Auth Service from environment variable "AUTH_GRPC_ADDR"
+	authSvcAddr := os.Getenv("AUTH_GRPC_ADDR")
+	if authSvcAddr == "" {
+		authSvcAddr = "localhost:50057" // Default port for Auth Service
+		log.Printf("No AUTH_GRPC_ADDR environment variable found, using default: %s", authSvcAddr)
+	}
+
 	// Set Gin to Release Mode for performance optimization and to suppress debug logs
 	gin.SetMode(gin.ReleaseMode)
 
@@ -74,7 +81,7 @@ func main() {
 	router := gin.Default()
 
 	// Initialize GatewayHandlers with all gRPC clients
-	handlers, err := router_http.NewGatewayHandlers(userSvcAddr, productSvcAddr, orderSvcAddr, paymentSvcAddr, cartSvcAddr, shippingSvcAddr)
+	handlers, err := router_http.NewGatewayHandlers(userSvcAddr, productSvcAddr, orderSvcAddr, paymentSvcAddr, cartSvcAddr, shippingSvcAddr, authSvcAddr)
 	if err != nil {
 		log.Fatalf("Failed to initialize Gateway Handlers: %v", err)
 	}
