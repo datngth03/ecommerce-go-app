@@ -1,0 +1,70 @@
+// api/protobufs/auth.proto
+syntax = "proto3";
+
+// Define the package for protobuf
+package auth;
+
+// Go options:
+// go_package specifies the import path for the generated Go package.
+// It will create Go files in the "pkg/client/auth" directory.
+option go_package = "github.com/datngth03/ecommerce-go-app/pkg/client/auth;auth_client";
+
+// AuthService defines the gRPC service for authentication and authorization.
+service AuthService {
+  // RPC for user login, returns access and refresh tokens
+  rpc Login (LoginRequest) returns (AuthResponse);
+
+  // RPC to authenticate user credentials without returning tokens
+  // This can be used for internal validation or specific authentication flows.
+  rpc AuthenticateUser (AuthenticateUserRequest) returns (AuthenticateUserResponse); // THÊM DÒNG NÀY
+
+  // RPC to generate a new access token using a refresh token
+  rpc RefreshToken (RefreshTokenRequest) returns (AuthResponse);
+
+  // RPC to validate an access token
+  rpc ValidateToken (ValidateTokenRequest) returns (ValidateTokenResponse);
+}
+
+// Request for user login
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+// Request to authenticate user credentials
+message AuthenticateUserRequest { // THÊM PHẦN NÀY
+  string email = 1;
+  string password = 2;
+}
+
+// Response for user authentication
+message AuthenticateUserResponse { // THÊM PHẦN NÀY
+  bool is_authenticated = 1;
+  string user_id = 2;
+  string error_message = 3; // Optional error message if not authenticated
+}
+
+// Message for authentication response (contains tokens)
+message AuthResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+  int64 expires_in = 3; // Access token expiration in seconds
+  string user_id = 4;
+}
+
+// Request to refresh an access token
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+// Request to validate an access token
+message ValidateTokenRequest {
+  string access_token = 1;
+}
+
+// Response for token validation
+message ValidateTokenResponse {
+  bool is_valid = 1;
+  string user_id = 2;
+  string error_message = 3; // Optional error message if not valid
+}

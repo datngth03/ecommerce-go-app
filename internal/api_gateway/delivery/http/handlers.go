@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	auth_client "github.com/datngth03/ecommerce-go-app/pkg/client/auth"         // Generated Auth gRPC client
 	cart_client "github.com/datngth03/ecommerce-go-app/pkg/client/cart"         // Generated Cart gRPC client
 	order_client "github.com/datngth03/ecommerce-go-app/pkg/client/order"       // Generated Order gRPC client
 	payment_client "github.com/datngth03/ecommerce-go-app/pkg/client/payment"   // Generated Payment gRPC client
@@ -28,13 +29,14 @@ type GatewayHandlers struct {
 	OrderClient    order_client.OrderServiceClient
 	PaymentClient  payment_client.PaymentServiceClient
 	CartClient     cart_client.CartServiceClient
-	ShippingClient shipping_client.ShippingServiceClient // Thêm ShippingClient
+	ShippingClient shipping_client.ShippingServiceClient
+	AuthClient     auth_client.AuthServiceClient
 	// Add other service clients here
 }
 
 // NewGatewayHandlers creates a new instance of GatewayHandlers.
 // NewGatewayHandlers tạo một thể hiện mới của GatewayHandlers.
-func NewGatewayHandlers(userSvcAddr, productSvcAddr, orderSvcAddr, paymentSvcAddr, cartSvcAddr, shippingSvcAddr string) (*GatewayHandlers, error) {
+func NewGatewayHandlers(userSvcAddr, productSvcAddr, orderSvcAddr, paymentSvcAddr, cartSvcAddr, shippingSvcAddr, authSvcAddr string) (*GatewayHandlers, error) {
 	// Connect to User Service
 	userConn, err := grpc.Dial(userSvcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -80,7 +82,7 @@ func NewGatewayHandlers(userSvcAddr, productSvcAddr, orderSvcAddr, paymentSvcAdd
 	}
 	// No defer conn.Close() here, connections will be closed in main.go
 
-	// Connect to Shipping Service (THÊM PHẦN NÀY)
+	// Connect to Shipping Service
 	shippingConn, err := grpc.Dial(shippingSvcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		userConn.Close()
@@ -92,13 +94,27 @@ func NewGatewayHandlers(userSvcAddr, productSvcAddr, orderSvcAddr, paymentSvcAdd
 	}
 	// No defer conn.Close() here, connections will be closed in main.go
 
+	// Connect to Auth Service
+	authConn, err := grpc.Dial(authSvcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		userConn.Close()
+		productConn.Close()
+		orderConn.Close()
+		paymentConn.Close()
+		cartConn.Close()
+		shippingConn.Close()
+		return nil, fmt.Errorf("failed to connect to Auth Service: %w", err)
+	}
+	// No defer conn.Close() here, connections will be closed in main.go
+
 	return &GatewayHandlers{
 		UserClient:     user_client.NewUserServiceClient(userConn),
 		ProductClient:  product_client.NewProductServiceClient(productConn),
 		OrderClient:    order_client.NewOrderServiceClient(orderConn),
 		PaymentClient:  payment_client.NewPaymentServiceClient(paymentConn),
 		CartClient:     cart_client.NewCartServiceClient(cartConn),
-		ShippingClient: shipping_client.NewShippingServiceClient(shippingConn), // THÊM DÒNG NÀY
+		ShippingClient: shipping_client.NewShippingServiceClient(shippingConn),
+		AuthClient:     auth_client.NewAuthServiceClient(authConn),
 	}, nil
 }
 
@@ -134,26 +150,27 @@ func (h *GatewayHandlers) RegisterUser(c *gin.Context) {
 	c.JSON(http.StatusCreated, resp)
 }
 
-// LoginUser handles user login requests.
-// LoginUser xử lý các yêu cầu đăng nhập người dùng.
-func (h *GatewayHandlers) LoginUser(c *gin.Context) {
-	var req user_client.LoginUserRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
+// // Login handles user login requests via Auth Service. (ĐÃ SỬA TÊN HÀM VÀ LOGIC)
+// func (h *GatewayHandlers) Login(c *gin.Context) {
+// 	var req auth_client.LoginRequest // Sử dụng LoginRequest từ auth_client
+// 	if err := c.ShouldBindJSON(&req); err != nil {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+// 		return
+// 	}
 
-	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
-	defer cancel()
+// 	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second) // Increased timeout for auth
+// 	defer cancel()
 
-	resp, err := h.UserClient.LoginUser(ctx, &req)
-	if err != nil {
-		log.Printf("Error calling LoginUser: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, resp)
-}
+// 	// Call Auth Service's Login RPC
+// 	authResp, err := h.AuthClient.Login(ctx, &req)
+// 	if err != nil {
+// 		log.Printf("Error calling Auth Service Login: %v", err)
+// 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials or login failed"})
+// 		return
+// 	}
+
+// 	c.JSON(http.StatusOK, authResp) // Return tokens and user ID
+// }
 
 // GetUserProfile handles requests to get user profile.
 // GetUserProfile xử lý các yêu cầu lấy hồ sơ người dùng.
@@ -607,7 +624,7 @@ func (h *GatewayHandlers) ClearCart(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
-// --- Shipping Service Handlers (THÊM PHẦN NÀY) ---
+// --- Shipping Service Handlers ---
 
 // CalculateShippingCost handles requests to calculate shipping cost.
 func (h *GatewayHandlers) CalculateShippingCost(c *gin.Context) {
@@ -723,6 +740,71 @@ func (h *GatewayHandlers) ListShipments(c *gin.Context) {
 	resp, err := h.ShippingClient.ListShipments(ctx, &req)
 	if err != nil {
 		log.Printf("Error calling ListShipments: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+// --- Auth Service Handlers ---
+
+// Login handles user login requests via Auth Service.
+func (h *GatewayHandlers) Login(c *gin.Context) {
+	var req auth_client.LoginRequest // Sử dụng LoginRequest từ auth_client
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second) // Increased timeout for auth
+	defer cancel()
+
+	// Call Auth Service's Login RPC
+	authResp, err := h.AuthClient.Login(ctx, &req)
+	if err != nil {
+		log.Printf("Error calling Auth Service Login: %v", err)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials or login failed"})
+		return
+	}
+
+	c.JSON(http.StatusOK, authResp) // Return tokens and user ID
+}
+
+// RefreshAuthToken handles requests to refresh an access token using a refresh token.
+func (h *GatewayHandlers) RefreshAuthToken(c *gin.Context) {
+	var req auth_client.RefreshTokenRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+	defer cancel()
+
+	resp, err := h.AuthClient.RefreshToken(ctx, &req)
+	if err != nil {
+		log.Printf("Error refreshing token: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+// ValidateAuthToken handles requests to validate an access token.
+// This might be used by a middleware or for direct testing.
+func (h *GatewayHandlers) ValidateAuthToken(c *gin.Context) {
+	var req auth_client.ValidateTokenRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+	defer cancel()
+
+	resp, err := h.AuthClient.ValidateToken(ctx, &req)
+	if err != nil {
+		log.Printf("Error validating token: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
