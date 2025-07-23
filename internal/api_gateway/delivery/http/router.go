@@ -79,6 +79,15 @@ func RegisterRoutes(router *gin.Engine, handlers *GatewayHandlers) {
 
 		// Auth token validation (for internal/testing purposes, might not be exposed directly in production)
 		authenticatedGroup.POST("/auth/validate", handlers.ValidateAuthToken)
+
+		// Notification Service Routes (THÊM PHẦN NÀY)
+		notificationGroup := authenticatedGroup.Group("/notifications") // Có thể đặt dưới /api/v1/notifications
+		{
+			notificationGroup.POST("/email", handlers.SendEmail)
+			notificationGroup.POST("/sms", handlers.SendSMS)
+			notificationGroup.POST("/push", handlers.SendPushNotification)
+			// Thêm các routes khác cho Notification Service (ví dụ: ListNotificationRecords)
+		}
 	}
 
 	// Add other service routes here as you develop them
