@@ -74,6 +74,13 @@ func main() {
 		log.Printf("No AUTH_GRPC_ADDR environment variable found, using default: %s", authSvcAddr)
 	}
 
+	// Get gRPC address for Notification Service from environment variable "NOTIFICATION_GRPC_ADDR" (THÊM DÒNG NÀY)
+	notificationSvcAddr := os.Getenv("NOTIFICATION_GRPC_ADDR") // THÊM DÒNG NÀY
+	if notificationSvcAddr == "" {                             // THÊM DÒNG NÀY
+		notificationSvcAddr = "localhost:50058"                                                                    // Default port for Notification Service // THÊM DÒNG NÀY
+		log.Printf("No NOTIFICATION_GRPC_ADDR environment variable found, using default: %s", notificationSvcAddr) // THÊM DÒNG NÀY
+	}
+
 	// Set Gin to Release Mode for performance optimization and to suppress debug logs
 	gin.SetMode(gin.ReleaseMode)
 
@@ -81,7 +88,7 @@ func main() {
 	router := gin.Default()
 
 	// Initialize GatewayHandlers with all gRPC clients
-	handlers, err := router_http.NewGatewayHandlers(userSvcAddr, productSvcAddr, orderSvcAddr, paymentSvcAddr, cartSvcAddr, shippingSvcAddr, authSvcAddr)
+	handlers, err := router_http.NewGatewayHandlers(userSvcAddr, productSvcAddr, orderSvcAddr, paymentSvcAddr, cartSvcAddr, shippingSvcAddr, authSvcAddr, notificationSvcAddr)
 	if err != nil {
 		log.Fatalf("Failed to initialize Gateway Handlers: %v", err)
 	}

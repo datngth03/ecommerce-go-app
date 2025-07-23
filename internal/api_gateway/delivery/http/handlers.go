@@ -12,31 +12,33 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	auth_client "github.com/datngth03/ecommerce-go-app/pkg/client/auth"         // Generated Auth gRPC client
-	cart_client "github.com/datngth03/ecommerce-go-app/pkg/client/cart"         // Generated Cart gRPC client
-	order_client "github.com/datngth03/ecommerce-go-app/pkg/client/order"       // Generated Order gRPC client
-	payment_client "github.com/datngth03/ecommerce-go-app/pkg/client/payment"   // Generated Payment gRPC client
-	product_client "github.com/datngth03/ecommerce-go-app/pkg/client/product"   // Generated Product gRPC client
-	shipping_client "github.com/datngth03/ecommerce-go-app/pkg/client/shipping" // Generated Shipping gRPC client
-	user_client "github.com/datngth03/ecommerce-go-app/pkg/client/user"         // Generated User gRPC client
+	auth_client "github.com/datngth03/ecommerce-go-app/pkg/client/auth"                 // Generated Auth gRPC client
+	cart_client "github.com/datngth03/ecommerce-go-app/pkg/client/cart"                 // Generated Cart gRPC client
+	notification_client "github.com/datngth03/ecommerce-go-app/pkg/client/notification" // Generated Notification gRPC client
+	order_client "github.com/datngth03/ecommerce-go-app/pkg/client/order"               // Generated Order gRPC client
+	payment_client "github.com/datngth03/ecommerce-go-app/pkg/client/payment"           // Generated Payment gRPC client
+	product_client "github.com/datngth03/ecommerce-go-app/pkg/client/product"           // Generated Product gRPC client
+	shipping_client "github.com/datngth03/ecommerce-go-app/pkg/client/shipping"         // Generated Shipping gRPC client
+	user_client "github.com/datngth03/ecommerce-go-app/pkg/client/user"                 // Generated User gRPC client
 )
 
 // GatewayHandlers holds the gRPC clients for backend services.
 // GatewayHandlers chứa các gRPC client cho các dịch vụ backend.
 type GatewayHandlers struct {
-	UserClient     user_client.UserServiceClient
-	ProductClient  product_client.ProductServiceClient
-	OrderClient    order_client.OrderServiceClient
-	PaymentClient  payment_client.PaymentServiceClient
-	CartClient     cart_client.CartServiceClient
-	ShippingClient shipping_client.ShippingServiceClient
-	AuthClient     auth_client.AuthServiceClient
+	UserClient         user_client.UserServiceClient
+	ProductClient      product_client.ProductServiceClient
+	OrderClient        order_client.OrderServiceClient
+	PaymentClient      payment_client.PaymentServiceClient
+	CartClient         cart_client.CartServiceClient
+	ShippingClient     shipping_client.ShippingServiceClient
+	AuthClient         auth_client.AuthServiceClient
+	NotificationClient notification_client.NotificationServiceClient // Add Notification Service client
 	// Add other service clients here
 }
 
 // NewGatewayHandlers creates a new instance of GatewayHandlers.
 // NewGatewayHandlers tạo một thể hiện mới của GatewayHandlers.
-func NewGatewayHandlers(userSvcAddr, productSvcAddr, orderSvcAddr, paymentSvcAddr, cartSvcAddr, shippingSvcAddr, authSvcAddr string) (*GatewayHandlers, error) {
+func NewGatewayHandlers(userSvcAddr, productSvcAddr, orderSvcAddr, paymentSvcAddr, cartSvcAddr, shippingSvcAddr, authSvcAddr, notificationSvcAddr string) (*GatewayHandlers, error) {
 	// Connect to User Service
 	userConn, err := grpc.Dial(userSvcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -107,14 +109,29 @@ func NewGatewayHandlers(userSvcAddr, productSvcAddr, orderSvcAddr, paymentSvcAdd
 	}
 	// No defer conn.Close() here, connections will be closed in main.go
 
+	// Connect to Notification Service (THÊM PHẦN NÀY)
+	notificationConn, err := grpc.Dial(notificationSvcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		userConn.Close()
+		productConn.Close()
+		orderConn.Close()
+		paymentConn.Close()
+		cartConn.Close()
+		shippingConn.Close()
+		authConn.Close()
+		return nil, fmt.Errorf("failed to connect to Notification Service: %w", err)
+	}
+	// No defer conn.Close() here, connections will be closed in main.go
+
 	return &GatewayHandlers{
-		UserClient:     user_client.NewUserServiceClient(userConn),
-		ProductClient:  product_client.NewProductServiceClient(productConn),
-		OrderClient:    order_client.NewOrderServiceClient(orderConn),
-		PaymentClient:  payment_client.NewPaymentServiceClient(paymentConn),
-		CartClient:     cart_client.NewCartServiceClient(cartConn),
-		ShippingClient: shipping_client.NewShippingServiceClient(shippingConn),
-		AuthClient:     auth_client.NewAuthServiceClient(authConn),
+		UserClient:         user_client.NewUserServiceClient(userConn),
+		ProductClient:      product_client.NewProductServiceClient(productConn),
+		OrderClient:        order_client.NewOrderServiceClient(orderConn),
+		PaymentClient:      payment_client.NewPaymentServiceClient(paymentConn),
+		CartClient:         cart_client.NewCartServiceClient(cartConn),
+		ShippingClient:     shipping_client.NewShippingServiceClient(shippingConn),
+		AuthClient:         auth_client.NewAuthServiceClient(authConn),
+		NotificationClient: notification_client.NewNotificationServiceClient(notificationConn), // THÊM DÒNG NÀY
 	}, nil
 }
 
@@ -805,6 +822,68 @@ func (h *GatewayHandlers) ValidateAuthToken(c *gin.Context) {
 	resp, err := h.AuthClient.ValidateToken(ctx, &req)
 	if err != nil {
 		log.Printf("Error validating token: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+// --- Notification Service Handlers (THÊM PHẦN NÀY) ---
+
+// SendEmail handles sending an email notification.
+func (h *GatewayHandlers) SendEmail(c *gin.Context) {
+	var req notification_client.SendEmailRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+	defer cancel()
+
+	resp, err := h.NotificationClient.SendEmail(ctx, &req)
+	if err != nil {
+		log.Printf("Error calling SendEmail: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+// SendSMS handles sending an SMS notification.
+func (h *GatewayHandlers) SendSMS(c *gin.Context) {
+	var req notification_client.SendSMSRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+	defer cancel()
+
+	resp, err := h.NotificationClient.SendSMS(ctx, &req)
+	if err != nil {
+		log.Printf("Error calling SendSMS: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+// SendPushNotification handles sending a push notification.
+func (h *GatewayHandlers) SendPushNotification(c *gin.Context) {
+	var req notification_client.SendPushNotificationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+	defer cancel()
+
+	resp, err := h.NotificationClient.SendPushNotification(ctx, &req)
+	if err != nil {
+		log.Printf("Error calling SendPushNotification: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

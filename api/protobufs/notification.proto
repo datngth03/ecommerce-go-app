@@ -1,0 +1,56 @@
+// api/protobufs/notification.proto
+syntax = "proto3";
+
+// Define the package for protobuf
+package notification;
+
+// Go options:
+// go_package specifies the import path for the generated Go package.
+// It will create Go files in the "pkg/client/notification" directory.
+option go_package = "github.com/datngth03/ecommerce-go-app/pkg/client/notification;notification_client";
+
+// NotificationService defines the gRPC service for sending various types of notifications.
+service NotificationService {
+  // RPC to send an email notification
+  rpc SendEmail (SendEmailRequest) returns (SendNotificationResponse);
+
+  // RPC to send an SMS notification
+  rpc SendSMS (SendSMSRequest) returns (SendNotificationResponse);
+
+  // RPC to send a push notification (placeholder)
+  rpc SendPushNotification (SendPushNotificationRequest) returns (SendNotificationResponse);
+}
+
+// Request to send an email
+message SendEmailRequest {
+  string recipient_email = 1;
+  string subject = 2;
+  string body_html = 3; // HTML content for the email body
+  string body_plain = 4; // Plain text content for fallback
+  string user_id = 5; // Optional: user associated with the notification
+  string template_name = 6; // Optional: name of a predefined email template
+  map<string, string> template_data = 7; // Optional: data for template rendering
+}
+
+// Request to send an SMS
+message SendSMSRequest {
+  string recipient_phone_number = 1;
+  string message = 2;
+  string user_id = 3; // Optional: user associated with the notification
+}
+
+// Request to send a push notification
+message SendPushNotificationRequest {
+  string user_id = 1;
+  string device_token = 2; // Device token for push notification service (e.g., FCM, APNs)
+  string title = 3;
+  string body = 4;
+  map<string, string> data = 5; // Custom data payload
+}
+
+// Response for any notification sending operation
+message SendNotificationResponse {
+  bool success = 1;
+  string message = 2; // Success or error message
+  string notification_id = 3; // Optional: ID assigned to the sent notification
+}
