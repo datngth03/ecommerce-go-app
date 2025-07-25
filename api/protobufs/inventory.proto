@@ -1,0 +1,80 @@
+// api/protobufs/inventory.proto
+syntax = "proto3";
+
+// Define the package for protobuf
+package inventory;
+
+// Go options:
+// go_package specifies the import path for the generated Go package.
+// It will create Go files in the "pkg/client/inventory" directory.
+option go_package = "github.com/datngth03/ecommerce-go-app/pkg/client/inventory;inventory_client";
+
+// InventoryService defines the gRPC service for inventory management.
+service InventoryService {
+  // RPC to get current stock quantity for a product
+  rpc GetStockQuantity (GetStockQuantityRequest) returns (StockQuantityResponse);
+
+  // RPC to increase stock quantity (e.g., new shipment received)
+  rpc IncreaseStock (IncreaseStockRequest) returns (StockQuantityResponse);
+
+  // RPC to decrease stock quantity (e.g., order placed, item sold)
+  rpc DecreaseStock (DecreaseStockRequest) returns (StockQuantityResponse);
+
+  // RPC to reserve stock (e.g., when an item is added to cart or order is pending)
+  rpc ReserveStock (ReserveStockRequest) returns (StockQuantityResponse);
+
+  // RPC to release reserved stock (e.g., order cancelled, item removed from cart)
+  rpc ReleaseStock (ReleaseStockRequest) returns (StockQuantityResponse);
+
+  // RPC to set stock quantity directly (e.g., for initial setup or correction)
+  rpc SetStock (SetStockRequest) returns (StockQuantityResponse);
+}
+
+// Message for an inventory item
+message InventoryItem {
+  string product_id = 1;
+  int32 quantity = 2;        // Current available quantity
+  int32 reserved_quantity = 3; // Quantity reserved for pending orders/carts
+  string last_updated_at = 4; // ISO 8601 string
+}
+
+// Request to get stock quantity
+message GetStockQuantityRequest {
+  string product_id = 1;
+}
+
+// Response for stock quantity operations
+message StockQuantityResponse {
+  InventoryItem item = 1;
+  string message = 2; // Success or error message
+}
+
+// Request to increase stock
+message IncreaseStockRequest {
+  string product_id = 1;
+  int32 quantity = 2; // Amount to increase
+}
+
+// Request to decrease stock
+message DecreaseStockRequest {
+  string product_id = 1;
+  int32 quantity = 2; // Amount to decrease
+}
+
+// Request to reserve stock
+message ReserveStockRequest {
+  string product_id = 1;
+  int32 quantity = 2; // Amount to reserve
+}
+
+// Request to release reserved stock
+message ReleaseStockRequest {
+  string product_id = 1;
+  int32 quantity = 2; // Amount to release
+}
+
+// Request to set stock directly
+message SetStockRequest {
+  string product_id = 1;
+  int32 quantity = 2; // New total quantity
+}

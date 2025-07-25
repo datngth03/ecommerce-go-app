@@ -7,88 +7,96 @@ import (
 )
 
 // RegisterRoutes registers all routes for the API Gateway.
-// It takes a pointer to gin.Engine (the main router) and an instance of GatewayHandlers.
+
 func RegisterRoutes(router *gin.Engine, handlers *GatewayHandlers) {
+
 	// Khởi tạo Auth Middleware
 	authMiddleware := middleware.NewAuthMiddleware(handlers.AuthClient)
 
-	// Health check endpoint (public)
-	router.GET("/health", handlers.HealthCheckHandler)
-
-	// Public routes (không yêu cầu xác thực)
-	publicGroup := router.Group("/api/v1")
+	// Public Routes (Không yêu cầu xác thực)
+	public := router.Group("/api/v1")
 	{
-		// User registration (public)
-		publicGroup.POST("/users/register", handlers.RegisterUser)
-		// Auth login and token refresh (public)
-		publicGroup.POST("/auth/login", handlers.Login)
-		publicGroup.POST("/auth/refresh", handlers.RefreshAuthToken)
-		// Public product/category listing (read-only)
-		publicGroup.GET("/products", handlers.ListProducts)
-		publicGroup.GET("/products/:id", handlers.GetProductById)
-		publicGroup.GET("/categories", handlers.ListCategories)
-		publicGroup.GET("/categories/:id", handlers.GetCategoryById)
+		public.GET("/health", handlers.HealthCheck)
+
+		// User Public Routes (Đăng ký, không yêu cầu xác thực)
+		public.POST("/users/register", handlers.RegisterUser)
+
+		// Auth Public Routes (Đăng nhập, làm mới token)
+		public.POST("/auth/login", handlers.Login)
+		public.POST("/auth/refresh", handlers.RefreshToken)
+		public.POST("/auth/validate", handlers.ValidateToken) // Có thể dùng cho client test token
+
+		// Product Public Routes (Có thể xem sản phẩm mà không cần đăng nhập)
+		public.GET("/products", handlers.ListProducts)
+		public.GET("/products/:id", handlers.GetProductById)
+		public.GET("/categories", handlers.ListCategories)
+		public.GET("/categories/:id", handlers.GetCategoryById)
+
+		// Review Public Routes (Có thể xem đánh giá mà không cần đăng nhập)
+		public.GET("/reviews", handlers.ListAllReviews)                            // List all reviews with filters
+		public.GET("/reviews/:id", handlers.GetReviewById)                         // Get review by ID
+		public.GET("/reviews/products/:product_id", handlers.ListReviewsByProduct) // List reviews by product
 	}
 
-	// Authenticated routes (yêu cầu JWT token hợp lệ)
-	authenticatedGroup := router.Group("/api/v1")
-	authenticatedGroup.Use(authMiddleware.AuthRequired()) // Áp dụng middleware xác thực
-
+	// Authenticated Routes (Yêu cầu xác thực JWT)
+	authenticated := router.Group("/api/v1")
+	authenticated.Use(authMiddleware.AuthRequired()) //middleware AuthRequired
 	{
-		// User Profile (authenticated)
-		authenticatedGroup.GET("/users/:id", handlers.GetUserProfile) // Example: GET /api/v1/users/123
-		// authenticatedGroup.PUT("/users/:id", handlers.UpdateUserProfile) // Add when implemented
+		// User Authenticated Routes
+		authenticated.GET("/users/:id", handlers.GetUserProfile) // Lấy hồ sơ người dùng
 
-		// Product Management (authenticated - e.g., for admin/seller)
-		authenticatedGroup.POST("/products", handlers.CreateProduct)
-		// authenticatedGroup.PUT("/products/:id", handlers.UpdateProduct)
-		// authenticatedGroup.DELETE("/products/:id", handlers.DeleteProduct)
+		// Product Authenticated Routes (Chỉ admin/người quản lý mới có quyền)
+		authenticated.POST("/products", handlers.CreateProduct)
+		authenticated.PUT("/products/:id", handlers.UpdateProduct)
+		authenticated.DELETE("/products/:id", handlers.DeleteProduct)
+		authenticated.POST("/categories", handlers.CreateCategory)
+		// Product & Category GET methods are public, so not here
 
-		// Category Management (authenticated - e.g., for admin/seller)
-		authenticatedGroup.POST("/categories", handlers.CreateCategory)
-		// authenticatedGroup.DELETE("/categories/:id", handlers.DeleteCategory)
+		// Order Routes (Yêu cầu xác thực)
+		authenticated.POST("/orders", handlers.CreateOrder)
+		authenticated.GET("/orders/:id", handlers.GetOrderById)
+		authenticated.PUT("/orders/:id/status", handlers.UpdateOrderStatus)
+		authenticated.POST("/orders/:id/cancel", handlers.CancelOrder)
+		authenticated.GET("/orders", handlers.ListOrders)
 
-		// Order Management (authenticated)
-		authenticatedGroup.POST("/orders", handlers.CreateOrder)
-		authenticatedGroup.GET("/orders/:id", handlers.GetOrderById)
-		authenticatedGroup.PUT("/orders/:id/status", handlers.UpdateOrderStatus)
-		authenticatedGroup.PUT("/orders/:id/cancel", handlers.CancelOrder)
-		authenticatedGroup.GET("/orders", handlers.ListOrders)
+		// Cart Routes (Yêu cầu xác thực)
+		authenticated.POST("/carts/add", handlers.AddItemToCart)
+		authenticated.GET("/carts/:userId", handlers.GetCart)
+		authenticated.PUT("/carts/update-quantity", handlers.UpdateCartItemQuantity)
+		authenticated.DELETE("/carts/remove", handlers.RemoveItemFromCart)
+		authenticated.DELETE("/carts/:userId/clear", handlers.ClearCart)
 
-		// Payment Management (authenticated)
-		authenticatedGroup.POST("/payments", handlers.CreatePayment)
-		authenticatedGroup.GET("/payments/:id", handlers.GetPaymentById)
-		authenticatedGroup.POST("/payments/confirm", handlers.ConfirmPayment) // Webhook might bypass this, but for direct call
-		authenticatedGroup.POST("/payments/refund", handlers.RefundPayment)
-		authenticatedGroup.GET("/payments", handlers.ListPayments)
+		// Payment Routes (Yêu cầu xác thực)
+		authenticated.POST("/payments", handlers.CreatePayment)
+		authenticated.GET("/payments/:id", handlers.GetPaymentById)
+		authenticated.POST("/payments/:id/confirm", handlers.ConfirmPayment)
+		authenticated.POST("/payments/:id/refund", handlers.RefundPayment)
+		authenticated.GET("/payments", handlers.ListPayments)
 
-		// Cart Management (authenticated)
-		authenticatedGroup.POST("/carts/add", handlers.AddItemToCart)
-		authenticatedGroup.PUT("/carts/update-quantity", handlers.UpdateCartItemQuantity)
-		authenticatedGroup.DELETE("/carts/remove", handlers.RemoveItemFromCart)
-		authenticatedGroup.GET("/carts/:user_id", handlers.GetCart)            // Get cart for a specific user
-		authenticatedGroup.DELETE("/carts/:user_id/clear", handlers.ClearCart) // Clear cart for a specific user
+		// Shipping Routes (Yêu cầu xác thực)
+		authenticated.POST("/shipping/calculate-cost", handlers.CalculateShippingCost)
+		authenticated.POST("/shipping", handlers.CreateShipment)
+		authenticated.GET("/shipping/:id", handlers.GetShipmentById)
+		authenticated.PUT("/shipping/:id/status", handlers.UpdateShipmentStatus)
+		authenticated.GET("/shipping/:id/track", handlers.TrackShipment)
+		authenticated.GET("/shipping", handlers.ListShipments)
 
-		// Shipping Management (authenticated)
-		authenticatedGroup.POST("/shipping/calculate-cost", handlers.CalculateShippingCost)
-		authenticatedGroup.POST("/shipping", handlers.CreateShipment)
-		authenticatedGroup.GET("/shipping/:id", handlers.GetShipmentById)
-		authenticatedGroup.PUT("/shipping/:id/status", handlers.UpdateShipmentStatus)
-		authenticatedGroup.GET("/shipping/:id/track", handlers.TrackShipment)
-		authenticatedGroup.GET("/shipping", handlers.ListShipments)
+		// Notification Routes (Yêu cầu xác thực)
+		authenticated.POST("/notifications/email", handlers.SendEmail)
+		authenticated.POST("/notifications/sms", handlers.SendSMS)
+		authenticated.POST("/notifications/push", handlers.SendPushNotification)
 
-		// Auth token validation (for internal/testing purposes, might not be exposed directly in production)
-		authenticatedGroup.POST("/auth/validate", handlers.ValidateAuthToken)
+		// Inventory Routes (Yêu cầu xác thực, thường là admin hoặc internal) (THÊM PHẦN NÀY)
+		authenticated.GET("/inventory/:id", handlers.GetStockQuantity) // Get stock by product ID
+		authenticated.POST("/inventory/:id/set", handlers.SetStock)
+		authenticated.POST("/inventory/:id/increase", handlers.IncreaseStock)
+		authenticated.POST("/inventory/:id/decrease", handlers.DecreaseStock)
+		authenticated.POST("/inventory/:id/reserve", handlers.ReserveStock)
+		authenticated.POST("/inventory/:id/release", handlers.ReleaseStock)
 
-		// Notification Service Routes (THÊM PHẦN NÀY)
-		notificationGroup := authenticatedGroup.Group("/notifications") // Có thể đặt dưới /api/v1/notifications
-		{
-			notificationGroup.POST("/email", handlers.SendEmail)
-			notificationGroup.POST("/sms", handlers.SendSMS)
-			notificationGroup.POST("/push", handlers.SendPushNotification)
-			// Thêm các routes khác cho Notification Service (ví dụ: ListNotificationRecords)
-		}
+		// Review Authenticated Routes (Để gửi, cập nhật, xóa đánh giá)
+		authenticated.POST("/reviews", handlers.SubmitReview)        // Submit a new review
+		authenticated.PUT("/reviews/{id}", handlers.UpdateReview)    // Update existing review
+		authenticated.DELETE("/reviews/{id}", handlers.DeleteReview) // Delete a review
 	}
-
-	// Add other service routes here as you develop them
 }
