@@ -84,11 +84,21 @@ func main() {
 		log.Printf("INVENTORY_GRPC_ADDR không được đặt, sử dụng mặc định: %s", inventorySvcAddr)
 	}
 
-	// THÊM: Lấy địa chỉ Review Service từ biến môi trường
 	reviewSvcAddr := os.Getenv("REVIEW_GRPC_ADDR")
 	if reviewSvcAddr == "" {
 		reviewSvcAddr = "localhost:50060"
 		log.Printf("REVIEW_GRPC_ADDR không được đặt, sử dụng mặc định: %s", reviewSvcAddr)
+	}
+
+	searchSvcAddr := os.Getenv("SEARCH_GRPC_ADDR")
+	if searchSvcAddr == "" {
+		searchSvcAddr = "localhost:50061" // Cổng mặc định cho Search Service
+		log.Printf("SEARCH_GRPC_ADDR không được đặt, sử dụng mặc định: %s", searchSvcAddr)
+	}
+
+	recommendationSvcAddr := os.Getenv("RECOMMENDATION_GRPC_ADDR")
+	if recommendationSvcAddr == "" {
+		log.Fatalf("RECOMMENDATION_GRPC_ADDR environment variable is not set")
 	}
 
 	// Khởi tạo các handler của API Gateway với các gRPC client
@@ -103,7 +113,9 @@ func main() {
 		authSvcAddr,
 		notificationSvcAddr,
 		inventorySvcAddr,
-		reviewSvcAddr, // THÊM: Truyền địa chỉ Review Service
+		reviewSvcAddr,
+		searchSvcAddr,
+		recommendationSvcAddr,
 	)
 	if err != nil {
 		log.Fatalf("Không thể khởi tạo Gateway Handlers: %v", err)

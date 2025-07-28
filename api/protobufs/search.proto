@@ -1,0 +1,86 @@
+// api/protobufs/search.proto
+syntax = "proto3";
+
+package search;
+
+option go_package = "github.com/datngth03/ecommerce-go-app/pkg/client/search;search_client";
+
+// SearchService defines the gRPC service for product search.
+// SearchService định nghĩa dịch vụ gRPC cho tìm kiếm sản phẩm.
+service SearchService {
+  // RPC to index a product (add/update it in the search engine)
+  // RPC để lập chỉ mục sản phẩm (thêm/cập nhật vào công cụ tìm kiếm)
+  rpc IndexProduct (IndexProductRequest) returns (IndexProductResponse);
+
+  // RPC to search for products based on keywords and filters
+  // RPC để tìm kiếm sản phẩm dựa trên từ khóa và bộ lọc
+  rpc SearchProducts (SearchProductsRequest) returns (SearchProductsResponse);
+
+  // RPC to delete a product from the search index
+  // RPC để xóa một sản phẩm khỏi chỉ mục tìm kiếm
+  rpc DeleteProductFromIndex (DeleteProductFromIndexRequest) returns (DeleteProductFromIndexResponse);
+}
+
+// Request to index a product.
+// Yêu cầu lập chỉ mục sản phẩm.
+message IndexProductRequest {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  double price = 4;
+  string category_id = 5;
+  repeated string image_urls = 6;
+  int32 stock_quantity = 7;
+  string created_at = 8; // RFC3339 format
+  string updated_at = 9; // RFC3339 format
+}
+
+// Response for indexing a product.
+// Phản hồi khi lập chỉ mục sản phẩm.
+message IndexProductResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Request to search for products.
+// Yêu cầu tìm kiếm sản phẩm.
+message SearchProductsRequest {
+  string query = 1;
+  string category_id = 2;
+  double min_price = 3;
+  double max_price = 4;
+  int32 limit = 5;
+  int32 offset = 6;
+}
+
+// Response for product search.
+// Phản hồi cho tìm kiếm sản phẩm.
+message SearchProductsResponse {
+  repeated SearchProduct products = 1;
+  int64 total_hits = 2; // Total number of matching products
+}
+
+// Represents a product found in search.
+// Đại diện cho một sản phẩm tìm thấy trong tìm kiếm.
+message SearchProduct {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  double price = 4;
+  string category_id = 5;
+  repeated string image_urls = 6;
+  int32 stock_quantity = 7;
+}
+
+// Request to delete a product from the search index.
+// Yêu cầu xóa một sản phẩm khỏi chỉ mục tìm kiếm.
+message DeleteProductFromIndexRequest {
+  string product_id = 1;
+}
+
+// Response for deleting a product from the search index.
+// Phản hồi khi xóa một sản phẩm khỏi chỉ mục tìm kiếm.
+message DeleteProductFromIndexResponse {
+  bool success = 1;
+  string message = 2;
+}
