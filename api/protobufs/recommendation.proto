@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+// Define the Go package for the generated code
+option go_package = "github.com/datngth03/ecommerce-go-app/pkg/client/recommendation;recommendation_client";
+
+// RecommendationService defines the gRPC service for providing product recommendations.
+service RecommendationService {
+  // RPC to record user interaction with a product (e.g., view, purchase)
+  rpc RecordInteraction(RecordInteractionRequest) returns (RecordInteractionResponse);
+  // RPC to get product recommendations for a specific user
+  rpc GetRecommendations(GetRecommendationsRequest) returns (GetRecommendationsResponse);
+  // RPC to get top N popular products (simple recommendation)
+  rpc GetPopularProducts(GetPopularProductsRequest) returns (GetPopularProductsResponse);
+}
+
+// Message representing a product in recommendations
+message RecommendedProduct {
+  string product_id = 1;
+  string name = 2;
+  string image_url = 3; // Main image URL for display
+  double score = 4; // Recommendation score/relevance
+}
+
+// Request for recording a user interaction
+message RecordInteractionRequest {
+  string user_id = 1;
+  string product_id = 2;
+  string event_type = 3; // e.g., "view", "add_to_cart", "purchase"
+  int64 timestamp = 4; // Unix timestamp
+}
+
+// Response for recording a user interaction
+message RecordInteractionResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Request for getting product recommendations for a user
+message GetRecommendationsRequest {
+  string user_id = 1;
+  int32 limit = 2;  // Max number of recommendations to return
+  int32 offset = 3; // Offset for pagination (if needed)
+}
+
+// Response for getting product recommendations
+message GetRecommendationsResponse {
+  repeated RecommendedProduct products = 1;
+  string message = 2;
+}
+
+// Request for getting top N popular products
+message GetPopularProductsRequest {
+  int32 limit = 1; // Max number of popular products to return
+}
+
+// Response for getting top N popular products
+message GetPopularProductsResponse {
+  repeated RecommendedProduct products = 1;
+  string message = 2;
+}

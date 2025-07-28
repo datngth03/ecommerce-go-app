@@ -42,6 +42,27 @@ services:
          retries: 5
       restart: always # Luôn khởi động lại container nếu có sự cố
 
+   # Dịch vụ Elasticsearch cho Search Service
+   elasticsearch:
+      image: docker.elastic.co/elasticsearch/elasticsearch:8.14.0 # Sử dụng phiên bản Elasticsearch 8.14.0
+      container_name: ecommerce_elasticsearch
+      environment:
+         - xpack.security.enabled=false # Tắt bảo mật X-Pack (KHÔNG DÙNG TRONG PRODUCTION)
+         - discovery.type=single-node # Chạy ở chế độ một node (dev/test)
+         - ES_JAVA_OPTS=-Xms512m -Xmx512m # Cấu hình bộ nhớ Java (điều chỉnh nếu cần)
+      ports:
+         - "9200:9200" # Cổng HTTP
+         - "9300:9300" # Cổng Transport (nội bộ, cho client Java/Node.js)
+      volumes:
+         - es_data:/usr/share/elasticsearch/data # Volume dữ liệu Elasticsearch
+      healthcheck:
+         test: ["CMD-SHELL", "curl -f http://localhost:9200"] # Kiểm tra cổng HTTP
+         interval: 10s
+         timeout: 10s
+         retries: 5
+      restart: always
+
 volumes:
    ecommerce_db_data: # Định nghĩa volume để lưu trữ dữ liệu bền vững cho PostgreSQL
    redis_data: # Định nghĩa volume mới cho Redis
+   es_data: # Định nghĩa volume mới cho Elasticsearch

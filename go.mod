@@ -3,6 +3,7 @@ module github.com/datngth03/ecommerce-go-app
 go 1.23.0
 
 require (
+	github.com/elastic/go-elasticsearch/v8 v8.18.1
 	github.com/gin-gonic/gin v1.10.1
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/google/uuid v1.6.0
@@ -10,6 +11,16 @@ require (
 	github.com/lib/pq v1.10.9
 	google.golang.org/grpc v1.73.0
 	google.golang.org/protobuf v1.36.6
+)
+
+require (
+	github.com/elastic/elastic-transport-go/v8 v8.7.0 // indirect
+	github.com/go-logr/logr v1.4.2 // indirect
+	github.com/go-logr/stdr v1.2.2 // indirect
+	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
+	go.opentelemetry.io/otel v1.35.0 // indirect
+	go.opentelemetry.io/otel/metric v1.35.0 // indirect
+	go.opentelemetry.io/otel/trace v1.35.0 // indirect
 )
 
 require (

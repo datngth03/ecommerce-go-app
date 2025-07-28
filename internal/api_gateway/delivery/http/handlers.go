@@ -8,57 +8,65 @@ import (
 	"net/http"
 	"strconv"
 
-	// "time"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status" // Import status for gRPC error handling
 
-	auth_client "github.com/datngth03/ecommerce-go-app/pkg/client/auth"                 // Generated Auth gRPC client
-	cart_client "github.com/datngth03/ecommerce-go-app/pkg/client/cart"                 // Generated Cart gRPC client
-	inventory_client "github.com/datngth03/ecommerce-go-app/pkg/client/inventory"       // Generated Inventory gRPC client
-	notification_client "github.com/datngth03/ecommerce-go-app/pkg/client/notification" // Generated Notification gRPC client
-	order_client "github.com/datngth03/ecommerce-go-app/pkg/client/order"               // Generated Order gRPC client
-	payment_client "github.com/datngth03/ecommerce-go-app/pkg/client/payment"           // Generated Payment gRPC client
-	product_client "github.com/datngth03/ecommerce-go-app/pkg/client/product"           // Generated Product gRPC client
-	review_client "github.com/datngth03/ecommerce-go-app/pkg/client/review"             // Generated Review gRPC client
-	shipping_client "github.com/datngth03/ecommerce-go-app/pkg/client/shipping"         // Generated Shipping gRPC client
-	user_client "github.com/datngth03/ecommerce-go-app/pkg/client/user"                 // Generated User gRPC client
+	auth_client "github.com/datngth03/ecommerce-go-app/pkg/client/auth"                     // Generated Auth gRPC client
+	cart_client "github.com/datngth03/ecommerce-go-app/pkg/client/cart"                     // Generated Cart gRPC client
+	inventory_client "github.com/datngth03/ecommerce-go-app/pkg/client/inventory"           // Generated Inventory gRPC client
+	notification_client "github.com/datngth03/ecommerce-go-app/pkg/client/notification"     // Generated Notification gRPC client
+	order_client "github.com/datngth03/ecommerce-go-app/pkg/client/order"                   // Generated Order gRPC client
+	payment_client "github.com/datngth03/ecommerce-go-app/pkg/client/payment"               // Generated Payment gRPC client
+	product_client "github.com/datngth03/ecommerce-go-app/pkg/client/product"               // Generated Product gRPC client
+	recommendation_client "github.com/datngth03/ecommerce-go-app/pkg/client/recommendation" // Generated Recommendation gRPC client
+	review_client "github.com/datngth03/ecommerce-go-app/pkg/client/review"                 // Generated Review gRPC client
+	search_client "github.com/datngth03/ecommerce-go-app/pkg/client/search"                 // Generated Search gRPC client
+	shipping_client "github.com/datngth03/ecommerce-go-app/pkg/client/shipping"             // Generated Shipping gRPC client
+	user_client "github.com/datngth03/ecommerce-go-app/pkg/client/user"                     // Generated User gRPC client
 )
 
 // GatewayHandlers holds the gRPC clients for backend services.
 // GatewayHandlers chứa các gRPC client cho các dịch vụ backend.
 type GatewayHandlers struct {
-	UserClient         user_client.UserServiceClient
-	ProductClient      product_client.ProductServiceClient
-	OrderClient        order_client.OrderServiceClient
-	PaymentClient      payment_client.PaymentServiceClient
-	CartClient         cart_client.CartServiceClient
-	ShippingClient     shipping_client.ShippingServiceClient
-	AuthClient         auth_client.AuthServiceClient
-	NotificationClient notification_client.NotificationServiceClient
-	InventoryClient    inventory_client.InventoryServiceClient
-	ReviewClient       review_client.ReviewServiceClient // THÊM: ReviewClient
+	UserClient           user_client.UserServiceClient
+	ProductClient        product_client.ProductServiceClient
+	OrderClient          order_client.OrderServiceClient
+	PaymentClient        payment_client.PaymentServiceClient
+	CartClient           cart_client.CartServiceClient
+	ShippingClient       shipping_client.ShippingServiceClient
+	AuthClient           auth_client.AuthServiceClient
+	NotificationClient   notification_client.NotificationServiceClient
+	InventoryClient      inventory_client.InventoryServiceClient
+	ReviewClient         review_client.ReviewServiceClient
+	SearchClient         search_client.SearchServiceClient
+	RecommendationClient recommendation_client.RecommendationServiceClient
 
 	// gRPC connections to be closed
-	userConn         *grpc.ClientConn
-	productConn      *grpc.ClientConn
-	orderConn        *grpc.ClientConn
-	paymentConn      *grpc.ClientConn
-	cartConn         *grpc.ClientConn
-	shippingConn     *grpc.ClientConn
-	authConn         *grpc.ClientConn
-	notificationConn *grpc.ClientConn
-	inventoryConn    *grpc.ClientConn
-	reviewConn       *grpc.ClientConn // THÊM: reviewConn
+	userConn           *grpc.ClientConn
+	productConn        *grpc.ClientConn
+	orderConn          *grpc.ClientConn
+	paymentConn        *grpc.ClientConn
+	cartConn           *grpc.ClientConn
+	shippingConn       *grpc.ClientConn
+	authConn           *grpc.ClientConn
+	notificationConn   *grpc.ClientConn
+	inventoryConn      *grpc.ClientConn
+	reviewConn         *grpc.ClientConn
+	searchConn         *grpc.ClientConn
+	recommendationConn *grpc.ClientConn
 }
 
 // NewGatewayHandlers creates a new instance of GatewayHandlers.
 // NewGatewayHandlers tạo một thể hiện mới của GatewayHandlers.
 func NewGatewayHandlers(
 	userSvcAddr, productSvcAddr, orderSvcAddr, paymentSvcAddr, cartSvcAddr,
-	shippingSvcAddr, authSvcAddr, notificationSvcAddr, inventorySvcAddr, reviewSvcAddr string, // THÊM: reviewSvcAddr
+	shippingSvcAddr, authSvcAddr, notificationSvcAddr, inventorySvcAddr,
+	reviewSvcAddr, searchSvcAddr, recommendationSvcAddr string,
 ) (*GatewayHandlers, error) {
 	var err error
 	var handlers GatewayHandlers
@@ -126,12 +134,27 @@ func NewGatewayHandlers(
 	}
 	handlers.InventoryClient = inventory_client.NewInventoryServiceClient(handlers.inventoryConn)
 
-	// THÊM: Connect to Review Service
+	// Connect to Review Service
 	handlers.reviewConn, err = grpc.Dial(reviewSvcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to Review Service: %w", err)
 	}
 	handlers.ReviewClient = review_client.NewReviewServiceClient(handlers.reviewConn)
+
+	// Connect to Search Service
+	handlers.searchConn, err = grpc.Dial(searchSvcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to Search Service: %w", err)
+	}
+	handlers.SearchClient = search_client.NewSearchServiceClient(handlers.searchConn)
+
+	// Connect to Recommendation Service
+	handlers.recommendationConn, err = grpc.Dial(recommendationSvcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		handlers.CloseConnections()
+		return nil, fmt.Errorf("failed to connect to Recommendation Service: %w", err)
+	}
+	handlers.RecommendationClient = recommendation_client.NewRecommendationServiceClient(handlers.recommendationConn)
 
 	return &handlers, nil
 }
@@ -166,8 +189,11 @@ func (h *GatewayHandlers) CloseConnections() {
 	if h.inventoryConn != nil {
 		h.inventoryConn.Close()
 	}
-	if h.reviewConn != nil { // THÊM: Đóng kết nối Review Service
+	if h.reviewConn != nil {
 		h.reviewConn.Close()
+	}
+	if h.searchConn != nil {
+		h.searchConn.Close()
 	}
 	log.Println("Đã đóng tất cả các kết nối gRPC.")
 }
@@ -2095,6 +2121,277 @@ func (h *GatewayHandlers) ListAllReviews(c *gin.Context) {
 		MinRating: minRating,
 		Limit:     int32(limit),
 		Offset:    int32(offset),
+	})
+	if err != nil {
+		st, ok := status.FromError(err)
+		if ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+// --- Search Service Handlers (THÊM PHẦN NÀY) ---
+
+// IndexProduct godoc
+// @Summary Thêm hoặc cập nhật sản phẩm vào chỉ mục tìm kiếm
+// @Description Cập nhật dữ liệu sản phẩm vào công cụ tìm kiếm để phục vụ tìm kiếm nhanh
+// @Tags Search
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Param product body search_client.IndexProductRequest true "Thông tin sản phẩm"
+// @Success 200 {object} search_client.IndexProductResponse // Đã sửa: Trả về IndexProductResponse
+// @Failure 400 {object} map[string]string "Bad Request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 500 {object} map[string]string "Internal Server Error"
+// @Router /search/products/index [post] // Đã sửa: Thêm /index vào route
+func (h *GatewayHandlers) IndexProduct(c *gin.Context) {
+	var req search_client.IndexProductRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	resp, err := h.SearchClient.IndexProduct(context.Background(), &req) // Lấy resp
+	if err != nil {
+		st, ok := status.FromError(err)
+		if ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, resp) // Trả về resp trực tiếp
+}
+
+// SearchProducts godoc
+// @Summary Tìm kiếm sản phẩm
+// @Description Tìm kiếm sản phẩm theo từ khóa, danh mục, khoảng giá và phân trang
+// @Tags Search
+// @Produce json
+// @Param query query string false "Từ khóa tìm kiếm"
+// @Param category_id query string false "Lọc theo Category ID"
+// @Param min_price query number false "Giá tối thiểu"
+// @Param max_price query number false "Giá tối đa"
+// @Param limit query int false "Số lượng bản ghi tối đa" default(10)
+// @Param offset query int false "Số lượng bản ghi bỏ qua" default(0)
+// @Success 200 {object} search_client.SearchProductsResponse
+// @Failure 400 {object} map[string]string "Bad Request"
+// @Failure 500 {object} map[string]string "Internal Server Error"
+// @Router /search/products [get]
+func (h *GatewayHandlers) SearchProducts(c *gin.Context) {
+	query := c.Query("query")
+	categoryID := c.Query("category_id")
+	minPriceStr := c.Query("min_price")
+	maxPriceStr := c.Query("max_price")
+	limitStr := c.DefaultQuery("limit", "10")
+	offsetStr := c.DefaultQuery("offset", "0")
+
+	limit, err := strconv.ParseInt(limitStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit parameter"})
+		return
+	}
+	offset, err := strconv.ParseInt(offsetStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset parameter"})
+		return
+	}
+
+	var minPrice float64
+	if minPriceStr != "" {
+		minPrice, err = strconv.ParseFloat(minPriceStr, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid min_price parameter"})
+			return
+		}
+	}
+
+	var maxPrice float64
+	if maxPriceStr != "" {
+		maxPrice, err = strconv.ParseFloat(maxPriceStr, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid max_price parameter"})
+			return
+		}
+	}
+
+	resp, err := h.SearchClient.SearchProducts(context.Background(), &search_client.SearchProductsRequest{
+		Query:      query,
+		CategoryId: categoryID,
+		MinPrice:   minPrice,
+		MaxPrice:   maxPrice,
+		Limit:      int32(limit),
+		Offset:     int32(offset),
+	})
+	if err != nil {
+		st, ok := status.FromError(err)
+		if ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+// DeleteProductFromIndex godoc
+// @Summary Xóa sản phẩm khỏi chỉ mục tìm kiếm
+// @Description Xóa một sản phẩm khỏi chỉ mục tìm kiếm theo ID
+// @Tags Search
+// @Security BearerAuth
+// @Produce json
+// @Param id path string true "Product ID"
+// @Success 200 {object} search_client.DeleteProductFromIndexResponse
+// @Failure 400 {object} map[string]string "Bad Request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 404 {object} map[string]string "Not Found"
+// @Failure 500 {object} map[string]string "Internal Server Error"
+// @Router /search/products/{id} [delete]
+func (h *GatewayHandlers) DeleteProductFromIndex(c *gin.Context) {
+	productID := c.Param("id")
+	if productID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Product ID is required"})
+		return
+	}
+
+	resp, err := h.SearchClient.DeleteProductFromIndex(context.Background(), &search_client.DeleteProductFromIndexRequest{ProductId: productID})
+	if err != nil {
+		st, ok := status.FromError(err)
+		if ok {
+			if st.Code() == codes.NotFound {
+				c.JSON(http.StatusNotFound, gin.H{"error": st.Message()})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+// --- Recommendation Service Handlers (THÊM PHẦN NÀY) ---
+
+// RecordInteraction godoc
+// @Summary Ghi lại tương tác người dùng
+// @Description Ghi lại hành vi tương tác của người dùng với sản phẩm (ví dụ: xem, thêm vào giỏ hàng, mua)
+// @Tags Recommendation
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Param interaction body recommendation_client.RecordInteractionRequest true "Thông tin tương tác người dùng"
+// @Success 200 {object} recommendation_client.RecordInteractionResponse
+// @Failure 400 {object} map[string]string "Bad Request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 500 {object} map[string]string "Internal Server Error"
+// @Router /recommendations/interact [post]
+func (h *GatewayHandlers) RecordInteraction(c *gin.Context) {
+	var req recommendation_client.RecordInteractionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Set timestamp if not provided (optional, Recommendation service can set it)
+	if req.GetTimestamp() == 0 {
+		req.Timestamp = time.Now().Unix()
+	}
+
+	resp, err := h.RecommendationClient.RecordInteraction(context.Background(), &req)
+	if err != nil {
+		st, ok := status.FromError(err)
+		if ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+// GetRecommendations godoc
+// @Summary Lấy các gợi ý sản phẩm cho người dùng
+// @Description Lấy danh sách sản phẩm được gợi ý dựa trên lịch sử tương tác của người dùng
+// @Tags Recommendation
+// @Security BearerAuth
+// @Produce json
+// @Param user_id query string true "User ID để lấy gợi ý"
+// @Param limit query int false "Số lượng gợi ý tối đa" default(10)
+// @Param offset query int false "Số lượng gợi ý bỏ qua" default(0)
+// @Success 200 {object} recommendation_client.GetRecommendationsResponse
+// @Failure 400 {object} map[string]string "Bad Request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 500 {object} map[string]string "Internal Server Error"
+// @Router /recommendations [get]
+func (h *GatewayHandlers) GetRecommendations(c *gin.Context) {
+	userID := c.Query("user_id")
+	if userID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID is required for recommendations"})
+		return
+	}
+
+	limitStr := c.DefaultQuery("limit", "10")
+	offsetStr := c.DefaultQuery("offset", "0")
+
+	limit, err := strconv.ParseInt(limitStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit parameter"})
+		return
+	}
+	offset, err := strconv.ParseInt(offsetStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset parameter"})
+		return
+	}
+
+	resp, err := h.RecommendationClient.GetRecommendations(context.Background(), &recommendation_client.GetRecommendationsRequest{
+		UserId: userID,
+		Limit:  int32(limit),
+		Offset: int32(offset),
+	})
+	if err != nil {
+		st, ok := status.FromError(err)
+		if ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+// GetPopularProducts godoc
+// @Summary Lấy danh sách sản phẩm phổ biến
+// @Description Lấy danh sách các sản phẩm được coi là phổ biến nhất dựa trên tương tác chung
+// @Tags Recommendation
+// @Produce json
+// @Param limit query int false "Số lượng sản phẩm phổ biến tối đa" default(10)
+// @Success 200 {object} recommendation_client.GetPopularProductsResponse
+// @Failure 400 {object} map[string]string "Bad Request"
+// @Failure 500 {object} map[string]string "Internal Server Error"
+// @Router /recommendations/popular [get]
+func (h *GatewayHandlers) GetPopularProducts(c *gin.Context) {
+	limitStr := c.DefaultQuery("limit", "10")
+
+	limit, err := strconv.ParseInt(limitStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit parameter"})
+		return
+	}
+
+	resp, err := h.RecommendationClient.GetPopularProducts(context.Background(), &recommendation_client.GetPopularProductsRequest{
+		Limit: int32(limit),
 	})
 	if err != nil {
 		st, ok := status.FromError(err)

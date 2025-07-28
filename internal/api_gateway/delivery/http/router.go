@@ -36,6 +36,12 @@ func RegisterRoutes(router *gin.Engine, handlers *GatewayHandlers) {
 		public.GET("/reviews", handlers.ListAllReviews)                            // List all reviews with filters
 		public.GET("/reviews/:id", handlers.GetReviewById)                         // Get review by ID
 		public.GET("/reviews/products/:product_id", handlers.ListReviewsByProduct) // List reviews by product
+
+		// Search Public Routes (Tìm kiếm sản phẩm, không yêu cầu xác thực)
+		public.GET("/search/products", handlers.SearchProducts) // Example: GET /api/v1/search/products?query=laptop&limit=10
+
+		// Recommendation Public Routes
+		public.GET("/recommendations/popular", handlers.GetPopularProducts) // Lấy sản phẩm phổ biến
 	}
 
 	// Authenticated Routes (Yêu cầu xác thực JWT)
@@ -98,5 +104,13 @@ func RegisterRoutes(router *gin.Engine, handlers *GatewayHandlers) {
 		authenticated.POST("/reviews", handlers.SubmitReview)        // Submit a new review
 		authenticated.PUT("/reviews/{id}", handlers.UpdateReview)    // Update existing review
 		authenticated.DELETE("/reviews/{id}", handlers.DeleteReview) // Delete a review
+
+		// Search Authenticated Routes (Để lập chỉ mục/xóa chỉ mục, thường là admin hoặc internal)
+		authenticated.POST("/search/products/index", handlers.IndexProduct)           // Index a product
+		authenticated.DELETE("/search/products/:id", handlers.DeleteProductFromIndex) // Delete from index
+
+		// Recommendation Routes (Yêu cầu xác thực cho thao tác ghi tương tác, gợi ý theo người dùng)
+		authenticated.POST("/recommendations/interact", handlers.RecordInteraction)
+		authenticated.GET("/recommendations", handlers.GetRecommendations) // Gợi ý cho người dùng cụ thể
 	}
 }
