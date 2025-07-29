@@ -1,73 +1,86 @@
-// cmd/review-service/main.go
 package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
-	"log"
 	"net"
 	"os"
-	"time"
+	"os/signal" // Import for graceful shutdown
+	"syscall"   // Import for graceful shutdown
+	"time"      // To use time.Duration
 
-	"github.com/joho/godotenv"
+	"github.com/joho/godotenv" // To read environment variables from .env file
+	_ "github.com/lib/pq"      // PostgreSQL driver
+	"go.uber.org/zap"          // Add zap for structured logging
+
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/reflection"
-
-	"database/sql"
-
-	_ "github.com/lib/pq" // PostgreSQL driver
+	"google.golang.org/grpc/credentials/insecure" // For insecure gRPC connections (dev only)
+	"google.golang.org/grpc/reflection"           // For gRPC reflection (useful for client tools)
 
 	"github.com/datngth03/ecommerce-go-app/internal/review/application"
 	review_grpc_delivery "github.com/datngth03/ecommerce-go-app/internal/review/delivery/grpc"
 	"github.com/datngth03/ecommerce-go-app/internal/review/infrastructure/repository"
-	product_client "github.com/datngth03/ecommerce-go-app/pkg/client/product" // Import Product gRPC client
+	"github.com/datngth03/ecommerce-go-app/internal/shared/logger"            // Add shared logger
+	product_client "github.com/datngth03/ecommerce-go-app/pkg/client/product" // Product Service Client
 	review_client "github.com/datngth03/ecommerce-go-app/pkg/client/review"   // Generated Review gRPC client
 )
 
+// main is the entry point for the Review Service.
 func main() {
-	// Load environment variables from .env file
+	// Initialize logger at the very beginning
+	logger.InitLogger()
+	defer logger.SyncLogger() // Ensure all buffered logs are written before exiting
+
+	// Load environment variables from .env file (if any)
 	if err := godotenv.Load(); err != nil {
-		log.Printf("No .env file found, using system environment variables: %v", err)
+		logger.Logger.Info("No .env file found, falling back to system environment variables.", zap.Error(err))
 	}
 
 	// Get gRPC port for Review Service
 	grpcPort := os.Getenv("GRPC_PORT_REVIEW")
 	if grpcPort == "" {
 		grpcPort = "50060" // Default port for Review Service
+		logger.Logger.Info("GRPC_PORT_REVIEW not set, using default", zap.String("port", grpcPort))
 	}
 
 	// Get Database URL
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
-		log.Fatalf("DATABASE_URL environment variable not set.")
+		logger.Logger.Fatal("DATABASE_URL environment variable not set.")
 	}
 
 	// Connect to PostgreSQL database
 	db, err := sql.Open("postgres", databaseURL)
 	if err != nil {
-		log.Fatalf("Failed to connect to PostgreSQL database: %v", err)
+		logger.Logger.Fatal("Failed to connect to PostgreSQL database", zap.Error(err))
 	}
-	defer db.Close()
+	defer db.Close() // Ensure DB connection is closed on application exit
+
+	// Set connection pool settings (optional but recommended for production)
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(25)
+	db.SetConnMaxLifetime(5 * time.Minute)
 
 	// Ping database to verify connection
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err = db.PingContext(ctx); err != nil {
-		log.Fatalf("Failed to ping PostgreSQL database: %v", err)
+	pingCtx, pingCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer pingCancel()
+	if err = db.PingContext(pingCtx); err != nil {
+		logger.Logger.Fatal("Failed to ping PostgreSQL database", zap.Error(err))
 	}
-	log.Println("Successfully connected to PostgreSQL database for Review Service.")
+	logger.Logger.Info("Successfully connected to PostgreSQL database for Review Service.")
 
 	// Get Product Service address
 	productSvcAddr := os.Getenv("PRODUCT_GRPC_ADDR")
 	if productSvcAddr == "" {
 		productSvcAddr = "localhost:50052" // Default port for Product Service
+		logger.Logger.Info("PRODUCT_GRPC_ADDR not set, using default", zap.String("address", productSvcAddr))
 	}
 
 	// Connect to Product Service
 	productConn, err := grpc.Dial(productSvcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.Fatalf("Failed to connect to Product Service: %v", err)
+		logger.Logger.Fatal("Failed to connect to Product Service", zap.String("address", productSvcAddr), zap.Error(err))
 	}
 	defer productConn.Close()
 	productClient := product_client.NewProductServiceClient(productConn)
@@ -84,7 +97,7 @@ func main() {
 	// Create a listener on the defined port
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", grpcPort))
 	if err != nil {
-		log.Fatalf("Failed to listen on port %s: %v", grpcPort, err)
+		logger.Logger.Fatal("Failed to listen on gRPC port", zap.String("port", grpcPort), zap.Error(err))
 	}
 
 	// Create a new gRPC server instance
@@ -96,10 +109,21 @@ func main() {
 	// Register reflection service (useful for gRPC client tools)
 	reflection.Register(s)
 
-	log.Printf("Review Service (gRPC) listening on port :%s...", grpcPort)
+	logger.Logger.Info("Review Service (gRPC) listening on port", zap.String("port", grpcPort))
 
-	// Start gRPC server
-	if err := s.Serve(lis); err != nil {
-		log.Fatalf("Failed to serve gRPC server: %v", err)
-	}
+	// Start gRPC server in a goroutine
+	go func() {
+		if err := s.Serve(lis); err != nil {
+			logger.Logger.Fatal("Failed to serve gRPC server", zap.Error(err))
+		}
+	}()
+
+	// Graceful shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit // This line blocks until a signal is received
+
+	logger.Logger.Info("Shutting down Review Service gracefully...")
+	s.GracefulStop() // Gracefully stop the gRPC server
+	logger.Logger.Info("Review Service stopped.")
 }

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/datngth03/ecommerce-go-app/internal/inventory/domain"
@@ -117,7 +118,7 @@ func (s *inventoryService) DecreaseStock(ctx context.Context, req *inventory_cli
 
 	item, err := s.inventoryRepo.FindByProductID(ctx, req.GetProductId())
 	if err != nil {
-		if errors.Is(err, errors.New("inventory item not found")) {
+		if errors.Is(err, domain.ErrInventoryNotFound) {
 			return nil, errors.New("inventory item not found for decrease operation")
 		}
 		return nil, fmt.Errorf("failed to retrieve inventory item: %w", err)
@@ -225,10 +226,13 @@ func (s *inventoryService) SetStock(ctx context.Context, req *inventory_client.S
 
 	item, err := s.inventoryRepo.FindByProductID(ctx, req.GetProductId())
 	if err != nil {
-		if errors.Is(err, errors.New("inventory item not found")) {
-			// If not found, create a new one
+		log.Printf("DEBUG: actual error returned from FindByProductID: %v", err)
+
+		if errors.Is(err, domain.ErrInventoryNotFound) {
+			log.Println("✅ Đúng là ErrInventoryNotFound → tạo mới")
 			item = domain.NewInventoryItem(req.GetProductId(), req.GetQuantity())
 		} else {
+			log.Println("❌ Không phải ErrInventoryNotFound → return")
 			return nil, fmt.Errorf("failed to retrieve inventory item: %w", err)
 		}
 	} else {

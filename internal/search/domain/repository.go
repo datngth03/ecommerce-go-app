@@ -9,10 +9,11 @@ import (
 // Sentinel errors for Search Service.
 // Lỗi Sentinel cho Search Service.
 var (
-	ErrProductNotFoundInSearch = errors.New("product not found in search index")
-	ErrFailedToIndexProduct    = errors.New("failed to index product")
-	ErrFailedToSearchProducts  = errors.New("failed to search products")
-	ErrFailedToDeleteFromIndex = errors.New("failed to delete product from index")
+	ErrProductNotFoundInSearch        = errors.New("product not found in search index")
+	ErrFailedToIndexProduct           = errors.New("failed to index product")
+	ErrFailedToSearchProducts         = errors.New("failed to search products")
+	ErrFailedToDeleteFromIndex        = errors.New("failed to delete product from index")
+	ErrFailedToDeleteProductFromIndex = errors.New("failed to delete product from search index")
 )
 
 // SearchProductRepository defines the interface for interacting with product search data.

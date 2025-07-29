@@ -54,7 +54,7 @@ services:
          - "9200:9200" # Cổng HTTP
          - "9300:9300" # Cổng Transport (nội bộ, cho client Java/Node.js)
       volumes:
-         - es_data:/usr/share/elasticsearch/data # Volume dữ liệu Elasticsearch
+         - elasticsearch_data:/usr/share/elasticsearch/data # Volume dữ liệu Elasticsearch
       healthcheck:
          test: ["CMD-SHELL", "curl -f http://localhost:9200"] # Kiểm tra cổng HTTP
          interval: 10s
@@ -62,7 +62,85 @@ services:
          retries: 5
       restart: always
 
+   # THÊM: Dịch vụ Zookeeper cho Kafka
+   zookeeper:
+      image: confluentinc/cp-zookeeper:7.6.0
+      container_name: ecommerce_zookeeper
+      ports:
+         - "2181:2181"
+      environment:
+         ZOOKEEPER_CLIENT_PORT: 2181
+         ZOOKEEPER_TICK_TIME: 2000
+      restart: always
+
+   # THÊM: Dịch vụ Kafka
+   kafka:
+      image: confluentinc/cp-kafka:7.6.0
+      container_name: ecommerce_kafka
+      ports:
+         - "9092:9092" # Cổng lắng nghe client
+      environment:
+         KAFKA_BROKER_ID: 1
+         KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181 # Kết nối đến Zookeeper container
+         KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+         KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+         KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+         KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+         KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+         KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      depends_on:
+         - zookeeper # Kafka phụ thuộc vào Zookeeper
+      restart: always
+   # THÊM: Dịch vụ Prometheus (thu thập metrics)
+   prometheus:
+      image: prom/prometheus:v2.52.0
+      container_name: ecommerce_prometheus
+      ports:
+         - "9090:9090" # Cổng Prometheus UI
+      volumes:
+         - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml # Mount file cấu hình
+      command: --config.file=/etc/prometheus/prometheus.yml --web.enable-remote-write-receiver --storage.tsdb.retention.time=15d # Giữ dữ liệu 15 ngày
+      depends_on:
+         - core_db # Prometheus cần các service để scrape
+         - redis
+         - elasticsearch
+         - kafka
+      restart: always
+
+   # THÊM: Dịch vụ Grafana (trực quan hóa metrics)
+   grafana:
+      image: grafana/grafana:10.4.3
+      container_name: ecommerce_grafana
+      ports:
+         - "3000:3000" # Cổng Grafana UI
+      volumes:
+         - grafana_data:/var/lib/grafana # Volume lưu trữ dữ liệu Grafana (dashboard, datasource)
+         - ./docker/grafana/datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yaml # Cấu hình datasource
+      environment:
+         - GF_SECURITY_ADMIN_USER=admin
+         - GF_SECURITY_ADMIN_PASSWORD=admin # Mật khẩu admin mặc định (ĐỔI TRONG PRODUCTION!)
+      depends_on:
+         - prometheus # Grafana cần Prometheus làm nguồn dữ liệu
+      restart: always
+
+   # THÊM: Dịch vụ Jaeger (theo dõi phân tán - tracing)
+   jaeger:
+      image: jaegertracing/all-in-one:1.56
+      container_name: ecommerce_jaeger
+      ports:
+         - "6831:6831/udp" # Agent UDP Thrift
+         - "16686:16686" # Jaeger UI
+         - "14268:14268" # Collector HTTP Thrift
+         - "14250:14250" # Collector gRPC
+      environment:
+         - COLLECTOR_ZIPKIN_HOST_PORT=9411
+         - COLLECTOR_OTLP_ENABLED=true # Enable OpenTelemetry Protocol (OTLP)
+      restart: always
+
 volumes:
-   ecommerce_db_data: # Định nghĩa volume để lưu trữ dữ liệu bền vững cho PostgreSQL
-   redis_data: # Định nghĩa volume mới cho Redis
-   es_data: # Định nghĩa volume mới cho Elasticsearch
+   ecommerce_db_data: # Định nghĩa volume cho PostgreSQL
+   redis_data: # Định nghĩa volume cho Redis
+   elasticsearch_data: # Định nghĩa volume cho Elasticsearch
+   kafka_data: # THÊM: Định nghĩa volume cho Kafka (nếu cần lưu giữ dữ liệu Kafka)
+   grafana_data: # THÊM: Định nghĩa volume cho Grafana
+

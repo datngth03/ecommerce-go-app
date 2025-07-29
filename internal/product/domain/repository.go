@@ -3,6 +3,14 @@ package domain
 
 import (
 	"context"
+	"errors"
+)
+
+var (
+	ErrCategoryNotFound    = errors.New("category not found")
+	ErrProductNotFound     = errors.New("product not found")
+	ErrInvalidProductData  = errors.New("invalid product data")
+	ErrInvalidCategoryData = errors.New("invalid category data")
 )
 
 // ProductRepository defines the interface for product data operations.

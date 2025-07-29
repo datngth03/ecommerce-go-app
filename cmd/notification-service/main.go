@@ -1,17 +1,18 @@
-// cmd/notification-service/main.go
 package main
 
 import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"net"
 	"os"
+	"os/signal" // Import cho graceful shutdown
+	"syscall"   // Import cho graceful shutdown
 	"time"
 
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq" // PostgreSQL driver
+	"go.uber.org/zap"     // THÊM: Import zap để dùng zap.Error
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -19,34 +20,40 @@ import (
 	"github.com/datngth03/ecommerce-go-app/internal/notification/application"
 	notification_grpc_delivery "github.com/datngth03/ecommerce-go-app/internal/notification/delivery/grpc"
 	"github.com/datngth03/ecommerce-go-app/internal/notification/infrastructure/repository" // Import repository
+	"github.com/datngth03/ecommerce-go-app/internal/shared/logger"                          // THÊM: Import logger mới
 	notification_client "github.com/datngth03/ecommerce-go-app/pkg/client/notification"     // Generated Notification gRPC client
 )
 
 // main is the entry point for the Notification Service.
 func main() {
-	// Load environment variables from .env file (if any)
+	// Khởi tạo logger ngay từ đầu
+	logger.InitLogger()
+	defer logger.SyncLogger() // Đảm bảo tất cả log được ghi trước khi ứng dụng thoát
+
+	// Load .env file
 	if err := godotenv.Load(); err != nil {
-		log.Printf("No .env file found, using system environment variables: %v", err)
+		// Dùng logger mới để log, không dùng log.Printf/Println nữa
+		logger.Logger.Info("Không tìm thấy file .env, tiếp tục mà không load biến môi trường.", zap.Error(err))
 	}
 
 	// Get gRPC port from environment variable "GRPC_PORT_NOTIFICATION"
 	grpcPort := os.Getenv("GRPC_PORT_NOTIFICATION")
 	if grpcPort == "" {
 		grpcPort = "50058" // Default port for Notification Service
+		logger.Logger.Info("GRPC_PORT_NOTIFICATION không được đặt, sử dụng mặc định", zap.String("port", grpcPort))
 	}
 
 	// Get DB connection string from environment variable "DATABASE_URL"
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
-		// Default connection string for PostgreSQL in Docker Compose
-		databaseURL = "postgres://user:password@localhost:5432/ecommerce_core_db?sslmode=disable"
-		log.Printf("No DATABASE_URL environment variable found, using default: %s", databaseURL)
+		// Dùng logger.Logger.Fatal để thoát nếu biến môi trường quan trọng không có
+		logger.Logger.Fatal("DATABASE_URL environment variable is not set")
 	}
 
 	// Initialize PostgreSQL database connection
 	db, err := sql.Open("postgres", databaseURL)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		logger.Logger.Fatal("Không thể kết nối đến PostgreSQL", zap.Error(err))
 	}
 	defer db.Close()
 
@@ -55,13 +62,13 @@ func main() {
 	db.SetMaxIdleConns(25)
 	db.SetConnMaxLifetime(5 * time.Minute)
 
-	// Ping DB to check connection
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err = db.PingContext(ctx); err != nil {
-		log.Fatalf("Failed to ping database: %v", err)
+	// Ping the database to verify connection
+	pingCtx, pingCancel := context.WithTimeout(context.Background(), 5*time.Second) // Dùng context.WithTimeout cho ping ngắn
+	defer pingCancel()
+	if err = db.PingContext(pingCtx); err != nil {
+		logger.Logger.Fatal("Không thể ping cơ sở dữ liệu PostgreSQL", zap.Error(err))
 	}
-	log.Println("Successfully connected to PostgreSQL database for Notification Service.")
+	logger.Logger.Info("Đã kết nối thành công đến cơ sở dữ liệu PostgreSQL cho Notification Service.")
 
 	// Initialize PostgreSQL Notification Repository
 	notificationRepo := repository.NewPostgreSQLNotificationRepository(db)
@@ -70,12 +77,12 @@ func main() {
 	notificationService := application.NewNotificationService(notificationRepo)
 
 	// Initialize gRPC Server
-	grpcServer := notification_grpc_delivery.NewNotificationGRPCServer(notificationService) // We will create this next
+	grpcServer := notification_grpc_delivery.NewNotificationGRPCServer(notificationService)
 
 	// Create a listener on the defined port
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", grpcPort))
 	if err != nil {
-		log.Fatalf("Failed to listen on port %s: %v", grpcPort, err)
+		logger.Logger.Fatal("Không thể lắng nghe cổng gRPC", zap.String("port", grpcPort), zap.Error(err))
 	}
 
 	// Create a new gRPC server instance
@@ -87,11 +94,21 @@ func main() {
 	// Register reflection service.
 	reflection.Register(s)
 
-	log.Printf("Notification Service (gRPC) listening on port :%s...", grpcPort)
+	logger.Logger.Info("Notification Service (gRPC) đang lắng nghe", zap.String("port", grpcPort))
 
-	// Start the gRPC server
-	if err := s.Serve(lis); err != nil {
-		log.Fatalf("Failed to serve gRPC server: %v", err)
-	}
+	// Start the gRPC server in a goroutine
+	go func() {
+		if err := s.Serve(lis); err != nil {
+			logger.Logger.Fatal("Không thể phục vụ gRPC server", zap.Error(err))
+		}
+	}()
+
+	// Graceful shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit // Dòng này block cho đến khi nhận được tín hiệu
+
+	logger.Logger.Info("Đang tắt Notification Service một cách nhẹ nhàng...")
+	s.GracefulStop() // Gracefully stop the gRPC server
+	logger.Logger.Info("Notification Service đã tắt.")
 }
-

@@ -1,0 +1,29 @@
+    # docker/prometheus/prometheus.yml
+    global:
+      scrape_interval: 15s # Thu thập metrics mỗi 15 giây
+      evaluation_interval: 15s # Đánh giá các quy tắc cảnh báo mỗi 15 giây
+
+    scrape_configs:
+      - job_name: 'prometheus'
+        static_configs:
+          - targets: ['localhost:9090'] # Tự giám sát Prometheus
+
+      - job_name: 'go_microservices' # Giám sát các microservice Go của bạn
+        static_configs:
+          - targets:
+              - 'localhost:50051' # User Service metrics
+              - 'localhost:50052' # Product Service metrics
+              - 'localhost:50053' # Order Service metrics
+              - 'localhost:50054' # Cart Service metrics
+              - 'localhost:50055' # Payment Service metrics
+              - 'localhost:50056' # Shipping Service metrics
+              - 'localhost:50057' # Auth Service metrics
+              - 'localhost:50058' # Notification Service metrics
+              - 'localhost:50059' # Inventory Service metrics
+              - 'localhost:50060' # Review Service metrics
+              - 'localhost:50061' # Search Service metrics
+              - 'localhost:50062' # Recommendation Service metrics
+              - 'localhost:8080'  # API Gateway metrics
+        # Các metrics của Go ứng dụng thường được expose tại /metrics
+        metrics_path: /metrics
+    

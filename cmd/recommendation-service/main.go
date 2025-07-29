@@ -1,69 +1,95 @@
-// cmd/recommendation-service/main.go
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"net"
 	"os"
-	"time" // Để sử dụng time.Duration
+	"os/signal" // Import for graceful shutdown
+	"syscall"   // Import for graceful shutdown
+	"time"      // To use time.Duration
 
-	"github.com/joho/godotenv" // Để đọc biến môi trường từ file .env
+	"github.com/joho/godotenv" // To read environment variables from .env file
 	_ "github.com/lib/pq"      // PostgreSQL driver
+	"go.uber.org/zap"          // Add zap for structured logging
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure" // Cho kết nối gRPC không mã hóa (chỉ trong dev)
-	"google.golang.org/grpc/reflection"           // Cho phép gRPC reflection (hữu ích cho công cụ client)
+	"google.golang.org/grpc/credentials/insecure" // For insecure gRPC connections (dev only)
+	"google.golang.org/grpc/reflection"           // For gRPC reflection (useful for client tools)
 
 	"github.com/datngth03/ecommerce-go-app/internal/recommendation/application"
 	recommendation_grpc_delivery "github.com/datngth03/ecommerce-go-app/internal/recommendation/delivery/grpc"
+	"github.com/datngth03/ecommerce-go-app/internal/recommendation/infrastructure/messaging" // Add Kafka consumer
 	"github.com/datngth03/ecommerce-go-app/internal/recommendation/infrastructure/repository"
-	product_client "github.com/datngth03/ecommerce-go-app/pkg/client/product" // Client cho Product Service
+	"github.com/datngth03/ecommerce-go-app/internal/shared/logger"            // Add shared logger
+	product_client "github.com/datngth03/ecommerce-go-app/pkg/client/product" // Product Service Client
 
-	// Import mã gRPC đã tạo cho Recommendation Service
+	// Generated gRPC client for Recommendation Service
 	recommendation_client "github.com/datngth03/ecommerce-go-app/pkg/client/recommendation"
 )
 
-// init loads environment variables from .env file.
-func init() {
-	if err := godotenv.Load(); err != nil {
-		log.Printf("Warning: .env file not loaded, falling back to environment variables: %v", err)
-	}
-}
-
 // main is the entry point for the Recommendation Service.
 func main() {
-	// Get gRPC port from environment variable, default to 50061
+	// Initialize logger at the very beginning
+	logger.InitLogger()
+	defer logger.SyncLogger() // Ensure all buffered logs are written before exiting
+
+	// Load environment variables from .env file (if any)
+	if err := godotenv.Load(); err != nil {
+		logger.Logger.Info("No .env file found, falling back to system environment variables.", zap.Error(err))
+	}
+
+	// Get gRPC port from environment variable, default to 50062
 	grpcPort := os.Getenv("GRPC_PORT_RECOMMENDATION")
 	if grpcPort == "" {
-		grpcPort = "50061" // Cổng mặc định cho Recommendation Service
+		grpcPort = "50062" // Default port for Recommendation Service
+		logger.Logger.Info("GRPC_PORT_RECOMMENDATION not set, using default", zap.String("port", grpcPort))
 	}
 
 	// Get Product Service gRPC address
 	productSvcAddr := os.Getenv("PRODUCT_GRPC_ADDR")
 	if productSvcAddr == "" {
-		productSvcAddr = "localhost:50052" // Địa chỉ mặc định của Product Service
+		productSvcAddr = "localhost:50052" // Default address for Product Service
+		logger.Logger.Info("PRODUCT_GRPC_ADDR not set, using default", zap.String("address", productSvcAddr))
+	}
+
+	// Get Kafka broker address and topic
+	kafkaBroker := os.Getenv("KAFKA_BROKER_ADDR")
+	if kafkaBroker == "" {
+		kafkaBroker = "localhost:9092"
+		logger.Logger.Info("KAFKA_BROKER_ADDR not set, using default", zap.String("address", kafkaBroker))
+	}
+	productEventsTopic := os.Getenv("KAFKA_PRODUCT_EVENTS_TOPIC")
+	if productEventsTopic == "" {
+		productEventsTopic = "product_events"
+		logger.Logger.Info("KAFKA_PRODUCT_EVENTS_TOPIC not set, using default", zap.String("topic", productEventsTopic))
+	}
+	kafkaConsumerGroupID := os.Getenv("KAFKA_RECOMMENDATION_CONSUMER_GROUP_ID") // Group ID for Recommendation consumer
+	if kafkaConsumerGroupID == "" {
+		kafkaConsumerGroupID = "recommendation-service-group"
+		logger.Logger.Info("KAFKA_RECOMMENDATION_CONSUMER_GROUP_ID not set, using default", zap.String("group_id", kafkaConsumerGroupID))
 	}
 
 	// Connect to PostgreSQL database
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		log.Fatalf("DATABASE_URL environment variable is not set")
+		logger.Logger.Fatal("DATABASE_URL environment variable is not set")
 	}
 
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
-		log.Fatalf("Failed to connect to PostgreSQL database: %v", err)
+		logger.Logger.Fatal("Failed to connect to PostgreSQL database", zap.Error(err))
 	}
-	defer db.Close() // Đảm bảo đóng kết nối DB khi ứng dụng tắt
+	defer db.Close() // Ensure DB connection is closed on application exit
 
 	// Ping database to verify connection
-	err = db.Ping()
-	if err != nil {
-		log.Fatalf("Failed to ping PostgreSQL database: %v", err)
+	pingCtx, pingCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer pingCancel()
+	if err = db.PingContext(pingCtx); err != nil {
+		logger.Logger.Fatal("Failed to ping PostgreSQL database", zap.Error(err))
 	}
-	log.Println("Successfully connected to PostgreSQL database for Recommendation Service.")
+	logger.Logger.Info("Successfully connected to PostgreSQL database for Recommendation Service.")
 
 	// Set connection pool settings (optional but recommended for production)
 	db.SetMaxOpenConns(25)
@@ -76,7 +102,7 @@ func main() {
 	// Initialize Product Service gRPC client
 	productConn, err := grpc.Dial(productSvcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.Fatalf("Failed to connect to Product Service for Recommendation: %v", err)
+		logger.Logger.Fatal("Failed to connect to Product Service for Recommendation", zap.String("address", productSvcAddr), zap.Error(err))
 	}
 	defer productConn.Close()
 	prodClient := product_client.NewProductServiceClient(productConn)
@@ -84,10 +110,27 @@ func main() {
 	// Initialize Application Service
 	recommendationService := application.NewRecommendationService(interactionRepo, prodClient)
 
+	// Context for Kafka Consumer and gRPC server for graceful shutdown
+	rootCtx, rootCancel := context.WithCancel(context.Background())
+	defer rootCancel() // Ensure context is cancelled on main exit
+
+	// Initialize Kafka Product Event Consumer
+	productEventConsumer := messaging.NewKafkaProductEventConsumer(
+		kafkaBroker,
+		productEventsTopic,
+		kafkaConsumerGroupID,
+		recommendationService,
+	)
+	defer productEventConsumer.Close()
+
+	// Start Kafka consumer in a goroutine
+	go productEventConsumer.StartConsuming(rootCtx)
+	logger.Logger.Info("Recommendation Service: Started consuming events from Kafka topic", zap.String("topic", productEventsTopic))
+
 	// Create a listener on the defined gRPC port
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", grpcPort))
 	if err != nil {
-		log.Fatalf("Failed to listen on gRPC port %s: %v", grpcPort, err)
+		logger.Logger.Fatal("Failed to listen on gRPC port", zap.String("port", grpcPort), zap.Error(err))
 	}
 
 	// Create a new gRPC server instance
@@ -100,10 +143,22 @@ func main() {
 	// to discover available services and methods without .proto files.
 	reflection.Register(s)
 
-	log.Printf("Recommendation Service (gRPC) listening on port :%s...", grpcPort)
+	logger.Logger.Info("Recommendation Service (gRPC) listening on port", zap.String("port", grpcPort))
 
-	// Start the gRPC server
-	if err := s.Serve(lis); err != nil {
-		log.Fatalf("Failed to serve gRPC server: %v", err)
-	}
+	// Start the gRPC server in a goroutine
+	go func() {
+		if err := s.Serve(lis); err != nil {
+			logger.Logger.Fatal("Failed to serve gRPC server", zap.Error(err))
+		}
+	}()
+
+	// Graceful shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit // This line blocks until a signal is received
+
+	logger.Logger.Info("Shutting down Recommendation Service gracefully...")
+	rootCancel()     // Cancel context to stop consumer and other goroutines
+	s.GracefulStop() // Gracefully stop the gRPC server
+	logger.Logger.Info("Recommendation Service stopped.")
 }

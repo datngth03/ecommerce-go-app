@@ -231,7 +231,7 @@ func (r *PostgreSQLCategoryRepository) FindByName(ctx context.Context, name stri
 	err := row.Scan(&category.ID, &category.Name, &category.Description, &category.CreatedAt, &category.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, errors.New("category not found")
+			return nil, domain.ErrCategoryNotFound
 		}
 		return nil, fmt.Errorf("failed to find category by name: %w", err)
 	}
