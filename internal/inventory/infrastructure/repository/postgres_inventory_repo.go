@@ -53,7 +53,7 @@ func (r *PostgreSQLInventoryRepository) FindByProductID(ctx context.Context, pro
 	err := row.Scan(&item.ProductID, &item.Quantity, &item.ReservedQuantity, &item.LastUpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, errors.New("inventory item not found") // Specific error for not found
+			return nil, fmt.Errorf("%w", domain.ErrInventoryNotFound)
 		}
 		return nil, fmt.Errorf("failed to find inventory item by product ID: %w", err)
 	}

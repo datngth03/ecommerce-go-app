@@ -3,7 +3,10 @@ package domain
 
 import (
 	"context"
+	"errors"
 )
+
+var ErrInventoryNotFound = errors.New("inventory item not found")
 
 // InventoryRepository defines the interface for inventory data operations.
 type InventoryRepository interface {

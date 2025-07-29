@@ -5,15 +5,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log" // Thêm import log
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/datngth03/ecommerce-go-app/internal/product/domain"
-	product_client "github.com/datngth03/ecommerce-go-app/pkg/client/product" // Generated gRPC client
-	"github.com/google/uuid"                                                  // For generating UUIDs
+	"github.com/datngth03/ecommerce-go-app/internal/product/infrastructure/messaging" // THÊM: Import messaging package
+	product_client "github.com/datngth03/ecommerce-go-app/pkg/client/product"         // Generated gRPC client
 )
 
 // ProductService defines the application service interface for product-related operations.
-// ProductService định nghĩa interface dịch vụ ứng dụng cho các thao tác liên quan đến sản phẩm.
 type ProductService interface {
 	CreateProduct(ctx context.Context, req *product_client.CreateProductRequest) (*product_client.ProductResponse, error)
 	GetProductById(ctx context.Context, req *product_client.GetProductByIdRequest) (*product_client.ProductResponse, error)
@@ -27,27 +29,28 @@ type ProductService interface {
 }
 
 // productService implements the ProductService interface.
-// productService triển khai interface ProductService.
 type productService struct {
-	productRepo  domain.ProductRepository
-	categoryRepo domain.CategoryRepository
-	// TODO: Add other dependencies like event publisher, inventory client
-	// Thêm các dependency khác như trình phát sự kiện, client Inventory
+	productRepo    domain.ProductRepository
+	categoryRepo   domain.CategoryRepository
+	eventPublisher messaging.ProductEventPublisher // THÊM: Event Publisher
 }
 
 // NewProductService creates a new instance of ProductService.
-// NewProductService tạo một thể hiện mới của ProductService.
-func NewProductService(productRepo domain.ProductRepository, categoryRepo domain.CategoryRepository) ProductService {
+func NewProductService(
+	productRepo domain.ProductRepository,
+	categoryRepo domain.CategoryRepository,
+	eventPublisher messaging.ProductEventPublisher, // THÊM: eventPublisher
+) ProductService {
 	return &productService{
-		productRepo:  productRepo,
-		categoryRepo: categoryRepo,
+		productRepo:    productRepo,
+		categoryRepo:   categoryRepo,
+		eventPublisher: eventPublisher, // THÊM:
 	}
 }
 
 // --- Product Use Cases ---
 
 // CreateProduct handles the creation of a new product.
-// CreateProduct xử lý việc tạo một sản phẩm mới.
 func (s *productService) CreateProduct(ctx context.Context, req *product_client.CreateProductRequest) (*product_client.ProductResponse, error) {
 	// Basic validation
 	if req.GetName() == "" || req.GetPrice() <= 0 || req.GetCategoryId() == "" {
@@ -57,7 +60,7 @@ func (s *productService) CreateProduct(ctx context.Context, req *product_client.
 	// Check if category exists
 	category, err := s.categoryRepo.FindByID(ctx, req.GetCategoryId())
 	if err != nil {
-		if errors.Is(err, errors.New("category not found")) { // Assuming "category not found" error from repo
+		if errors.Is(err, domain.ErrCategoryNotFound) { // Assuming "category not found" error from repo
 			return nil, errors.New("category not found")
 		}
 		return nil, fmt.Errorf("failed to check category existence: %w", err)
@@ -83,25 +86,30 @@ func (s *productService) CreateProduct(ctx context.Context, req *product_client.
 		return nil, fmt.Errorf("failed to save product: %w", err)
 	}
 
-	// TODO: Publish ProductCreated event to message queue (e.g., for Inventory Service to initialize stock)
+	// THÊM: Publish ProductCreated event to message queue (e.g., for Search Service to index, Inventory Service to initialize stock)
+	if s.eventPublisher != nil {
+		if err := s.eventPublisher.PublishProductCreated(ctx, product); err != nil {
+			log.Printf("WARNING: Failed to publish ProductCreated event for product %s: %v", product.ID, err)
+			// Không trả về lỗi, vì việc phát sự kiện có thể không quan trọng bằng việc lưu sản phẩm vào DB
+		}
+	}
 
 	return &product_client.ProductResponse{
 		Product: &product_client.Product{
-			Id:            product.ID,
-			Name:          product.Name,
-			Description:   product.Description,
-			Price:         product.Price,
-			CategoryId:    product.CategoryID,
-			ImageUrls:     product.ImageURLs,
-			StockQuantity: product.StockQuantity,
-			CreatedAt:     product.CreatedAt.Format(time.RFC3339),
-			UpdatedAt:     product.UpdatedAt.Format(time.RFC3339),
+			Id:          product.ID,
+			Name:        product.Name,
+			Description: product.Description,
+			Price:       product.Price,
+			CategoryId:  product.CategoryID,
+			ImageUrls:   product.ImageURLs,
+			// StockQuantity: product.StockQuantity, // StockQuantity is from Inventory Service, not directly from Product
+			CreatedAt: product.CreatedAt.Format(time.RFC3339),
+			UpdatedAt: product.UpdatedAt.Format(time.RFC3339),
 		},
 	}, nil
 }
 
 // GetProductById handles retrieving product details.
-// GetProductById xử lý việc lấy chi tiết sản phẩm.
 func (s *productService) GetProductById(ctx context.Context, req *product_client.GetProductByIdRequest) (*product_client.ProductResponse, error) {
 	if req.GetId() == "" {
 		return nil, errors.New("product ID is required")
@@ -109,7 +117,7 @@ func (s *productService) GetProductById(ctx context.Context, req *product_client
 
 	product, err := s.productRepo.FindByID(ctx, req.GetId())
 	if err != nil {
-		if errors.Is(err, errors.New("product not found")) { // Assuming "product not found" error from repo
+		if errors.Is(err, domain.ErrProductNotFound) { // Assuming "product not found" error from repo
 			return nil, errors.New("product not found")
 		}
 		return nil, fmt.Errorf("failed to retrieve product: %w", err)
@@ -117,21 +125,20 @@ func (s *productService) GetProductById(ctx context.Context, req *product_client
 
 	return &product_client.ProductResponse{
 		Product: &product_client.Product{
-			Id:            product.ID,
-			Name:          product.Name,
-			Description:   product.Description,
-			Price:         product.Price,
-			CategoryId:    product.CategoryID,
-			ImageUrls:     product.ImageURLs,
-			StockQuantity: product.StockQuantity,
-			CreatedAt:     product.CreatedAt.Format(time.RFC3339),
-			UpdatedAt:     product.UpdatedAt.Format(time.RFC3339),
+			Id:          product.ID,
+			Name:        product.Name,
+			Description: product.Description,
+			Price:       product.Price,
+			CategoryId:  product.CategoryID,
+			ImageUrls:   product.ImageURLs,
+			// StockQuantity: product.StockQuantity,
+			CreatedAt: product.CreatedAt.Format(time.RFC3339),
+			UpdatedAt: product.UpdatedAt.Format(time.RFC3339),
 		},
 	}, nil
 }
 
 // UpdateProduct handles updating product information.
-// UpdateProduct xử lý việc cập nhật thông tin sản phẩm.
 func (s *productService) UpdateProduct(ctx context.Context, req *product_client.UpdateProductRequest) (*product_client.ProductResponse, error) {
 	if req.GetId() == "" {
 		return nil, errors.New("product ID is required for update")
@@ -142,7 +149,7 @@ func (s *productService) UpdateProduct(ctx context.Context, req *product_client.
 
 	product, err := s.productRepo.FindByID(ctx, req.GetId())
 	if err != nil {
-		if errors.Is(err, errors.New("product not found")) {
+		if errors.Is(err, domain.ErrProductNotFound) {
 			return nil, errors.New("product not found")
 		}
 		return nil, fmt.Errorf("failed to find product for update: %w", err)
@@ -152,7 +159,7 @@ func (s *productService) UpdateProduct(ctx context.Context, req *product_client.
 	if product.CategoryID != req.GetCategoryId() {
 		category, err := s.categoryRepo.FindByID(ctx, req.GetCategoryId())
 		if err != nil {
-			if errors.Is(err, errors.New("category not found")) {
+			if errors.Is(err, domain.ErrCategoryNotFound) {
 				return nil, errors.New("new category not found")
 			}
 			return nil, fmt.Errorf("failed to check new category existence: %w", err)
@@ -174,44 +181,52 @@ func (s *productService) UpdateProduct(ctx context.Context, req *product_client.
 		return nil, fmt.Errorf("failed to update product: %w", err)
 	}
 
-	// TODO: Publish ProductUpdated event
+	// THÊM: Publish ProductUpdated event
+	if s.eventPublisher != nil {
+		if err := s.eventPublisher.PublishProductUpdated(ctx, product); err != nil {
+			log.Printf("WARNING: Failed to publish ProductUpdated event for product %s: %v", product.ID, err)
+		}
+	}
 
 	return &product_client.ProductResponse{
 		Product: &product_client.Product{
-			Id:            product.ID,
-			Name:          product.Name,
-			Description:   product.Description,
-			Price:         product.Price,
-			CategoryId:    product.CategoryID,
-			ImageUrls:     product.ImageURLs,
-			StockQuantity: product.StockQuantity,
-			CreatedAt:     product.CreatedAt.Format(time.RFC3339),
-			UpdatedAt:     product.UpdatedAt.Format(time.RFC3339),
+			Id:          product.ID,
+			Name:        product.Name,
+			Description: product.Description,
+			Price:       product.Price,
+			CategoryId:  product.CategoryID,
+			ImageUrls:   product.ImageURLs,
+			// StockQuantity: product.StockQuantity,
+			CreatedAt: product.CreatedAt.Format(time.RFC3339),
+			UpdatedAt: product.UpdatedAt.Format(time.RFC3339),
 		},
 	}, nil
 }
 
 // DeleteProduct handles deleting a product.
-// DeleteProduct xử lý việc xóa một sản phẩm.
 func (s *productService) DeleteProduct(ctx context.Context, req *product_client.DeleteProductRequest) (*product_client.DeleteProductResponse, error) {
 	if req.GetId() == "" {
 		return nil, errors.New("product ID is required for deletion")
 	}
 
 	if err := s.productRepo.Delete(ctx, req.GetId()); err != nil {
-		if errors.Is(err, errors.New("product not found")) {
+		if errors.Is(err, domain.ErrProductNotFound) {
 			return &product_client.DeleteProductResponse{Success: false, Message: "Product not found"}, nil
 		}
 		return nil, fmt.Errorf("failed to delete product: %w", err)
 	}
 
-	// TODO: Publish ProductDeleted event
+	// THÊM: Publish ProductDeleted event
+	if s.eventPublisher != nil {
+		if err := s.eventPublisher.PublishProductDeleted(ctx, req.GetId()); err != nil {
+			log.Printf("WARNING: Failed to publish ProductDeleted event for product %s: %v", req.GetId(), err)
+		}
+	}
 
 	return &product_client.DeleteProductResponse{Success: true, Message: "Product deleted successfully"}, nil
 }
 
 // ListProducts handles listing products with pagination and filters.
-// ListProducts xử lý việc liệt kê sản phẩm với phân trang và bộ lọc.
 func (s *productService) ListProducts(ctx context.Context, req *product_client.ListProductsRequest) (*product_client.ListProductsResponse, error) {
 	products, totalCount, err := s.productRepo.FindAll(ctx, req.GetCategoryId(), req.GetLimit(), req.GetOffset())
 	if err != nil {
@@ -221,15 +236,15 @@ func (s *productService) ListProducts(ctx context.Context, req *product_client.L
 	productResponses := make([]*product_client.Product, len(products))
 	for i, p := range products {
 		productResponses[i] = &product_client.Product{
-			Id:            p.ID,
-			Name:          p.Name,
-			Description:   p.Description,
-			Price:         p.Price,
-			CategoryId:    p.CategoryID,
-			ImageUrls:     p.ImageURLs,
-			StockQuantity: p.StockQuantity,
-			CreatedAt:     p.CreatedAt.Format(time.RFC3339),
-			UpdatedAt:     p.UpdatedAt.Format(time.RFC3339),
+			Id:          p.ID,
+			Name:        p.Name,
+			Description: p.Description,
+			Price:       p.Price,
+			CategoryId:  p.CategoryID,
+			ImageUrls:   p.ImageURLs,
+			// StockQuantity: p.StockQuantity, // Stock quantity should come from Inventory Service
+			CreatedAt: p.CreatedAt.Format(time.RFC3339),
+			UpdatedAt: p.UpdatedAt.Format(time.RFC3339),
 		}
 	}
 
@@ -242,7 +257,6 @@ func (s *productService) ListProducts(ctx context.Context, req *product_client.L
 // --- Category Use Cases ---
 
 // CreateCategory handles the creation of a new category.
-// CreateCategory xử lý việc tạo một danh mục mới.
 func (s *productService) CreateCategory(ctx context.Context, req *product_client.CreateCategoryRequest) (*product_client.CategoryResponse, error) {
 	if req.GetName() == "" {
 		return nil, errors.New("category name is required")
@@ -250,7 +264,7 @@ func (s *productService) CreateCategory(ctx context.Context, req *product_client
 
 	// Check if category with same name already exists
 	existingCategory, err := s.categoryRepo.FindByName(ctx, req.GetName())
-	if err != nil && err.Error() != "category not found" {
+	if err != nil && !errors.Is(err, domain.ErrCategoryNotFound) { // Only return error if it's not a "not found" error
 		return nil, fmt.Errorf("failed to check existing category: %w", err)
 	}
 	if existingCategory != nil {
@@ -276,7 +290,6 @@ func (s *productService) CreateCategory(ctx context.Context, req *product_client
 }
 
 // GetCategoryById handles retrieving category details.
-// GetCategoryById xử lý việc lấy chi tiết danh mục.
 func (s *productService) GetCategoryById(ctx context.Context, req *product_client.GetCategoryByIdRequest) (*product_client.CategoryResponse, error) {
 	if req.GetId() == "" {
 		return nil, errors.New("category ID is required")
@@ -284,7 +297,7 @@ func (s *productService) GetCategoryById(ctx context.Context, req *product_clien
 
 	category, err := s.categoryRepo.FindByID(ctx, req.GetId())
 	if err != nil {
-		if errors.Is(err, errors.New("category not found")) {
+		if errors.Is(err, domain.ErrCategoryNotFound) {
 			return nil, errors.New("category not found")
 		}
 		return nil, fmt.Errorf("failed to retrieve category: %w", err)
@@ -302,7 +315,6 @@ func (s *productService) GetCategoryById(ctx context.Context, req *product_clien
 }
 
 // ListCategories handles listing all categories.
-// ListCategories xử lý việc liệt kê tất cả các danh mục.
 func (s *productService) ListCategories(ctx context.Context, req *product_client.ListCategoriesRequest) (*product_client.ListCategoriesResponse, error) {
 	categories, err := s.categoryRepo.FindAll(ctx)
 	if err != nil {
