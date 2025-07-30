@@ -12,9 +12,11 @@ import (
 
 	// "time" // For context timeouts
 
-	"github.com/joho/godotenv"                                // Import godotenv for .env file loading
-	"github.com/prometheus/client_golang/prometheus/promhttp" // THÊM: Import promhttp
-	"go.uber.org/zap"                                         // Add zap for structured logging
+	"github.com/joho/godotenv"                                                             // Import godotenv for .env file loading
+	"github.com/prometheus/client_golang/prometheus/promhttp"                              // THÊM: Import promhttp
+	otelgrpc "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc" // THÊM: OpenTelemetry gRPC instrumentation
+	"go.opentelemetry.io/otel"                                                             // THÊM: Import otel để lấy global TracerProvider
+	"go.uber.org/zap"                                                                      // THÊM: Add zap for structured logging
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure" // Import insecure credentials
@@ -25,6 +27,7 @@ import (
 	"github.com/datngth03/ecommerce-go-app/internal/search/infrastructure/messaging" // Import messaging package
 	"github.com/datngth03/ecommerce-go-app/internal/search/infrastructure/repository"
 	"github.com/datngth03/ecommerce-go-app/internal/shared/logger"            // Add shared logger
+	"github.com/datngth03/ecommerce-go-app/internal/shared/tracing"           // THÊM: Add shared tracing
 	product_client "github.com/datngth03/ecommerce-go-app/pkg/client/product" // Product gRPC client for Kafka Consumer
 	search_client "github.com/datngth03/ecommerce-go-app/pkg/client/search"   // Generated Search gRPC client
 )
@@ -39,6 +42,26 @@ func main() {
 	if err := godotenv.Load(); err != nil {
 		logger.Logger.Info("No .env file found, falling back to system environment variables.", zap.Error(err))
 	}
+
+	// Define service name for tracing
+	serviceName := "search-service"
+
+	// Init TracerProvider for OpenTelemetry
+	jaegerCollectorURL := os.Getenv("JAEGER_COLLECTOR_URL")
+	if jaegerCollectorURL == "" {
+		jaegerCollectorURL = "http://localhost:14268/api/traces" // Default Jaeger collector URL
+		logger.Logger.Info("JAEGER_COLLECTOR_URL not set, using default.", zap.String("address", jaegerCollectorURL))
+	}
+
+	tp, err := tracing.InitTracerProvider(context.Background(), serviceName, jaegerCollectorURL)
+	if err != nil {
+		logger.Logger.Fatal("Failed to initialize TracerProvider", zap.Error(err))
+	}
+	defer func() {
+		if err := tp.Shutdown(context.Background()); err != nil {
+			logger.Logger.Error("Error shutting down tracer provider", zap.Error(err))
+		}
+	}()
 
 	// Get gRPC port from environment variable, default to 50061
 	grpcPort := os.Getenv("GRPC_PORT_SEARCH")
@@ -100,7 +123,11 @@ func main() {
 		productSvcAddr = "localhost:50052"
 		logger.Logger.Info("PRODUCT_GRPC_ADDR not set for consumer, using default.", zap.String("address", productSvcAddr))
 	}
-	productConn, err := grpc.Dial(productSvcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	productConn, err := grpc.Dial(
+		productSvcAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler(otelgrpc.WithTracerProvider(otel.GetTracerProvider()))), // THÊM: Client Interceptor cho Tracing
+	)
 	if err != nil {
 		logger.Logger.Fatal("Failed to connect to Product Service for consumer", zap.String("address", productSvcAddr), zap.Error(err))
 	}
@@ -126,8 +153,10 @@ func main() {
 		logger.Logger.Fatal("Failed to listen on gRPC port", zap.String("port", grpcPort), zap.Error(err))
 	}
 
-	// Create a gRPC server instance
-	s := grpc.NewServer()
+	// Create a new gRPC server instance (THÊM INTERCEPTOR CHO TRACING)
+	s := grpc.NewServer(
+		grpc.StatsHandler(otelgrpc.NewServerHandler(otelgrpc.WithTracerProvider(otel.GetTracerProvider()))),
+	)
 
 	// Register SearchGRPCServer with the gRPC server
 	search_client.RegisterSearchServiceServer(s, search_grpc_delivery.NewSearchGRPCServer(searchService))
@@ -144,12 +173,11 @@ func main() {
 		}
 	}()
 
-	// THÊM: Khởi động HTTP server riêng cho Prometheus metrics
+	// Start HTTP server for Prometheus metrics
 	go func() {
 		http.Handle("/metrics", promhttp.Handler())
 		metricsSrv := &http.Server{
 			Addr: fmt.Sprintf(":%s", metricsPort),
-			// Bạn có thể thêm ReadHeaderTimeout nếu muốn
 		}
 		logger.Logger.Info("Search Service Metrics server listening.", zap.String("port", metricsPort))
 		if err := metricsSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {

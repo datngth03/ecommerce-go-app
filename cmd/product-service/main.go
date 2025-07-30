@@ -1,18 +1,23 @@
+// cmd/product-service/main.go
 package main
 
 import (
 	"context"
-	"database/sql"
+	"database/sql" // Thư viện chuẩn để tương tác với DB
 	"fmt"
 	"net"
+	"net/http" // THÊM: Import net/http for metrics server
 	"os"
-	"os/signal" // Import cho graceful shutdown
-	"syscall"   // Import cho graceful shutdown
-	"time"
+	"os/signal" // For graceful shutdown
+	"syscall"   // For graceful shutdown
+	"time"      // To use time.Duration
 
-	"github.com/joho/godotenv" // Import godotenv for .env file loading
-	_ "github.com/lib/pq"      // PostgreSQL driver
-	"go.uber.org/zap"          // THÊM: Import zap để dùng zap.Error
+	"github.com/joho/godotenv"                                                             // Import godotenv for .env file loading
+	_ "github.com/lib/pq"                                                                  // PostgreSQL driver
+	"github.com/prometheus/client_golang/prometheus/promhttp"                              // THÊM: Import promhttp
+	otelgrpc "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc" // THÊM: OpenTelemetry gRPC instrumentation
+	"go.opentelemetry.io/otel"                                                             // THÊM: Import otel để lấy global TracerProvider
+	"go.uber.org/zap"                                                                      // THÊM: Add zap for structured logging
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection" // For gRPC reflection (useful for client tools)
@@ -21,63 +26,88 @@ import (
 	prod_delivery "github.com/datngth03/ecommerce-go-app/internal/product/delivery/grpc" // Đổi alias để tránh nhầm lẫn
 	"github.com/datngth03/ecommerce-go-app/internal/product/infrastructure/messaging"
 	"github.com/datngth03/ecommerce-go-app/internal/product/infrastructure/repository"
-	"github.com/datngth03/ecommerce-go-app/internal/shared/logger"            // THÊM: Import logger mới
-	product_client "github.com/datngth03/ecommerce-go-app/pkg/client/product" // Import mã gRPC đã tạo (chứa RegisterProductServiceServer)
+	"github.com/datngth03/ecommerce-go-app/internal/shared/logger"            // THÊM: Add shared logger
+	"github.com/datngth03/ecommerce-go-app/internal/shared/tracing"           // THÊM: Add shared tracing
+	product_client "github.com/datngth03/ecommerce-go-app/pkg/client/product" // Generated Product gRPC client
 )
 
 // main is the entry point for the Product Service.
 func main() {
-	// Khởi tạo logger ngay từ đầu
+	// Initialize logger at the very beginning
 	logger.InitLogger()
-	defer logger.SyncLogger() // Đảm bảo tất cả log được ghi trước khi ứng dụng thoát
+	defer logger.SyncLogger() // Ensure all buffered logs are written before exiting
 
-	// Load .env file
+	// Load environment variables from .env file (if any)
 	if err := godotenv.Load(); err != nil {
-		// Dùng logger mới để log, không dùng log.Printf/Println nữa
-		logger.Logger.Info("Không tìm thấy file .env, tiếp tục mà không load biến môi trường.", zap.Error(err))
+		logger.Logger.Info("No .env file found, falling back to system environment variables.", zap.Error(err))
 	}
+
+	// Define service name for tracing
+	serviceName := "product-service"
+
+	// Init TracerProvider for OpenTelemetry
+	jaegerCollectorURL := os.Getenv("JAEGER_COLLECTOR_URL")
+	if jaegerCollectorURL == "" {
+		jaegerCollectorURL = "http://localhost:14268/api/traces" // Default Jaeger collector URL
+		logger.Logger.Info("JAEGER_COLLECTOR_URL not set, using default.", zap.String("address", jaegerCollectorURL))
+	}
+
+	tp, err := tracing.InitTracerProvider(context.Background(), serviceName, jaegerCollectorURL)
+	if err != nil {
+		logger.Logger.Fatal("Failed to initialize TracerProvider", zap.Error(err))
+	}
+	defer func() {
+		if err := tp.Shutdown(context.Background()); err != nil {
+			logger.Logger.Error("Error shutting down tracer provider", zap.Error(err))
+		}
+	}()
 
 	// Get gRPC port from environment variable, default to 50052
 	grpcPort := os.Getenv("GRPC_PORT_PRODUCT")
 	if grpcPort == "" {
 		grpcPort = "50052"
-		logger.Logger.Info("GRPC_PORT_PRODUCT không được đặt, sử dụng mặc định", zap.String("port", grpcPort))
+		logger.Logger.Info("GRPC_PORT_PRODUCT not set, using default.", zap.String("port", grpcPort))
+	}
+
+	// Get Metrics port from environment variable, default to 9092
+	metricsPort := os.Getenv("METRICS_PORT_PRODUCT")
+	if metricsPort == "" {
+		metricsPort = "9092"
+		logger.Logger.Info("METRICS_PORT_PRODUCT not set, using default.", zap.String("port", metricsPort))
 	}
 
 	// Get database URL from environment variable
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
-		// Dùng logger.Logger.Fatal để thoát nếu biến môi trường quan trọng không có
-		logger.Logger.Fatal("DATABASE_URL environment variable is not set")
+		logger.Logger.Fatal("DATABASE_URL environment variable is not set.")
 	}
 
 	// Get Kafka broker address from environment variable
 	kafkaBroker := os.Getenv("KAFKA_BROKER_ADDR")
 	if kafkaBroker == "" {
 		kafkaBroker = "localhost:9092" // Default Kafka broker address
-		logger.Logger.Info("KAFKA_BROKER_ADDR không được đặt, sử dụng mặc định", zap.String("address", kafkaBroker))
+		logger.Logger.Info("KAFKA_BROKER_ADDR not set, using default.", zap.String("address", kafkaBroker))
 	}
 	productEventsTopic := os.Getenv("KAFKA_PRODUCT_EVENTS_TOPIC")
 	if productEventsTopic == "" {
 		productEventsTopic = "product_events" // Default Kafka topic for product events
-		logger.Logger.Info("KAFKA_PRODUCT_EVENTS_TOPIC không được đặt, sử dụng mặc định", zap.String("topic", productEventsTopic))
+		logger.Logger.Info("KAFKA_PRODUCT_EVENTS_TOPIC not set, using default.", zap.String("topic", productEventsTopic))
 	}
 
 	// Connect to PostgreSQL database
 	db, err := sql.Open("postgres", databaseURL)
 	if err != nil {
-		logger.Logger.Fatal("Không thể kết nối đến PostgreSQL", zap.Error(err))
+		logger.Logger.Fatal("Failed to connect to PostgreSQL database", zap.Error(err))
 	}
 	defer db.Close()
 
 	// Ping the database to verify connection
-	// Use a short-lived context for the ping
 	pingCtx, pingCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer pingCancel()
 	if err = db.PingContext(pingCtx); err != nil {
-		logger.Logger.Fatal("Không thể ping cơ sở dữ liệu PostgreSQL", zap.Error(err))
+		logger.Logger.Fatal("Failed to ping PostgreSQL database", zap.Error(err))
 	}
-	logger.Logger.Info("Đã kết nối thành công đến cơ sở dữ liệu PostgreSQL cho Product Service.")
+	logger.Logger.Info("Successfully connected to PostgreSQL database for Product Service.")
 
 	// Initialize repositories
 	productRepo := repository.NewPostgreSQLProductRepository(db)
@@ -94,27 +124,38 @@ func main() {
 	// Create a listener on the defined gRPC port
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", grpcPort))
 	if err != nil {
-		logger.Logger.Fatal("Không thể lắng nghe cổng gRPC", zap.String("port", grpcPort), zap.Error(err))
+		logger.Logger.Fatal("Failed to listen on gRPC port", zap.String("port", grpcPort), zap.Error(err))
 	}
 
-	// Create a gRPC server instance
-	s := grpc.NewServer()
+	// Create a gRPC server instance (THÊM INTERCEPTOR CHO TRACING)
+	s := grpc.NewServer(
+		grpc.StatsHandler(otelgrpc.NewServerHandler(otelgrpc.WithTracerProvider(otel.GetTracerProvider()))),
+	)
 
-	// Đăng ký ProductGRPCServer với gRPC server (SỬA LẠI ĐÂY)
-	// Gọi RegisterProductServiceServer từ gói 'product_client' (mã gRPC đã tạo)
-	// Truyền vào instance của triển khai gRPC server của bạn (từ gói 'prod_delivery')
+	// Register ProductGRPCServer with the gRPC server
 	product_client.RegisterProductServiceServer(s, prod_delivery.NewProductGRPCServer(productService))
 
-	// Register reflection service. This allows gRPC client tools
-	// to discover available services and methods without the .proto file.
+	// Register reflection service.
 	reflection.Register(s)
 
-	logger.Logger.Info("Product Service (gRPC) đang lắng nghe", zap.String("port", grpcPort))
+	logger.Logger.Info("Product Service (gRPC) listening.", zap.String("port", grpcPort))
 
 	// Start the gRPC server in a goroutine
 	go func() {
 		if err := s.Serve(lis); err != nil {
-			logger.Logger.Fatal("Không thể phục vụ gRPC server", zap.Error(err))
+			logger.Logger.Fatal("Failed to serve gRPC server", zap.Error(err))
+		}
+	}()
+
+	// Start HTTP server for Prometheus metrics
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		metricsSrv := &http.Server{
+			Addr: fmt.Sprintf(":%s", metricsPort),
+		}
+		logger.Logger.Info("Product Service Metrics server listening.", zap.String("port", metricsPort))
+		if err := metricsSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Logger.Error("Failed to serve metrics HTTP server", zap.Error(err))
 		}
 	}()
 
@@ -126,7 +167,7 @@ func main() {
 	// Block until a signal is received
 	<-quit
 
-	logger.Logger.Info("Đang tắt Product Service một cách nhẹ nhàng...")
+	logger.Logger.Info("Shutting down Product Service gracefully...")
 	s.GracefulStop() // Stop gRPC server gracefully
-	logger.Logger.Info("Product Service đã tắt.")
+	logger.Logger.Info("Product Service stopped.")
 }
