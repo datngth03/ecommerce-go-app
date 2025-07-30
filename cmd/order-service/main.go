@@ -73,7 +73,7 @@ func main() {
 	// Get Metrics port from environment variable, default to 9093
 	metricsPort := os.Getenv("METRICS_PORT_ORDER")
 	if metricsPort == "" {
-		metricsPort = "9093"
+		metricsPort = "9103"
 		logger.Logger.Info("METRICS_PORT_ORDER not set, using default.", zap.String("port", metricsPort))
 	}
 
