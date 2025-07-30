@@ -73,7 +73,7 @@ func main() {
 	// Get Metrics port from environment variable, default to 9100
 	metricsPort := os.Getenv("METRICS_PORT_REVIEW")
 	if metricsPort == "" {
-		metricsPort = "9100"
+		metricsPort = "9110"
 		logger.Logger.Info("METRICS_PORT_REVIEW not set, using default.", zap.String("port", metricsPort))
 	}
 
