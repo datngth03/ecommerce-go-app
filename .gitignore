@@ -1,0 +1,16 @@
+# Binaries
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.out
+/bin/
+
+# Dependency directories
+/vendor/
+/pkg/ # Nếu bạn không commit generated code
+/go.sum # Nếu bạn không muốn commit go.sum (nhưng thường nên commit)
+
+# Environment variables
+.env

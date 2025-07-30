@@ -1,23 +1,29 @@
+// cmd/user-service/main.go
 package main
 
 import (
 	"context"
 	"database/sql" // Thư viện chuẩn để tương tác với DB
 	"fmt"
-	"net"       // Để lắng nghe kết nối mạng
-	"os"        // Để đọc biến môi trường
-	"os/signal" // Import cho graceful shutdown
-	"syscall"   // Import cho graceful shutdown
+	"net"
+	"net/http" // Import net/http for metrics server
+	"os"
+	"os/signal" // For graceful shutdown
+	"syscall"   // For graceful shutdown
 	"time"      // Để thiết lập timeout cho DB
 
-	"github.com/joho/godotenv" // Để đọc biến môi trường từ file .env
-	_ "github.com/lib/pq"      // PostgreSQL driver
-	"go.uber.org/zap"          // Thêm zap để ghi log có cấu trúc
+	"github.com/joho/godotenv"                                                             // Để đọc biến môi trường từ file .env
+	_ "github.com/lib/pq"                                                                  // PostgreSQL driver
+	"github.com/prometheus/client_golang/prometheus/promhttp"                              // Import promhttp
+	otelgrpc "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc" // OpenTelemetry gRPC instrumentation
+	"go.opentelemetry.io/otel"                                                             // Import otel để lấy global TracerProvider
+	"go.uber.org/zap"                                                                      // Thêm zap để ghi log có cấu trúc
 
-	"google.golang.org/grpc"            // Import thư viện gRPC chuẩn
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection" // Cho phép gRPC reflection
 
-	"github.com/datngth03/ecommerce-go-app/internal/shared/logger" // Thêm logger dùng chung
+	"github.com/datngth03/ecommerce-go-app/internal/shared/logger"  // Thêm logger dùng chung
+	"github.com/datngth03/ecommerce-go-app/internal/shared/tracing" // Thêm shared tracing
 	"github.com/datngth03/ecommerce-go-app/internal/user/application"
 	user_grpc_delivery "github.com/datngth03/ecommerce-go-app/internal/user/delivery/grpc"
 	"github.com/datngth03/ecommerce-go-app/internal/user/infrastructure/repository" // Import gói repository mới
@@ -26,48 +32,75 @@ import (
 
 // main là hàm entry point của User Service.
 func main() {
-	// Khởi tạo logger ngay từ đầu
+	// Initialize logger at the very beginning
 	logger.InitLogger()
-	defer logger.SyncLogger() // Đảm bảo tất cả log được ghi vào output trước khi thoát
+	defer logger.SyncLogger() // Ensure all buffered logs are written before exiting
 
 	// Tải biến môi trường từ file .env (nếu có)
-	// Điều này hữu ích cho môi trường phát triển cục bộ
 	if err := godotenv.Load(); err != nil {
-		logger.Logger.Info("Không tìm thấy file .env hoặc không thể tải.", zap.Error(err))
+		logger.Logger.Info("No .env file found, falling back to system environment variables.", zap.Error(err))
 	}
 
-	// Lấy cổng gRPC từ biến môi trường "GRPC_PORT"
+	// Define service name for tracing
+	serviceName := "user-service"
+
+	// Init TracerProvider for OpenTelemetry
+	jaegerCollectorURL := os.Getenv("JAEGER_COLLECTOR_URL")
+	if jaegerCollectorURL == "" {
+		jaegerCollectorURL = "http://localhost:14268/api/traces" // Default Jaeger collector URL
+		logger.Logger.Info("JAEGER_COLLECTOR_URL not set, using default.", zap.String("address", jaegerCollectorURL))
+	}
+
+	tp, err := tracing.InitTracerProvider(context.Background(), serviceName, jaegerCollectorURL)
+	if err != nil {
+		logger.Logger.Fatal("Failed to initialize TracerProvider", zap.Error(err))
+	}
+	defer func() {
+		if err := tp.Shutdown(context.Background()); err != nil {
+			logger.Logger.Error("Error shutting down tracer provider", zap.Error(err))
+		}
+	}()
+
+	// Lấy cổng gRPC từ biến môi trường "GRPC_PORT_USER"
 	grpcPort := os.Getenv("GRPC_PORT_USER")
 	if grpcPort == "" {
 		grpcPort = "50051"
-		logger.Logger.Info("GRPC_PORT_USER không được đặt, sử dụng mặc định.", zap.String("port", grpcPort))
+		logger.Logger.Info("GRPC_PORT_USER not set, using default.", zap.String("port", grpcPort))
+	}
+
+	// Get Metrics port from environment variable, default to 9091
+	metricsPort := os.Getenv("METRICS_PORT_USER")
+	if metricsPort == "" {
+		metricsPort = "9091"
+		logger.Logger.Info("METRICS_PORT_USER not set, using default.", zap.String("port", metricsPort))
 	}
 
 	// Lấy chuỗi kết nối DB từ biến môi trường "DATABASE_URL"
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
-		logger.Logger.Fatal("DATABASE_URL biến môi trường không được đặt.")
+		databaseURL = "postgres://user:password@localhost:5432/ecommerce_core_db?sslmode=disable"
+		logger.Logger.Info("DATABASE_URL not set, using default.", zap.String("url", databaseURL))
 	}
 
 	// Khởi tạo kết nối cơ sở dữ liệu PostgreSQL
 	db, err := sql.Open("postgres", databaseURL)
 	if err != nil {
-		logger.Logger.Fatal("Không thể kết nối đến cơ sở dữ liệu.", zap.Error(err))
+		logger.Logger.Fatal("Failed to connect to PostgreSQL database", zap.Error(err))
 	}
 	defer db.Close() // Đảm bảo đóng kết nối DB khi ứng dụng kết thúc
 
 	// Thiết lập các thông số kết nối DB (tùy chọn nhưng được khuyến nghị)
-	db.SetMaxOpenConns(25)                 // Số lượng kết nối tối đa
-	db.SetMaxIdleConns(25)                 // Số lượng kết nối nhàn rỗi tối đa
-	db.SetConnMaxLifetime(5 * time.Minute) // Thời gian sống tối đa của một kết nối
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(25)
+	db.SetConnMaxLifetime(5 * time.Minute)
 
 	// Ping DB để kiểm tra kết nối
 	pingCtx, pingCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer pingCancel()
 	if err = db.PingContext(pingCtx); err != nil {
-		logger.Logger.Fatal("Không thể ping cơ sở dữ liệu.", zap.Error(err))
+		logger.Logger.Fatal("Failed to ping PostgreSQL database", zap.Error(err))
 	}
-	logger.Logger.Info("Đã kết nối thành công đến cơ sở dữ liệu PostgreSQL.")
+	logger.Logger.Info("Successfully connected to PostgreSQL database for User Service.")
 
 	// Khởi tạo PostgreSQLUserRepository
 	userRepo := repository.NewPostgreSQLUserRepository(db)
@@ -75,42 +108,45 @@ func main() {
 	// Khởi tạo Application Service
 	userService := application.NewUserService(userRepo)
 
-	// Khởi tạo gRPC Server
-	grpcServer := user_grpc_delivery.NewUserGRPCServer(userService)
+	// Tạo gRPC server với StatsHandler cho OpenTelemetry
+	s := grpc.NewServer(
+		grpc.StatsHandler(otelgrpc.NewServerHandler(otelgrpc.WithTracerProvider(otel.GetTracerProvider()))),
+	)
 
-	// Tạo một listener trên cổng đã định nghĩa
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", grpcPort))
-	if err != nil {
-		logger.Logger.Fatal("Không thể lắng nghe cổng gRPC.", zap.String("port", grpcPort), zap.Error(err))
-	}
-
-	// Tạo một instance của gRPC server
-	s := grpc.NewServer()
-
-	// Đăng ký UserGRPCServer với gRPC server
-	user_client.RegisterUserServiceServer(s, grpcServer)
-
-	// Đăng ký reflection service.
+	user_client.RegisterUserServiceServer(s, user_grpc_delivery.NewUserGRPCServer(userService))
 	reflection.Register(s)
 
-	logger.Logger.Info("User Service (gRPC) đang lắng nghe tại cổng.", zap.String("port", grpcPort))
+	logger.Logger.Info("User Service (gRPC) listening.", zap.String("port", grpcPort))
 
-	// Bắt đầu gRPC server trong một goroutine
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", grpcPort))
+	if err != nil {
+		logger.Logger.Fatal("Failed to listen on gRPC port", zap.String("port", grpcPort), zap.Error(err))
+	}
+
 	go func() {
 		if err := s.Serve(lis); err != nil {
-			logger.Logger.Fatal("Không thể phục vụ gRPC server.", zap.Error(err))
+			logger.Logger.Fatal("Failed to serve gRPC server", zap.Error(err))
+		}
+	}()
+
+	// Start HTTP server for Prometheus metrics
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		metricsSrv := &http.Server{
+			Addr: fmt.Sprintf(":%s", metricsPort),
+		}
+		logger.Logger.Info("User Service Metrics server listening.", zap.String("port", metricsPort))
+		if err := metricsSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Logger.Error("Failed to serve metrics HTTP server", zap.Error(err))
 		}
 	}()
 
 	// Graceful shutdown
-	// Tạo channel để nhận tín hiệu OS
 	quit := make(chan os.Signal, 1)
-	// Thông báo channel khi nhận tín hiệu ngắt (Ctrl+C) và kết thúc
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	// Chặn cho đến khi nhận được tín hiệu
 	<-quit
 
-	logger.Logger.Info("Đang tắt User Service một cách graceful...")
-	s.GracefulStop() // Dừng gRPC server một cách graceful
-	logger.Logger.Info("User Service đã tắt.")
+	logger.Logger.Info("Shutting down User Service gracefully...")
+	s.GracefulStop()
+	logger.Logger.Info("User Service stopped.")
 }
