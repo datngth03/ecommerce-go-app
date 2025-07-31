@@ -4,48 +4,31 @@ package messaging
 import (
 	"context"
 	"encoding/json"
-	"log" // Using standard log for simplicity, consider zap/logrus for production
+	"fmt"
 	"time"
 
-	"github.com/segmentio/kafka-go" // Kafka Go client
+	"github.com/segmentio/kafka-go"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute" // THÊM: Import attribute
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
+	"go.uber.org/zap" // Use zap for structured logging
 
 	"github.com/datngth03/ecommerce-go-app/internal/search/application"
-	product_client "github.com/datngth03/ecommerce-go-app/pkg/client/product" // Import Product gRPC client (To fetch full product details if needed, but not directly used for unmarshalling ProductEvent)
-	search_client "github.com/datngth03/ecommerce-go-app/pkg/client/search"   // Import Search gRPC client (cho IndexProductRequest)
+	"github.com/datngth03/ecommerce-go-app/internal/shared/events"            // THÊM: Import shared events package
+	"github.com/datngth03/ecommerce-go-app/internal/shared/logger"            // THÊM: Import shared logger
+	product_client "github.com/datngth03/ecommerce-go-app/pkg/client/product" // Product gRPC client (nếu consumer cần gọi)
+	search_client "github.com/datngth03/ecommerce-go-app/pkg/client/search"   // Generated Search gRPC client
 )
-
-// ProductEventPayload mirrors the structure of Product from Product Service's domain
-// to enable unmarshalling of Kafka events without cross-package internal dependency.
-// ProductEventPayload phản ánh cấu trúc của Product từ domain của Product Service
-// để cho phép giải mã các sự kiện Kafka mà không cần phụ thuộc chéo vào gói nội bộ.
-type ProductEventPayload struct {
-	ID            string    `json:"id"`
-	Name          string    `json:"name"`
-	Description   string    `json:"description,omitempty"`
-	Price         float64   `json:"price"`
-	CategoryID    string    `json:"category_id"`
-	ImageURLs     []string  `json:"image_urls,omitempty"`
-	StockQuantity int32     `json:"stock_quantity,omitempty"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
-}
-
-// ProductEvent defines the structure of product events.
-// This should match the event structure published by Product Service.
-// ProductEvent định nghĩa cấu trúc của các sự kiện sản phẩm.
-// Cấu trúc này phải khớp với cấu trúc sự kiện được phát bởi Product Service.
-type ProductEvent struct {
-	Type    string               `json:"type"`              // e.g., "ProductCreated", "ProductUpdated", "ProductDeleted"
-	Product *ProductEventPayload `json:"product,omitempty"` // Sử dụng struct cục bộ
-	ID      string               `json:"id,omitempty"`      // For ProductDeleted event
-}
 
 // KafkaProductEventConsumer defines the consumer for product events.
 // KafkaProductEventConsumer định nghĩa consumer cho các sự kiện sản phẩm.
 type KafkaProductEventConsumer struct {
 	reader        *kafka.Reader
 	searchService application.SearchService
-	productClient product_client.ProductServiceClient // To fetch full product details if needed
+	productClient product_client.ProductServiceClient
+	log           *zap.Logger                   // Use the structured logger
+	propagator    propagation.TextMapPropagator // Propagator để trích xuất context
 }
 
 // NewKafkaProductEventConsumer creates a new Kafka event consumer for product events.
@@ -63,96 +46,141 @@ func NewKafkaProductEventConsumer(brokerAddr, topic, groupID string, searchServi
 		reader:        reader,
 		searchService: searchService,
 		productClient: productClient,
+		log:           logger.Logger,
+		propagator:    otel.GetTextMapPropagator(), // Khởi tạo propagator
 	}
 }
 
 // StartConsuming starts consuming messages from Kafka.
 // StartConsuming bắt đầu tiêu thụ tin nhắn từ Kafka.
 func (c *KafkaProductEventConsumer) StartConsuming(ctx context.Context) {
-	log.Printf("Bắt đầu tiêu thụ sự kiện từ Kafka topic '%s'...", c.reader.Config().Topic)
+	c.log.Info("Search Service: Bắt đầu tiêu thụ sự kiện từ Kafka topic.",
+		zap.String("topic", c.reader.Config().Topic),
+		zap.String("groupID", c.reader.Config().GroupID))
 
 	for {
 		m, err := c.reader.FetchMessage(ctx)
 		if err != nil {
 			if ctx.Err() == context.Canceled {
-				log.Println("Consumer ngừng hoạt động do context bị hủy.")
-				return // Context canceled, gracefully exit
+				c.log.Info("Consumer ngừng hoạt động do context bị hủy.")
+				return
 			}
-			log.Printf("Lỗi khi đọc tin nhắn từ Kafka: %v", err)
+			c.log.Error("Search Service Consumer: Lỗi khi đọc tin nhắn từ Kafka.", zap.Error(err))
 			continue
 		}
 
-		log.Printf("Đã nhận tin nhắn từ Kafka: topic=%s, partition=%d, offset=%d, key=%s",
-			m.Topic, m.Partition, m.Offset, string(m.Key))
+		c.log.Info("Search Service Consumer: Đã nhận tin nhắn từ Kafka.",
+			zap.String("topic", m.Topic),
+			zap.Int("partition", m.Partition),
+			zap.Int64("offset", m.Offset),
+			zap.String("key", string(m.Key)))
 
-		var event ProductEvent
+		// Trích xuất Trace Context từ Kafka message headers
+		headers := make(map[string]string)
+		for _, header := range m.Headers {
+			headers[header.Key] = string(header.Value)
+		}
+		// Tạo một context mới với trace context đã trích xuất
+		msgCtx := c.propagator.Extract(context.Background(), propagation.MapCarrier(headers))
+		// Bắt đầu một span mới để xử lý tin nhắn Kafka
+		// Tên span thường là "process <topic_name> message"
+		_, span := otel.Tracer("kafka-consumer").Start(msgCtx, fmt.Sprintf("process %s message", m.Topic),
+			trace.WithSpanKind(trace.SpanKindConsumer))
+		defer span.End() // Đảm bảo span được đóng
+
+		var event events.ProductEvent
 		if err := json.Unmarshal(m.Value, &event); err != nil {
-			log.Printf("Lỗi khi giải mã sự kiện sản phẩm: %v, tin nhắn: %s", err, string(m.Value))
+			c.log.Error("Search Service Consumer: Lỗi khi giải mã sự kiện sản phẩm.",
+				zap.Error(err),
+				zap.String("message_value", string(m.Value)))
+			span.RecordError(err) // Ghi lỗi vào span
 			// Commit offset even if unmarshalling fails to avoid reprocessing bad messages
-			if err := c.reader.CommitMessages(ctx, m); err != nil {
-				log.Printf("Lỗi khi commit offset sau lỗi giải mã: %v", err)
+			if commitErr := c.reader.CommitMessages(ctx, m); commitErr != nil {
+				c.log.Error("Search Service Consumer: Lỗi khi commit offset sau lỗi giải mã.", zap.Error(commitErr))
 			}
 			continue
 		}
 
-		log.Printf("Đã giải mã sự kiện loại: %s", event.Type)
+		c.log.Info("Search Service Consumer: Đã giải mã sự kiện.", zap.String("event_type", event.Type), zap.String("aggregate_id", event.AggregateID))
+		span.SetAttributes(attribute.String("event.type", event.Type), attribute.String("event.aggregate_id", event.AggregateID))
+
+		var payload events.ProductEventPayload
+		if len(event.Payload) > 0 {
+			if err := json.Unmarshal(event.Payload, &payload); err != nil {
+				c.log.Error("Search Service Consumer: Lỗi khi giải mã payload sản phẩm.", zap.Error(err), zap.String("payload_value", string(event.Payload)))
+				span.RecordError(err)
+				if commitErr := c.reader.CommitMessages(ctx, m); commitErr != nil {
+					c.log.Error("Search Service Consumer: Lỗi khi commit offset sau lỗi giải mã payload.", zap.Error(commitErr))
+				}
+				continue
+			}
+		}
 
 		switch event.Type {
 		case "ProductCreated", "ProductUpdated":
-			if event.Product == nil {
-				log.Printf("Bỏ qua sự kiện %s: không có dữ liệu sản phẩm", event.Type)
-				break
-			}
-			// Index or update product in Elasticsearch
-			// Chuyển đổi ProductEventPayload sang search_client.IndexProductRequest
+			c.log.Info("Search Service Consumer: Xử lý sự kiện ProductCreated/Updated cho Product ID.",
+				zap.String("product_id", payload.ID),
+				zap.String("product_name", payload.Name))
+
 			req := &search_client.IndexProductRequest{
-				Id:            event.Product.ID,
-				Name:          event.Product.Name,
-				Description:   event.Product.Description,
-				Price:         event.Product.Price,
-				CategoryId:    event.Product.CategoryID,
-				ImageUrls:     event.Product.ImageURLs,
-				StockQuantity: event.Product.StockQuantity,
-				CreatedAt:     event.Product.CreatedAt.Format(time.RFC3339),
-				UpdatedAt:     event.Product.UpdatedAt.Format(time.RFC3339),
+				Id:            payload.ID,
+				Name:          payload.Name,
+				Description:   payload.Description,
+				Price:         payload.Price,
+				CategoryId:    payload.CategoryID,
+				ImageUrls:     payload.ImageURLs,
+				StockQuantity: payload.StockQuantity,
+				CreatedAt:     payload.CreatedAt.Format(time.RFC3339), // SỬA: Định dạng thời gian
+				UpdatedAt:     payload.UpdatedAt.Format(time.RFC3339), // SỬA: Định dạng thời gian
 			}
+			// Truyền context đã được làm giàu với trace context
 			_, err := c.searchService.IndexProduct(ctx, req)
 			if err != nil {
-				log.Printf("Lỗi khi lập chỉ mục/cập nhật sản phẩm %s trong Elasticsearch: %v", event.Product.ID, err)
+				c.log.Error("Search Service Consumer: Lỗi khi lập chỉ mục/cập nhật sản phẩm trong Elasticsearch.",
+					zap.String("product_id", payload.ID),
+					zap.Error(err))
+				span.RecordError(err)
 				// Không commit offset để tin nhắn có thể được xử lý lại sau
 			} else {
-				log.Printf("Đã lập chỉ mục/cập nhật sản phẩm %s thành công trong Elasticsearch.", event.Product.ID)
+				c.log.Info("Search Service Consumer: Đã lập chỉ mục/cập nhật sản phẩm thành công trong Elasticsearch.",
+					zap.String("product_id", payload.ID))
 				// Commit offset chỉ khi xử lý thành công
-				if err := c.reader.CommitMessages(ctx, m); err != nil {
-					log.Printf("Lỗi khi commit offset cho sự kiện %s: %v", event.Type, err)
+				if commitErr := c.reader.CommitMessages(ctx, m); commitErr != nil {
+					c.log.Error("Search Service Consumer: Lỗi khi commit offset cho sự kiện %s.", zap.String("event_type", event.Type), zap.Error(commitErr))
 				}
 			}
 		case "ProductDeleted":
-			if event.ID == "" {
-				log.Printf("Bỏ qua sự kiện ProductDeleted: không có ID sản phẩm")
-				break
-			}
-			_, err := c.searchService.DeleteProductFromIndex(ctx, &search_client.DeleteProductFromIndexRequest{ProductId: event.ID})
+			c.log.Info("Search Service Consumer: Đã nhận sự kiện ProductDeleted cho Product ID.",
+				zap.String("product_id", event.AggregateID))
+
+			// Truyền context đã được làm giàu với trace context
+			_, err := c.searchService.DeleteProductFromIndex(ctx, &search_client.DeleteProductFromIndexRequest{ProductId: event.AggregateID})
 			if err != nil {
-				log.Printf("Lỗi khi xóa sản phẩm %s khỏi chỉ mục Elasticsearch: %v", event.ID, err)
+				c.log.Error("Search Service Consumer: Lỗi khi xóa sản phẩm khỏi chỉ mục Elasticsearch.",
+					zap.String("product_id", event.AggregateID),
+					zap.Error(err))
+				span.RecordError(err)
 			} else {
-				log.Printf("Đã xóa sản phẩm %s khỏi chỉ mục Elasticsearch thành công.", event.ID)
-				if err := c.reader.CommitMessages(ctx, m); err != nil {
-					log.Printf("Lỗi khi commit offset cho sự kiện ProductDeleted: %v", err)
+				c.log.Info("Search Service Consumer: Đã xóa sản phẩm khỏi chỉ mục Elasticsearch thành công.",
+					zap.String("product_id", event.AggregateID))
+				if commitErr := c.reader.CommitMessages(ctx, m); commitErr != nil {
+					c.log.Error("Search Service Consumer: Lỗi khi commit offset cho sự kiện ProductDeleted.", zap.String("event_type", event.Type), zap.Error(commitErr))
 				}
 			}
 		default:
-			log.Printf("Loại sự kiện sản phẩm không xác định: %s", event.Type)
-			if err := c.reader.CommitMessages(ctx, m); err != nil { // Commit unknown message to avoid reprocessing
-				log.Printf("Lỗi khi commit offset cho sự kiện không xác định: %v", err)
+			c.log.Warn("Search Service Consumer: Loại sự kiện sản phẩm không xác định hoặc không được xử lý.",
+				zap.String("event_type", event.Type),
+				zap.String("message_value", string(m.Value)))
+			// Commit unknown message to avoid reprocessing indefinitely
+			if commitErr := c.reader.CommitMessages(ctx, m); commitErr != nil {
+				c.log.Error("Search Service Consumer: Lỗi khi commit offset cho sự kiện không xác định.", zap.String("event_type", event.Type), zap.Error(commitErr))
 			}
 		}
 	}
 }
 
-// Close closes the Kafka reader.
-// Close đóng Kafka reader.
+// Close closes the Kafka consumer reader.
 func (c *KafkaProductEventConsumer) Close() error {
-	log.Println("Đóng Kafka Product Event Consumer...")
+	c.log.Info("Đóng Kafka Product Event Consumer (Search Service)...")
 	return c.reader.Close()
 }

@@ -61,7 +61,7 @@ func (s *reviewService) SubmitReview(ctx context.Context, req *review_client.Sub
 		return nil, fmt.Errorf("failed to check for existing review: %w", err)
 	}
 	if existingReview != nil {
-		return nil, domain.ErrReviewAlreadyExists // User already reviewed this product
+		return nil, fmt.Errorf("%w : %v", domain.ErrReviewAlreadyExists, err) // User already reviewed this product
 	}
 
 	// Create new review domain entity
@@ -102,7 +102,7 @@ func (s *reviewService) GetReviewById(ctx context.Context, req *review_client.Ge
 	review, err := s.reviewRepo.FindByID(ctx, req.GetId())
 	if err != nil {
 		if errors.Is(err, domain.ErrReviewNotFound) {
-			return nil, domain.ErrReviewNotFound
+			return nil, fmt.Errorf("%w: %v", domain.ErrReviewNotFound, err)
 		}
 		return nil, fmt.Errorf("%w: %v", domain.ErrFailedToRetrieveReview, err)
 	}
@@ -130,7 +130,7 @@ func (s *reviewService) UpdateReview(ctx context.Context, req *review_client.Upd
 	existingReview, err := s.reviewRepo.FindByID(ctx, req.GetId())
 	if err != nil {
 		if errors.Is(err, domain.ErrReviewNotFound) {
-			return nil, domain.ErrReviewNotFound
+			return nil, fmt.Errorf("%w: %v", domain.ErrReviewNotFound, err)
 		}
 		return nil, fmt.Errorf("%w: %v", domain.ErrFailedToRetrieveReview, err)
 	}

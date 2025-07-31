@@ -27,8 +27,10 @@ type ProductEventPayload struct {
 // ProductEvent định nghĩa cấu trúc chung cho các sự kiện liên quan đến sản phẩm.
 // Cấu trúc này nên được sử dụng bởi cả bên phát và bên tiêu thụ sự kiện.
 type ProductEvent struct {
-	Type        string          `json:"type"`         // e.g., "ProductCreated", "ProductUpdated", "ProductDeleted"
-	Timestamp   string          `json:"timestamp"`    // RFC3339 format
-	Payload     json.RawMessage `json:"payload"`      // Raw JSON bytes of the ProductEventPayload
-	AggregateID string          `json:"aggregate_id"` // ID of the aggregate (product ID)
+	Type        string          `json:"type"`               // e.g., "ProductCreated", "ProductUpdated", "ProductDeleted"
+	Timestamp   string          `json:"timestamp"`          // RFC3339 format
+	Payload     json.RawMessage `json:"payload"`            // Raw JSON bytes of the ProductEventPayload
+	AggregateID string          `json:"aggregate_id"`       // ID of the aggregate (product ID)
+	TraceID     string          `json:"trace_id,omitempty"` // Trace ID để theo dõi phân tán qua Kafka
+	SpanID      string          `json:"span_id,omitempty"`  // Span ID để theo dõi phân tán qua Kafka
 }
