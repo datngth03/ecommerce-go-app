@@ -8,19 +8,12 @@ import (
 	"log"
 	"time"
 
-	"github.com/segmentio/kafka-go" // Kafka client library
+	"github.com/segmentio/kafka-go"  // Kafka client library
+	"go.opentelemetry.io/otel/trace" // Import trace để lấy SpanContext
 
 	"github.com/datngth03/ecommerce-go-app/internal/product/domain"
+	"github.com/datngth03/ecommerce-go-app/internal/shared/events" // Import shared events package
 )
-
-// ProductEvent represents a generic product event structure.
-// ProductEvent đại diện cho một cấu trúc sự kiện sản phẩm chung.
-type ProductEvent struct {
-	Type        string          `json:"type"`         // Ví dụ: "ProductCreated", "ProductUpdated", "ProductDeleted"
-	Timestamp   string          `json:"timestamp"`    // Thời gian xảy ra sự kiện
-	Payload     json.RawMessage `json:"payload"`      // Dữ liệu sản phẩm hoặc dữ liệu liên quan
-	AggregateID string          `json:"aggregate_id"` // Product ID
-}
 
 // ProductEventPublisher defines the interface for publishing product events.
 // ProductEventPublisher định nghĩa giao diện để phát các sự kiện sản phẩm.
@@ -59,11 +52,22 @@ func (p *kafkaProductEventPublisher) PublishProductCreated(ctx context.Context, 
 		return fmt.Errorf("failed to marshal product for created event: %w", err)
 	}
 
-	event := ProductEvent{
+	// Lấy TraceID và SpanID từ context hiện tại
+	spanCtx := trace.SpanContextFromContext(ctx)
+	traceID := ""
+	spanID := ""
+	if spanCtx.IsValid() {
+		traceID = spanCtx.TraceID().String()
+		spanID = spanCtx.SpanID().String()
+	}
+
+	event := events.ProductEvent{ // SỬA: Dùng events.ProductEvent
 		Type:        "ProductCreated",
 		Timestamp:   time.Now().Format(time.RFC3339),
 		Payload:     productJSON,
 		AggregateID: product.ID,
+		TraceID:     traceID, // Chèn TraceID
+		SpanID:      spanID,  // Chèn SpanID
 	}
 	return p.publishEvent(ctx, event)
 }
@@ -76,11 +80,22 @@ func (p *kafkaProductEventPublisher) PublishProductUpdated(ctx context.Context, 
 		return fmt.Errorf("failed to marshal product for updated event: %w", err)
 	}
 
-	event := ProductEvent{
+	// Lấy TraceID và SpanID từ context hiện tại
+	spanCtx := trace.SpanContextFromContext(ctx)
+	traceID := ""
+	spanID := ""
+	if spanCtx.IsValid() {
+		traceID = spanCtx.TraceID().String()
+		spanID = spanCtx.SpanID().String()
+	}
+
+	event := events.ProductEvent{ // SỬA: Dùng events.ProductEvent
 		Type:        "ProductUpdated",
 		Timestamp:   time.Now().Format(time.RFC3339),
 		Payload:     productJSON,
 		AggregateID: product.ID,
+		TraceID:     traceID, // Chèn TraceID
+		SpanID:      spanID,  // Chèn SpanID
 	}
 	return p.publishEvent(ctx, event)
 }
@@ -88,24 +103,35 @@ func (p *kafkaProductEventPublisher) PublishProductUpdated(ctx context.Context, 
 // PublishProductDeleted publishes a ProductDeleted event to Kafka.
 // PublishProductDeleted phát một sự kiện ProductDeleted tới Kafka.
 func (p *kafkaProductEventPublisher) PublishProductDeleted(ctx context.Context, productID string) error {
-	payload := map[string]string{"product_id": productID}
+	payload := map[string]string{"id": productID} // SỬA: Dùng "id" để khớp với ProductEventPayload
 	payloadJSON, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("failed to marshal product ID for deleted event: %w", err)
 	}
 
-	event := ProductEvent{
+	// Lấy TraceID và SpanID từ context hiện tại
+	spanCtx := trace.SpanContextFromContext(ctx)
+	traceID := ""
+	spanID := ""
+	if spanCtx.IsValid() {
+		traceID = spanCtx.TraceID().String()
+		spanID = spanCtx.SpanID().String()
+	}
+
+	event := events.ProductEvent{ // SỬA: Dùng events.ProductEvent
 		Type:        "ProductDeleted",
 		Timestamp:   time.Now().Format(time.RFC3339),
 		Payload:     payloadJSON,
 		AggregateID: productID,
+		TraceID:     traceID, // Chèn TraceID
+		SpanID:      spanID,  // Chèn SpanID
 	}
 	return p.publishEvent(ctx, event)
 }
 
 // publishEvent sends the generic event to Kafka.
 // publishEvent gửi sự kiện chung tới Kafka.
-func (p *kafkaProductEventPublisher) publishEvent(ctx context.Context, event ProductEvent) error {
+func (p *kafkaProductEventPublisher) publishEvent(ctx context.Context, event events.ProductEvent) error { // SỬA: Dùng events.ProductEvent
 	eventJSON, err := json.Marshal(event)
 	if err != nil {
 		return fmt.Errorf("failed to marshal event: %w", err)
@@ -116,6 +142,9 @@ func (p *kafkaProductEventPublisher) publishEvent(ctx context.Context, event Pro
 		Value: eventJSON,
 		Headers: []kafka.Header{
 			{Key: "event_type", Value: []byte(event.Type)},
+			// Chèn TraceID và SpanID vào Kafka headers (đây là cách phổ biến để truyền context tracing)
+			{Key: "trace_id", Value: []byte(event.TraceID)},
+			{Key: "span_id", Value: []byte(event.SpanID)},
 		},
 	}
 

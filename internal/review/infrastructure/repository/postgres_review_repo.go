@@ -50,7 +50,7 @@ func (r *PostgreSQLReviewRepository) Save(ctx context.Context, review *domain.Re
 	if err != nil {
 		// Check for unique constraint violation (product_id, user_id)
 		if strings.Contains(err.Error(), "unq_product_user_review") {
-			return domain.ErrReviewAlreadyExists
+			return fmt.Errorf("%w: %v", domain.ErrReviewAlreadyExists, err)
 		}
 		return fmt.Errorf("%w: %v", domain.ErrFailedToSaveReview, err)
 	}
@@ -77,7 +77,7 @@ func (r *PostgreSQLReviewRepository) FindByID(ctx context.Context, id string) (*
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, domain.ErrReviewNotFound
+			return nil, fmt.Errorf("%w: %v", domain.ErrReviewNotFound, err)
 		}
 		return nil, fmt.Errorf("%w: %v", domain.ErrFailedToRetrieveReview, err)
 	}
@@ -152,7 +152,7 @@ func (r *PostgreSQLReviewRepository) FindExistingReview(ctx context.Context, pro
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, domain.ErrReviewNotFound // Return specific error if not found
+			return nil, fmt.Errorf("%w: %v", domain.ErrReviewNotFound, err) // Return specific error if not found
 		}
 		return nil, fmt.Errorf("%w: %v", domain.ErrFailedToRetrieveReview, err)
 	}
@@ -167,7 +167,7 @@ func (r *PostgreSQLReviewRepository) Delete(ctx context.Context, id string) erro
 	err := r.db.QueryRowContext(ctx, query, id).Scan(&deletedID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return domain.ErrReviewNotFound
+			return fmt.Errorf("%w: %v", domain.ErrReviewNotFound, err)
 		}
 		return fmt.Errorf("%w: %v", domain.ErrFailedToDeleteReview, err)
 	}

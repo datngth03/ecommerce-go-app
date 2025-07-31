@@ -1,68 +1,65 @@
-# version: "3.8" # Phiên bản Docker Compose - Đã được loại bỏ vì obsolete
-
 services:
-   # Dịch vụ PostgreSQL cho User, Product, Order, Payment, Shipping, Notification, Inventory, Review Services
+   # PostgreSQL Service
    core_db:
-      image: postgres:16-alpine # Sử dụng image PostgreSQL phiên bản 16 (phiên bản alpine nhỏ gọn)
-      container_name: ecommerce_core_db_container # Tên container
-      environment: # Các biến môi trường để cấu hình PostgreSQL
-         POSTGRES_DB: ecommerce_core_db # Tên cơ sở dữ liệu
-         POSTGRES_USER: user # Tên người dùng
-         POSTGRES_PASSWORD: password # Mật khẩu
-         # PGDATA không cần thiết nếu bạn mount volume vào /var/lib/postgresql/data (thư mục mặc định của Postgres)
+      image: postgres:16-alpine
+      container_name: ecommerce_core_db_container
+      environment:
+         POSTGRES_DB: ecommerce_core_db
+         POSTGRES_USER: user
+         POSTGRES_PASSWORD: password
       ports:
-         - "5432:5432" # Ánh xạ cổng 5432 của container ra cổng 5432 của host
+         - "5432:5432"
       volumes:
-         # Mount volume dữ liệu vào thư mục mặc định của PostgreSQL
          - ecommerce_db_data:/var/lib/postgresql/data
-         # Correct path for pg_hba.conf in postgres:alpine images is usually inside PGDATA
-         # Đường dẫn đúng cho pg_hba.conf trong image postgres:alpine thường nằm trong thư mục PGDATA
-         - ./docker/postgres/core_db/pg_hba.conf:/etc/postgresql/pg_hba.conf
-      healthcheck: # Kiểm tra sức khỏe của DB
+         - ./docker/postgres/core_db/pg_hba.conf:/var/lib/postgresql/data/pg_hba.conf
+      healthcheck:
          test: ["CMD-SHELL", "pg_isready -U user -d ecommerce_core_db"]
          interval: 5s
          timeout: 5s
          retries: 5
-      restart: always # Luôn khởi động lại container nếu có sự cố
-      # Thêm dòng command này để buộc Postgres sử dụng mã hóa mật khẩu MD5
-      # Điều này giải quyết vấn đề khi mật khẩu mặc định được lưu dưới dạng SCRAM
+      restart: always
 
-   # Dịch vụ Redis cho Cart Service và Auth Service (Refresh Tokens)
+   # Redis Service
    redis:
-      image: redis:7-alpine # Sử dụng image Redis phiên bản 7 (phiên bản alpine nhỏ gọn)
-      container_name: ecommerce_redis # Tên container
+      image: redis:7-alpine
+      container_name: ecommerce_redis
       ports:
-         - "6379:6379" # Ánh xạ cổng 6379 của container ra cổng 6379 của host
+         - "6379:6379"
       volumes:
-         - redis_data:/data # Lưu trữ dữ liệu vào volume (đây là đường dẫn mặc định của Redis)
-      healthcheck: # Kiểm tra sức khỏe của Redis
+         - redis_data:/data
+      healthcheck:
          test: ["CMD", "redis-cli", "ping"]
          interval: 5s
          timeout: 5s
          retries: 5
-      restart: always # Luôn khởi động lại container nếu có sự cố
+      restart: always
 
-   # Dịch vụ Elasticsearch cho Search Service
+   # Elasticsearch Service
    elasticsearch:
-      image: docker.elastic.co/elasticsearch/elasticsearch:8.14.0 # Sử dụng phiên bản Elasticsearch 8.14.0
+      image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
       container_name: ecommerce_elasticsearch
       environment:
-         - xpack.security.enabled=false # Tắt bảo mật X-Pack (KHÔNG DÙNG TRONG PRODUCTION)
-         - discovery.type=single-node # Chạy ở chế độ một node (dev/test)
-         - ES_JAVA_OPTS=-Xms512m -Xmx512m # Cấu hình bộ nhớ Java (điều chỉnh nếu cần)
+         - xpack.security.enabled=false
+         - discovery.type=single-node
+         - ES_JAVA_OPTS=-Xms512m -Xmx512m
       ports:
-         - "9200:9200" # Cổng HTTP
-         - "9300:9300" # Cổng Transport (nội bộ, cho client Java/Node.js)
+         - "9200:9200"
+         - "9300:9300"
       volumes:
-         - elasticsearch_data:/usr/share/elasticsearch/data # Volume dữ liệu Elasticsearch
+         - elasticsearch_data:/usr/share/elasticsearch/data
       healthcheck:
-         test: ["CMD-SHELL", "curl -f http://localhost:9200"] # Kiểm tra cổng HTTP
+         test:
+            [
+               "CMD-SHELL",
+               'curl -s http://localhost:9200/_cluster/health | grep -q ''"status":"green"''',
+            ]
          interval: 10s
          timeout: 10s
          retries: 5
+         start_period: 30s
       restart: always
 
-   # THÊM: Dịch vụ Zookeeper cho Kafka
+   # Zookeeper Service for Kafka
    zookeeper:
       image: confluentinc/cp-zookeeper:7.6.0
       container_name: ecommerce_zookeeper
@@ -73,15 +70,15 @@ services:
          ZOOKEEPER_TICK_TIME: 2000
       restart: always
 
-   # THÊM: Dịch vụ Kafka
+   # Kafka Service
    kafka:
       image: confluentinc/cp-kafka:7.6.0
       container_name: ecommerce_kafka
       ports:
-         - "9092:9092" # Cổng lắng nghe client
+         - "9092:9092"
       environment:
          KAFKA_BROKER_ID: 1
-         KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181 # Kết nối đến Zookeeper container
+         KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
          KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
@@ -89,58 +86,428 @@ services:
          KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
          KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       depends_on:
-         - zookeeper # Kafka phụ thuộc vào Zookeeper
+         - zookeeper
       restart: always
-   # THÊM: Dịch vụ Prometheus (thu thập metrics)
+
+   # Prometheus Service (metrics collection)
    prometheus:
       image: prom/prometheus:v2.52.0
       container_name: ecommerce_prometheus
       ports:
-         - "9090:9090" # Cổng Prometheus UI
+         - "9090:9090"
       volumes:
-         - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml # Mount file cấu hình
-      command: --config.file=/etc/prometheus/prometheus.yml --web.enable-remote-write-receiver --storage.tsdb.retention.time=15d # Giữ dữ liệu 15 ngày
+         - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      command: --config.file=/etc/prometheus/prometheus.yml --web.enable-remote-write-receiver --storage.tsdb.retention.time=15d
       depends_on:
-         - core_db # Prometheus cần các service để scrape
+         - core_db
          - redis
          - elasticsearch
          - kafka
       restart: always
 
-   # THÊM: Dịch vụ Grafana (trực quan hóa metrics)
+   # Grafana Service (metrics visualization)
    grafana:
       image: grafana/grafana:10.4.3
       container_name: ecommerce_grafana
       ports:
-         - "3000:3000" # Cổng Grafana UI
+         - "3000:3000"
       volumes:
-         - grafana_data:/var/lib/grafana # Volume lưu trữ dữ liệu Grafana (dashboard, datasource)
-         - ./docker/grafana/datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yaml # Cấu hình datasource
+         - grafana_data:/var/lib/grafana
+         - ./docker/grafana/datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yaml
       environment:
          - GF_SECURITY_ADMIN_USER=admin
-         - GF_SECURITY_ADMIN_PASSWORD=admin # Mật khẩu admin mặc định (ĐỔI TRONG PRODUCTION!)
+         - GF_SECURITY_ADMIN_PASSWORD=admin
       depends_on:
-         - prometheus # Grafana cần Prometheus làm nguồn dữ liệu
+         - prometheus
       restart: always
 
-   # THÊM: Dịch vụ Jaeger (theo dõi phân tán - tracing)
+   # Jaeger Service (distributed tracing)
    jaeger:
       image: jaegertracing/all-in-one:1.56
       container_name: ecommerce_jaeger
       ports:
-         - "6831:6831/udp" # Agent UDP Thrift
-         - "16686:16686" # Jaeger UI
-         - "14268:14268" # Collector HTTP Thrift
-         - "14250:14250" # Collector gRPC
+         - "6831:6831/udp"
+         - "16686:16686"
+         - "14268:14268"
+         - "14250:14250"
       environment:
          - COLLECTOR_ZIPKIN_HOST_PORT=9411
-         - COLLECTOR_OTLP_ENABLED=true # Enable OpenTelemetry Protocol (OTLP)
+         - COLLECTOR_OTLP_ENABLED=true
+      restart: always
+
+   # User Service (using Dockerfile)
+   user-service:
+      build:
+         context: .
+         dockerfile: ./cmd/user-service/Dockerfile
+      container_name: ecommerce_user_service
+      environment:
+         DATABASE_URL: postgres://user:password@core_db:5432/ecommerce_core_db?sslmode=disable
+         GRPC_PORT_USER: 50051
+         METRICS_PORT_USER: 9101 # Cổng metrics mới
+         JAEGER_COLLECTOR_URL: http://jaeger:14268/api/traces
+         LOG_LEVEL: INFO
+      ports:
+         - "50051:50051"
+         - "9101:9101" # Expose metrics port mới
+      depends_on:
+         core_db:
+            condition: service_healthy
+         jaeger:
+            condition: service_started
+      restart: always
+
+   # Product Service (using Dockerfile)
+   product-service:
+      build:
+         context: .
+         dockerfile: ./cmd/product-service/Dockerfile
+      container_name: ecommerce_product_service
+      environment:
+         DATABASE_URL: postgres://user:password@core_db:5432/ecommerce_core_db?sslmode=disable
+         GRPC_PORT_PRODUCT: 50052
+         METRICS_PORT_PRODUCT: 9102 # Cổng metrics mới
+         KAFKA_BROKER_ADDR: kafka:9092
+         KAFKA_PRODUCT_EVENTS_TOPIC: product_events
+         JAEGER_COLLECTOR_URL: http://jaeger:14268/api/traces
+         LOG_LEVEL: INFO
+      ports:
+         - "50052:50052"
+         - "9102:9102" # Expose metrics port mới
+      depends_on:
+         core_db:
+            condition: service_healthy
+         kafka:
+            condition: service_started
+         jaeger:
+            condition: service_started
+      restart: always
+
+   # Order Service (using Dockerfile)
+   order-service:
+      build:
+         context: .
+         dockerfile: ./cmd/order-service/Dockerfile
+      container_name: ecommerce_order_service
+      environment:
+         DATABASE_URL: postgres://user:password@core_db:5432/ecommerce_core_db?sslmode=disable
+         GRPC_PORT_ORDER: 50053
+         METRICS_PORT_ORDER: 9103 # Cổng metrics mới
+         PRODUCT_GRPC_ADDR: product-service:50052
+         JAEGER_COLLECTOR_URL: http://jaeger:14268/api/traces
+         LOG_LEVEL: INFO
+      ports:
+         - "50053:50053"
+         - "9103:9103" # Expose metrics port mới
+      depends_on:
+         core_db:
+            condition: service_healthy
+         product-service:
+            condition: service_started
+         jaeger:
+            condition: service_started
+      restart: always
+
+   # Cart Service (using Dockerfile)
+   cart-service:
+      build:
+         context: .
+         dockerfile: ./cmd/cart-service/Dockerfile
+      container_name: ecommerce_cart_service
+      environment:
+         REDIS_ADDR: redis:6379
+         GRPC_PORT_CART: 50054
+         METRICS_PORT_CART: 9104 # Cổng metrics mới
+         PRODUCT_GRPC_ADDR: product-service:50052
+         JAEGER_COLLECTOR_URL: http://jaeger:14268/api/traces
+         LOG_LEVEL: INFO
+      ports:
+         - "50054:50054"
+         - "9104:9104" # Expose metrics port mới
+      depends_on:
+         redis:
+            condition: service_healthy
+         product-service:
+            condition: service_started
+         jaeger:
+            condition: service_started
+      restart: always
+
+   # Payment Service (using Dockerfile)
+   payment-service:
+      build:
+         context: .
+         dockerfile: ./cmd/payment-service/Dockerfile
+      container_name: ecommerce_payment_service
+      environment:
+         DATABASE_URL: postgres://user:password@core_db:5432/ecommerce_core_db?sslmode=disable
+         GRPC_PORT_PAYMENT: 50055
+         METRICS_PORT_PAYMENT: 9105 # Cổng metrics mới
+         ORDER_GRPC_ADDR: order-service:50053
+         JAEGER_COLLECTOR_URL: http://jaeger:14268/api/traces
+         LOG_LEVEL: INFO
+      ports:
+         - "50055:50055"
+         - "9105:9105" # Expose metrics port mới
+      depends_on:
+         core_db:
+            condition: service_healthy
+         order-service:
+            condition: service_started
+         jaeger:
+            condition: service_started
+      restart: always
+
+   # Shipping Service (using Dockerfile)
+   shipping-service:
+      build:
+         context: .
+         dockerfile: ./cmd/shipping-service/Dockerfile
+      container_name: ecommerce_shipping_service
+      environment:
+         DATABASE_URL: postgres://user:password@core_db:5432/ecommerce_core_db?sslmode=disable
+         GRPC_PORT_SHIPPING: 50056
+         METRICS_PORT_SHIPPING: 9106 # Cổng metrics mới
+         ORDER_GRPC_ADDR: order-service:50053
+         JAEGER_COLLECTOR_URL: http://jaeger:14268/api/traces
+         LOG_LEVEL: INFO
+      ports:
+         - "50056:50056"
+         - "9106:9106" # Expose metrics port mới
+      depends_on:
+         core_db:
+            condition: service_healthy
+         order-service:
+            condition: service_started
+         jaeger:
+            condition: service_started
+      restart: always
+
+   # Auth Service (using Dockerfile)
+   auth-service:
+      build:
+         context: .
+         dockerfile: ./cmd/auth-service/Dockerfile
+      container_name: ecommerce_auth_service
+      environment:
+         REDIS_ADDR: redis:6379
+         GRPC_PORT_AUTH: 50057
+         METRICS_PORT_AUTH: 9107 # Cổng metrics mới
+         USER_GRPC_ADDR: user-service:50051
+         JWT_SECRET: your_very_secure_and_long_jwt_secret_key_here_change_this_in_production
+         ACCESS_TOKEN_TTL: 15m
+         REFRESH_TOKEN_TTL: 7d
+         JAEGER_COLLECTOR_URL: http://jaeger:14268/api/traces
+         LOG_LEVEL: INFO
+      ports:
+         - "50057:50057"
+         - "9107:9107" # Expose metrics port mới
+      depends_on:
+         redis:
+            condition: service_healthy
+         user-service:
+            condition: service_started
+         jaeger:
+            condition: service_started
+      restart: always
+
+   # Notification Service (using Dockerfile)
+   notification-service:
+      build:
+         context: .
+         dockerfile: ./cmd/notification-service/Dockerfile
+      container_name: ecommerce_notification_service
+      environment:
+         DATABASE_URL: postgres://user:password@core_db:5432/ecommerce_core_db?sslmode=disable
+         GRPC_PORT_NOTIFICATION: 50058
+         METRICS_PORT_NOTIFICATION: 9108 # Cổng metrics mới
+         JAEGER_COLLECTOR_URL: http://jaeger:14268/api/traces
+         LOG_LEVEL: INFO
+      ports:
+         - "50058:50058"
+         - "9108:9108" # Expose metrics port mới
+      depends_on:
+         core_db:
+            condition: service_healthy
+         jaeger:
+            condition: service_started
+      restart: always
+
+   # Inventory Service (using Dockerfile)
+   inventory-service:
+      build:
+         context: .
+         dockerfile: ./cmd/inventory-service/Dockerfile
+      container_name: ecommerce_inventory_service
+      environment:
+         DATABASE_URL: postgres://user:password@core_db:5432/ecommerce_core_db?sslmode=disable
+         GRPC_PORT_INVENTORY: 50059
+         METRICS_PORT_INVENTORY: 9109 # Cổng metrics mới
+         KAFKA_BROKER_ADDR: kafka:9092
+         KAFKA_PRODUCT_EVENTS_TOPIC: product_events
+         KAFKA_INVENTORY_CONSUMER_GROUP_ID: inventory-service-group
+         PRODUCT_GRPC_ADDR: product-service:50052
+         JAEGER_COLLECTOR_URL: http://jaeger:14268/api/traces
+         LOG_LEVEL: INFO
+      ports:
+         - "50059:50059"
+         - "9109:9109" # Expose metrics port mới
+      depends_on:
+         core_db:
+            condition: service_healthy
+         kafka:
+            condition: service_started
+         product-service:
+            condition: service_started
+         jaeger:
+            condition: service_started
+      restart: always
+
+   # Review Service (using Dockerfile)
+   review-service:
+      build:
+         context: .
+         dockerfile: ./cmd/review-service/Dockerfile
+      container_name: ecommerce_review_service
+      environment:
+         DATABASE_URL: postgres://user:password@core_db:5432/ecommerce_core_db?sslmode=disable
+         GRPC_PORT_REVIEW: 50060
+         METRICS_PORT_REVIEW: 9110 # Cổng metrics mới
+         PRODUCT_GRPC_ADDR: product-service:50052
+         JAEGER_COLLECTOR_URL: http://jaeger:14268/api/traces
+         LOG_LEVEL: INFO
+      ports:
+         - "50060:50060"
+         - "9110:9110" # Expose metrics port mới
+      depends_on:
+         core_db:
+            condition: service_healthy
+         product-service:
+            condition: service_started
+         jaeger:
+            condition: service_started
+      restart: always
+
+   # Search Service (using Dockerfile)
+   search-service:
+      build:
+         context: .
+         dockerfile: ./cmd/search-service/Dockerfile
+      container_name: ecommerce_search_service
+      environment:
+         ELASTICSEARCH_ADDR: http://elasticsearch:9200
+         GRPC_PORT_SEARCH: 50061
+         METRICS_PORT_SEARCH: 9111 # Cổng metrics mới
+         KAFKA_BROKER_ADDR: kafka:9092
+         KAFKA_PRODUCT_EVENTS_TOPIC: product_events
+         KAFKA_SEARCH_CONSUMER_GROUP_ID: search-service-group
+         PRODUCT_GRPC_ADDR: product-service:50052
+         JAEGER_COLLECTOR_URL: http://jaeger:14268/api/traces
+         LOG_LEVEL: INFO
+      ports:
+         - "50061:50061"
+         - "9111:9111" # Expose metrics port mới
+      depends_on:
+         elasticsearch:
+            condition: service_healthy
+         kafka:
+            condition: service_started
+         product-service:
+            condition: service_started
+         jaeger:
+            condition: service_started
+      restart: always
+
+   # Recommendation Service (using Dockerfile)
+   recommendation-service:
+      build:
+         context: .
+         dockerfile: ./cmd/recommendation-service/Dockerfile
+      container_name: ecommerce_recommendation_service
+      environment:
+         DATABASE_URL: postgres://user:password@core_db:5432/ecommerce_core_db?sslmode=disable
+         GRPC_PORT_RECOMMENDATION: 50062
+         METRICS_PORT_RECOMMENDATION: 9112 # Cổng metrics mới
+         PRODUCT_GRPC_ADDR: product-service:50052
+         KAFKA_BROKER_ADDR: kafka:9092
+         KAFKA_PRODUCT_EVENTS_TOPIC: product_events
+         KAFKA_RECOMMENDATION_CONSUMER_GROUP_ID: recommendation-service-group
+         JAEGER_COLLECTOR_URL: http://jaeger:14268/api/traces
+         LOG_LEVEL: INFO
+      ports:
+         - "50062:50062"
+         - "9112:9112" # Expose metrics port mới
+      depends_on:
+         core_db:
+            condition: service_healthy
+         product-service:
+            condition: service_started
+         kafka:
+            condition: service_started
+         jaeger:
+            condition: service_started
+      restart: always
+
+   # API Gateway (using Dockerfile)
+   api-gateway:
+      build:
+         context: .
+         dockerfile: ./cmd/api-gateway/Dockerfile
+      container_name: ecommerce_api_gateway
+      environment:
+         HTTP_PORT: 8080
+         METRICS_PORT_API_GATEWAY: 9080
+         USER_GRPC_ADDR: user-service:50051
+         PRODUCT_GRPC_ADDR: product-service:50052
+         ORDER_GRPC_ADDR: order-service:50053
+         CART_GRPC_ADDR: cart-service:50054
+         PAYMENT_GRPC_ADDR: payment-service:50055
+         SHIPPING_GRPC_ADDR: shipping-service:50056
+         AUTH_GRPC_ADDR: auth-service:50057
+         NOTIFICATION_GRPC_ADDR: notification-service:50058
+         INVENTORY_GRPC_ADDR: inventory-service:50059
+         REVIEW_GRPC_ADDR: review-service:50060
+         SEARCH_GRPC_ADDR: search-service:50061
+         RECOMMENDATION_GRPC_ADDR: recommendation-service:50062
+         JWT_SECRET: your_very_secure_and_long_jwt_secret_key_here_change_this_in_production
+         ACCESS_TOKEN_TTL: 15m
+         REFRESH_TOKEN_TTL: 7d
+         JAEGER_COLLECTOR_URL: http://jaeger:14268/api/traces
+         LOG_LEVEL: INFO
+      ports:
+         - "8080:8080"
+         - "9080:9080"
+      depends_on:
+         user-service:
+            condition: service_started
+         product-service:
+            condition: service_started
+         order-service:
+            condition: service_started
+         cart-service:
+            condition: service_started
+         payment-service:
+            condition: service_started
+         shipping-service:
+            condition: service_started
+         auth-service:
+            condition: service_started
+         notification-service:
+            condition: service_started
+         inventory-service:
+            condition: service_started
+         review-service:
+            condition: service_started
+         search-service:
+            condition: service_started
+         recommendation-service:
+            condition: service_started
+         jaeger:
+            condition: service_started
       restart: always
 
 volumes:
-   ecommerce_db_data: # Định nghĩa volume cho PostgreSQL
-   redis_data: # Định nghĩa volume cho Redis
-   elasticsearch_data: # Định nghĩa volume cho Elasticsearch
-   kafka_data: # THÊM: Định nghĩa volume cho Kafka (nếu cần lưu giữ dữ liệu Kafka)
-   grafana_data: # THÊM: Định nghĩa volume cho Grafana
-
+   ecommerce_db_data:
+   redis_data:
+   elasticsearch_data:
+   grafana_data:
