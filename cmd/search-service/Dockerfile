@@ -2,7 +2,7 @@
 
 # Stage 1: Build the application
 # Sử dụng Go 1.22 Alpine làm môi trường build để tạo binary nhỏ gọn
-FROM golang:1.22-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 # Đặt thư mục làm việc bên trong container
 WORKDIR /app

@@ -4,28 +4,28 @@ package messaging
 import (
 	"context"
 	"encoding/json"
-	"fmt" // Import fmt for fmt.Sprintf
+	"fmt"
 	"time"
 
 	"github.com/segmentio/kafka-go"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute" // THÊM: Import attribute
+	"go.opentelemetry.io/otel/attribute" // Import attribute
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap" // Use zap for structured logging
 
 	"github.com/datngth03/ecommerce-go-app/internal/inventory/application"
+	"github.com/datngth03/ecommerce-go-app/internal/shared/events"                // Import shared events package
+	"github.com/datngth03/ecommerce-go-app/internal/shared/logger"                // Import shared logger
 	inventory_client "github.com/datngth03/ecommerce-go-app/pkg/client/inventory" // Generated Inventory gRPC client
-	"github.com/datngth03/ecommerce-go-app/internal/shared/events"                // THÊM: Import shared events package
-	"github.com/datngth03/ecommerce-go-app/internal/shared/logger"                // THÊM: Import shared logger
 )
 
 // KafkaProductEventConsumer is responsible for consuming product events from Kafka for Inventory Service.
 type KafkaProductEventConsumer struct {
 	reader           *kafka.Reader
 	inventoryService application.InventoryService
-	log              *zap.Logger // Use the structured logger
-	propagator       propagation.TextMapPropagator // Propagator để trích xuất context
+	log              *zap.Logger
+	propagator       propagation.TextMapPropagator
 }
 
 // NewKafkaProductEventConsumer creates a new KafkaProductEventConsumer.
@@ -36,13 +36,17 @@ func NewKafkaProductEventConsumer(brokerAddr, topic, groupID string, inventorySe
 		GroupID:  groupID,
 		MinBytes: 10e3, // 10KB
 		MaxBytes: 10e6, // 10MB
+		Dialer: &kafka.Dialer{
+			Timeout:   10 * time.Second,
+			DualStack: true,
+		},
 	})
 
 	return &KafkaProductEventConsumer{
 		reader:           reader,
 		inventoryService: inventoryService,
 		log:              logger.Logger,
-		propagator:       otel.GetTextMapPropagator(), // Khởi tạo propagator
+		propagator:       otel.GetTextMapPropagator(),
 	}
 }
 
@@ -74,21 +78,17 @@ func (c *KafkaProductEventConsumer) StartConsuming(ctx context.Context) {
 		for _, header := range m.Headers {
 			headers[header.Key] = string(header.Value)
 		}
-		// Tạo một context mới với trace context đã trích xuất
 		msgCtx := c.propagator.Extract(context.Background(), propagation.MapCarrier(headers))
-		// Bắt đầu một span mới để xử lý tin nhắn Kafka
-		// Tên span thường là "process <topic_name> message"
 		_, span := otel.Tracer("kafka-consumer").Start(msgCtx, fmt.Sprintf("process %s message", m.Topic),
 			trace.WithSpanKind(trace.SpanKindConsumer))
-		defer span.End() // Đảm bảo span được đóng
+		defer span.End()
 
 		var event events.ProductEvent
 		if err := json.Unmarshal(m.Value, &event); err != nil {
 			c.log.Error("Inventory Service Consumer: Lỗi khi giải mã sự kiện sản phẩm.",
 				zap.Error(err),
 				zap.String("message_value", string(m.Value)))
-			span.RecordError(err) // Ghi lỗi vào span
-			// Commit offset even if unmarshalling fails to avoid reprocessing bad messages
+			span.RecordError(err)
 			if commitErr := c.reader.CommitMessages(ctx, m); commitErr != nil {
 				c.log.Error("Inventory Service Consumer: Lỗi khi commit offset sau lỗi giải mã.", zap.Error(commitErr))
 			}
@@ -110,6 +110,9 @@ func (c *KafkaProductEventConsumer) StartConsuming(ctx context.Context) {
 			}
 		}
 
+		// Tạo context mới cho các thao tác xuống tầng ứng dụng
+		// appCtx := span.Context()
+
 		switch event.Type {
 		case "ProductCreated":
 			c.log.Info("Inventory Service Consumer: Xử lý sự kiện ProductCreated cho Product ID.",
@@ -117,20 +120,17 @@ func (c *KafkaProductEventConsumer) StartConsuming(ctx context.Context) {
 				zap.String("product_name", payload.Name))
 			setStockReq := &inventory_client.SetStockRequest{
 				ProductId: payload.ID,
-				Quantity:  0, // Khởi tạo tồn kho là 0 cho sản phẩm mới
+				Quantity:  0,
 			}
-			// Truyền context đã được làm giàu với trace context
-			_, err := c.inventoryService.SetStock(span.Context(), setStockReq)
+			_, err := c.inventoryService.SetStock(ctx, setStockReq) // Dùng appCtx
 			if err != nil {
 				c.log.Error("Inventory Service Consumer: Lỗi khi khởi tạo tồn kho cho sản phẩm.",
 					zap.String("product_id", payload.ID),
 					zap.Error(err))
 				span.RecordError(err)
-				// Không commit offset để tin nhắn có thể được xử lý lại sau (ví dụ: lỗi DB tạm thời)
 			} else {
 				c.log.Info("Inventory Service Consumer: Đã khởi tạo tồn kho cho sản phẩm thành công.",
 					zap.String("product_id", payload.ID))
-				// Commit offset chỉ khi xử lý thành công
 				if commitErr := c.reader.CommitMessages(ctx, m); commitErr != nil {
 					c.log.Error("Inventory Service Consumer: Lỗi khi commit offset cho sự kiện ProductCreated.", zap.String("event_type", event.Type), zap.Error(commitErr))
 				}
@@ -139,32 +139,30 @@ func (c *KafkaProductEventConsumer) StartConsuming(ctx context.Context) {
 			c.log.Info("Inventory Service Consumer: Xử lý sự kiện ProductUpdated cho Product ID.",
 				zap.String("product_id", payload.ID),
 				zap.String("product_name", payload.Name))
-			// Inventory Service không trực tiếp thay đổi tồn kho từ ProductUpdated, chỉ ghi log và commit.
-			// Nếu có logic cập nhật denormalized data, sẽ thực hiện ở đây.
+			// Hiện tại không có logic cập nhật tồn kho trực tiếp từ sự kiện này.
 			if commitErr := c.reader.CommitMessages(ctx, m); commitErr != nil {
 				c.log.Error("Inventory Service Consumer: Lỗi khi commit offset cho sự kiện ProductUpdated.", zap.String("event_type", event.Type), zap.Error(commitErr))
 			}
 		case "ProductDeleted":
 			c.log.Info("Inventory Service Consumer: Xử lý sự kiện ProductDeleted cho Product ID.",
 				zap.String("product_id", event.AggregateID))
-			// Xóa mục tồn kho khi sản phẩm bị xóa
-			deleteItemReq := &inventory_client.DeleteItemRequest{ // SỬA: Dùng DeleteItemRequest
-				ProductId: event.AggregateID,
-			}
-			// THÊM: Truyền context đã được làm giàu với trace context
-			_, err := c.inventoryService.DeleteItem(span.Context(), deleteItemReq) // SỬA: Gọi DeleteItem
-			if err != nil {
-				c.log.Error("Inventory Service Consumer: Lỗi khi xóa tồn kho cho sản phẩm.",
-					zap.String("product_id", event.AggregateID),
-					zap.Error(err))
-				span.RecordError(err)
-			} else {
-				c.log.Info("Inventory Service Consumer: Đã xóa tồn kho cho sản phẩm thành công.",
-					zap.String("product_id", event.AggregateID))
-				if commitErr := c.reader.CommitMessages(ctx, m); commitErr != nil {
-					c.log.Error("Inventory Service Consumer: Lỗi khi commit offset cho sự kiện ProductDeleted.", zap.String("event_type", event.Type), zap.Error(commitErr))
-				}
-			}
+			// deleteItemReq := &inventory_client.DeleteItemRequest{
+			// 	ProductId: event.AggregateID,
+			// }
+			// // THÊM: Truyền context đã được làm giàu với trace context
+			// _, err := c.inventoryService.DeleteItem(appCtx, deleteItemReq) // Dùng appCtx
+			// if err != nil {
+			// 	c.log.Error("Inventory Service Consumer: Lỗi khi xóa tồn kho cho sản phẩm.",
+			// 		zap.String("product_id", event.AggregateID),
+			// 		zap.Error(err))
+			// 	span.RecordError(err)
+			// } else {
+			// 	c.log.Info("Inventory Service Consumer: Đã xóa tồn kho cho sản phẩm thành công.",
+			// 		zap.String("product_id", event.AggregateID))
+			// 	if commitErr := c.reader.CommitMessages(ctx, m); commitErr != nil {
+			// 		c.log.Error("Inventory Service Consumer: Lỗi khi commit offset cho sự kiện ProductDeleted.", zap.String("event_type", event.Type), zap.Error(commitErr))
+			// 	}
+			// }
 		default:
 			c.log.Warn("Inventory Service Consumer: Loại sự kiện sản phẩm không xác định hoặc không được xử lý.",
 				zap.String("event_type", event.Type),

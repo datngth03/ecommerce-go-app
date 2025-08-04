@@ -2,7 +2,7 @@
 
 # Stage 1: Build the application
 # Use Go 1.22 Alpine as the build environment for a compact binary
-FROM golang:1.22-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 # Set the working directory inside the container
 WORKDIR /app
