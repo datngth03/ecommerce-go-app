@@ -24,7 +24,9 @@ func RegisterRoutes(router *gin.Engine, handlers *GatewayHandlers) {
 		// Auth Public Routes (Đăng nhập, làm mới token)
 		public.POST("/auth/login", handlers.Login)
 		public.POST("/auth/refresh", handlers.RefreshToken)
-		public.POST("/auth/validate", handlers.ValidateToken) // Có thể dùng cho client test token
+		public.POST("/auth/validate", handlers.ValidateToken)       // Có thể dùng cho client test token
+		public.POST("/auth/google-login", handlers.LoginWithGoogle) // Đăng nhập với Google OAuth2
+		// public.GET("/auth/google/callback", handlers.GoogleCallback)
 
 		// Product Public Routes (Có thể xem sản phẩm mà không cần đăng nhập)
 		public.GET("/products", handlers.ListProducts)

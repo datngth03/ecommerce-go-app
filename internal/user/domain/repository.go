@@ -3,6 +3,14 @@ package domain
 
 import (
 	"context"
+	"errors"
+)
+
+var (
+	ErrUserNotFound        = errors.New("user not found")
+	ErrProductNotFound     = errors.New("product not found")
+	ErrInvalidProductData  = errors.New("invalid product data")
+	ErrInvalidCategoryData = errors.New("invalid category data")
 )
 
 // UserRepository defines the interface for user data operations.
@@ -24,4 +32,3 @@ type UserRepository interface {
 	// Delete xóa người dùng khỏi repository.
 	Delete(ctx context.Context, id string) error
 }
-

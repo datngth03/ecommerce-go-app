@@ -1520,6 +1520,63 @@ func (h *GatewayHandlers) ValidateToken(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
+// internal/auth/delivery/http/auth_handler.go
+// LoginWithGoogle godoc
+// @Summary Đăng nhâp với Google
+// @Description Xác thực người dùng thông qua Google ID Token, trả về Access Token và Refresh Token
+// @Tags Auth
+// @Accept json
+// @Produce json
+// param token body auth_client.LoginWithGoogleRequest true "Google ID Token"
+// @Success 200 {object} auth_client.AuthResponse
+// @Failure 400 {object} map[string]string "Bad Request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 500 {object} map[string]string "Internal Server Error"
+// @Router /auth/google-login [post]
+func (h *GatewayHandlers) LoginWithGoogle(c *gin.Context) {
+	var req struct {
+		Token string `json:"token" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	grpcReq := &auth_client.LoginWithGoogleRequest{GoogleToken: req.Token}
+	resp, err := h.AuthClient.LoginWithGoogle(c.Request.Context(), grpcReq)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
+// func (h *GatewayHandlers) GoogleCallback(c *gin.Context) {
+//     code := c.Query("code")
+//     if code == "" {
+//         c.JSON(http.StatusBadRequest, gin.H{"error": "Missing code"})
+//         return
+//     }
+
+//     // Gửi request đến Google để lấy token
+//     tokenResp, err := h.AuthClient.ExchangeCodeForToken(code)
+//     if err != nil {
+//         c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to exchange code"})
+//         return
+//     }
+
+//     // Xác thực người dùng, tạo session, v.v.
+//     user, err := h.AuthClient.VerifyIDToken(tokenResp.IDToken)
+//     if err != nil {
+//         c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid ID token"})
+//         return
+//     }
+
+//     // Trả về token hoặc redirect về frontend
+//     c.JSON(http.StatusOK, gin.H{"user": user})
+// }
+
 // --- Notification Service Handlers ---
 
 // SendEmail godoc

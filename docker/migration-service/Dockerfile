@@ -1,5 +1,5 @@
 # Stage 1: Build the `migrate` tool binary from source
-FROM golang:1.22-alpine AS migrator-builder
+FROM golang:1.23-alpine AS migrator-builder
 
 WORKDIR /go/src/app
 
@@ -7,7 +7,7 @@ WORKDIR /go/src/app
 RUN apk add --no-cache git && \
     git clone https://github.com/golang-migrate/migrate.git && \
     cd migrate/cmd/migrate && \
-    go build -ldflags="-s -w" -o /go/bin/migrate
+    go build -tags 'postgres' -ldflags="-s -w" -o /go/bin/migrate
 
 # Stage 2: Create the final lean image for running migrations
 FROM alpine:latest

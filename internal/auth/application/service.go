@@ -5,12 +5,22 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5" // JWT library
 	"github.com/google/uuid"       // For generating UUIDs for refresh tokens
+	"go.uber.org/zap"
+
+	"net/http"
+
+	oauth2 "google.golang.org/api/oauth2/v2"
+	"google.golang.org/api/option"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/datngth03/ecommerce-go-app/internal/auth/domain"
+	"github.com/datngth03/ecommerce-go-app/internal/shared/logger"
 	auth_client "github.com/datngth03/ecommerce-go-app/pkg/client/auth" // Generated Auth gRPC client
 	user_client "github.com/datngth03/ecommerce-go-app/pkg/client/user" // User gRPC client for user validation
 )
@@ -30,13 +40,15 @@ type AuthService interface {
 	// AuthenticateUser authenticates a user using email and password (calls User Service).
 	// This is an internal method, not an RPC.
 	AuthenticateUser(ctx context.Context, req *auth_client.AuthenticateUserRequest) (*auth_client.AuthenticateUserResponse, error) // THÊM DÒNG NÀY (đã đổi từ email, password string sang req)
-
 	// GenerateTokens generates new access and refresh tokens for a user.
 	GenerateTokens(ctx context.Context, userID string) (*auth_client.AuthResponse, error)
 	// RefreshToken generates a new access token using a refresh token.
 	RefreshToken(ctx context.Context, req *auth_client.RefreshTokenRequest) (*auth_client.AuthResponse, error)
 	// ValidateToken validates an access token.
 	ValidateToken(ctx context.Context, req *auth_client.ValidateTokenRequest) (*auth_client.ValidateTokenResponse, error)
+	// LoginWithGoogle authenticates a user using Google ID token.
+	LoginWithGoogle(ctx context.Context, req *auth_client.LoginWithGoogleRequest) (*auth_client.AuthResponse, error) // ĐÃ SỬA ĐỂ KHỚP VỚI LỖI TRÌNH BIÊN DỊCH
+
 }
 
 // authService implements the AuthService interface.
@@ -227,4 +239,80 @@ func (s *authService) ValidateToken(ctx context.Context, req *auth_client.Valida
 	}
 
 	return &auth_client.ValidateTokenResponse{IsValid: false, ErrorMessage: "invalid token claims"}, nil
+}
+
+// LoginWithGoogle xử lý logic xác thực người dùng bằng Google Token.
+// LoginWithGoogle authenticates a user using Google ID token.
+func (s *authService) LoginWithGoogle(ctx context.Context, req *auth_client.LoginWithGoogleRequest) (*auth_client.AuthResponse, error) {
+	if req.GoogleToken == "" {
+		return nil, status.Error(codes.InvalidArgument, "id token is required")
+	}
+
+	googleClientID := os.Getenv("GOOGLE_CLIENT_ID")
+	if googleClientID == "" {
+		return nil, status.Error(codes.Internal, "missing GOOGLE_CLIENT_ID env variable")
+	}
+
+	// Init OAuth2 service
+	oauth2Service, err := oauth2.NewService(ctx, option.WithHTTPClient(&http.Client{}))
+	if err != nil {
+		logger.Logger.Error("Failed to create OAuth2 service", zap.Error(err))
+		return nil, status.Error(codes.Internal, "failed to create auth service")
+	}
+
+	// Validate Google ID token
+	tokenInfo, err := oauth2Service.Tokeninfo().IdToken(req.GoogleToken).Context(ctx).Do()
+	if err != nil {
+		logger.Logger.Error("Failed to validate Google token", zap.Error(err))
+		return nil, status.Error(codes.Unauthenticated, "invalid Google token")
+	}
+
+	if tokenInfo.Audience != googleClientID {
+		logger.Logger.Warn("Google token audience mismatch",
+			zap.String("expected_audience", googleClientID),
+			zap.String("actual_audience", tokenInfo.Audience),
+		)
+		return nil, status.Error(codes.Unauthenticated, "token audience mismatch")
+	}
+
+	userinfo, err := oauth2Service.Userinfo.Get().Do()
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to fetch userinfo: %v", err)
+	}
+	fmt.Println("Google User:", userinfo.Email, userinfo.Name, userinfo.Picture)
+
+	userEmail := userinfo.Email
+	userName := userinfo.Name
+
+	// Try to find user
+	getUserReq := &user_client.GetUserByEmailRequest{Email: userEmail}
+	userResp, err := s.userClient.GetUserByEmail(ctx, getUserReq)
+
+	var userID string
+
+	if err != nil || userResp.GetUser() == nil {
+		// If not found → create
+		createReq := &user_client.RegisterUserRequest{
+			Email:    userEmail,
+			Password: uuid.NewString(), // random, since Google login
+			FullName: userName,
+		}
+
+		regResp, err := s.userClient.RegisterUser(ctx, createReq)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to create user: %v", err)
+		}
+
+		userID = regResp.GetUserId()
+	} else {
+		userID = userResp.GetUser().GetUserId()
+	}
+
+	// Issue JWT + Refresh token
+	tokens, err := s.GenerateTokens(ctx, userID)
+	if err != nil {
+		return nil, status.Error(codes.Internal, "failed to generate tokens")
+	}
+
+	return tokens, nil
 }

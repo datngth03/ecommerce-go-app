@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gin-contrib/cors" // Import CORS middleware
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"                                                     // Import godotenv để load biến môi trường
 	"github.com/prometheus/client_golang/prometheus/promhttp"                      // For metrics endpoint
@@ -169,6 +170,16 @@ func main() {
 
 	// Initialize Gin router
 	router := gin.Default()
+
+	// --- Thêm middleware CORS ---
+	router.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:5173", "*"}, // domain/frontend port của bạn
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
 
 	// THÊM: Gin OpenTelemetry middleware
 	// This middleware will create a span for each incoming HTTP request

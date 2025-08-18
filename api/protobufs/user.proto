@@ -1,76 +1,175 @@
 // api/protobufs/user.proto
 syntax = "proto3";
 
-// Định nghĩa gói (package) cho protobuf
 package user;
 
-// Tùy chọn cho Go:
-// go_package chỉ định đường dẫn import cho gói Go được tạo ra.
-// Nó sẽ tạo ra các file Go trong thư mục "gen/go/user".
+// Go package path for generated code
 option go_package = "github.com/datngth03/ecommerce-go-app/pkg/client/user;user_client";
 
-// Định nghĩa dịch vụ User Service
+// =======================
+// Service Definition
+// =======================
 service UserService {
-  // RPC để đăng ký người dùng mới
-  rpc RegisterUser (RegisterUserRequest) returns (RegisterUserResponse);
+  // User account operations
+  rpc RegisterUser(RegisterUserRequest) returns (RegisterUserResponse);
+  rpc LoginUser(LoginUserRequest) returns (LoginUserResponse);
+  rpc GetUserByEmail(GetUserByEmailRequest) returns (GetUserByEmailResponse);
 
-  // RPC để đăng nhập người dùng
-  rpc LoginUser (LoginUserRequest) returns (LoginUserResponse);
+  // Profile operations
+  rpc GetUserProfile(GetUserProfileRequest) returns (UserProfileResponse);
+  rpc UpdateUserProfile(UpdateUserProfileRequest) returns (UserProfileResponse);
 
-  // RPC để lấy thông tin hồ sơ người dùng
-  rpc GetUserProfile (GetUserProfileRequest) returns (UserProfileResponse);
+  // Password management
+  rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse);
+  rpc ResetPassword(ResetPasswordRequest) returns (ResetPasswordResponse);
 
-  // RPC để cập nhật hồ sơ người dùng
-  rpc UpdateUserProfile (UpdateUserProfileRequest) returns (UserProfileResponse);
+  // Address management
+  rpc AddAddress(AddAddressRequest) returns (AddressResponse);
+  rpc UpdateAddress(UpdateAddressRequest) returns (AddressResponse);
+  rpc DeleteAddress(DeleteAddressRequest) returns (DeleteAddressResponse);
+  rpc ListAddresses(ListAddressesRequest) returns (ListAddressesResponse);
+
+  // Order history
+  rpc GetOrderHistory(GetOrderHistoryRequest) returns (GetOrderHistoryResponse);
 }
 
-// Định nghĩa cấu trúc tin nhắn (message) cho yêu cầu đăng ký người dùng
+// =======================
+// User Account Messages
+// =======================
 message RegisterUserRequest {
   string email = 1;
   string password = 2;
   string full_name = 3;
 }
 
-// Định nghĩa cấu trúc tin nhắn cho phản hồi đăng ký người dùng
 message RegisterUserResponse {
   string user_id = 1;
   string message = 2;
 }
 
-// Định nghĩa cấu trúc tin nhắn cho yêu cầu đăng nhập người dùng
 message LoginUserRequest {
   string email = 1;
   string password = 2;
 }
 
-// Định nghĩa cấu trúc tin nhắn cho phản hồi đăng nhập người dùng
 message LoginUserResponse {
   string user_id = 1;
-  string access_token = 2; // JWT access token
-  string refresh_token = 3; // JWT refresh token
-  int64 expires_in = 4; // Thời gian hết hạn của access token (giây)
+  string access_token = 2;
+  string refresh_token = 3;
+  int64 expires_in = 4;
 }
 
-// Định nghĩa cấu trúc tin nhắn cho yêu cầu lấy thông tin hồ sơ người dùng
+message GetUserByEmailRequest {
+  string email = 1;
+}
+
+message GetUserByEmailResponse {
+  UserProfileResponse user = 1;
+}
+
+// =======================
+// Profile Messages
+// =======================
 message GetUserProfileRequest {
-  string user_id = 1; 
-}
-
-// Định nghĩa cấu trúc tin nhắn cho phản hồi thông tin hồ sơ người dùng
-message UserProfileResponse {
   string user_id = 1;
-  string email = 2;
-  string full_name = 3;
-  string phone_number = 4;
-  string address = 5;
-  // Các trường thông tin khác của người dùng
 }
 
-// Định nghĩa cấu trúc tin nhắn cho yêu cầu cập nhật hồ sơ người dùng
 message UpdateUserProfileRequest {
   string user_id = 1;
   string full_name = 2;
   string phone_number = 3;
   string address = 4;
-  // Các trường có thể cập nhật
+}
+
+message UserProfileResponse {
+  string user_id = 1;
+  string email = 2;
+  string full_name = 3;
+  string phone_number = 4;
+  repeated Address addresses = 5;
+  // Add more fields if needed
+}
+
+// =======================
+// Password Management
+// =======================
+message ChangePasswordRequest {
+  string user_id = 1;
+  string old_password = 2;
+  string new_password = 3;
+}
+
+message ChangePasswordResponse {
+  string message = 1;
+}
+
+message ResetPasswordRequest {
+  string email = 1;
+}
+
+message ResetPasswordResponse {
+  string message = 1;
+}
+
+// =======================
+// Address Management
+// =======================
+message Address {
+  string id = 1;
+  string full_name = 2;
+  string phone_number = 3;
+  string street_address = 4;
+  string city = 5;
+  string postal_code = 6;
+  string country = 7;
+  bool is_default = 8;
+}
+
+message AddAddressRequest {
+  string user_id = 1;
+  Address address = 2;
+}
+
+message UpdateAddressRequest {
+  string user_id = 1;
+  Address address = 2;
+}
+
+message DeleteAddressRequest {
+  string user_id = 1;
+  string address_id = 2;
+}
+
+message AddressResponse {
+  Address address = 1;
+}
+
+message DeleteAddressResponse {
+  string message = 1;
+}
+
+message ListAddressesRequest {
+  string user_id = 1;
+}
+
+message ListAddressesResponse {
+  repeated Address addresses = 1;
+}
+
+// =======================
+// Order History
+// =======================
+message Order {
+  string order_id = 1;
+  int64 order_date = 2;
+  string status = 3;
+  double total_amount = 4;
+}
+
+message GetOrderHistoryRequest {
+  string user_id = 1;
+}
+
+message GetOrderHistoryResponse {
+  repeated Order orders = 1;
 }

@@ -65,3 +65,14 @@ func (s *AuthGRPCServer) ValidateToken(ctx context.Context, req *auth_client.Val
 	}
 	return resp, nil
 }
+
+// LoginWithGoogle implements the gRPC LoginWithGoogle method.
+func (s *AuthGRPCServer) LoginWithGoogle(ctx context.Context, req *auth_client.LoginWithGoogleRequest) (*auth_client.AuthResponse, error) {
+	log.Printf("Received LoginWithGoogle request")
+	resp, err := s.authService.LoginWithGoogle(ctx, req)
+	if err != nil {
+		log.Printf("Error during LoginWithGoogle: %v", err)
+		return nil, err
+	}
+	return resp, nil
+}

@@ -23,12 +23,20 @@ service AuthService {
 
   // RPC to validate an access token
   rpc ValidateToken (ValidateTokenRequest) returns (ValidateTokenResponse);
+
+  // RPC để đăng nhập bằng Google, sử dụng Google ID token
+  rpc LoginWithGoogle (LoginWithGoogleRequest) returns (AuthResponse);
 }
 
 // Request for user login
 message LoginRequest {
   string email = 1;
   string password = 2;
+}
+
+// Request to login using Google ID token
+message LoginWithGoogleRequest {
+  string google_token = 1; // Google ID token được gửi từ client
 }
 
 // Request to authenticate user credentials
