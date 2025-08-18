@@ -5,6 +5,7 @@
 *.dylib
 *.a
 *.out
+*.env
 /bin/
 
 # Dependency directories
