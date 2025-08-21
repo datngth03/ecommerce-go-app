@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS inventory_transactions (
     quantity INT NOT NULL,
     reference_id UUID,
     note TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     
 );
 

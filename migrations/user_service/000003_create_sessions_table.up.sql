@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     user_agent VARCHAR(255),
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    revoked_at TIMESTAMP WITH TIME ZONE,
+    revoked_at TIMESTAMP WITH TIME ZONE
     
     -- Khóa ngoại liên kết đến bảng users
 );

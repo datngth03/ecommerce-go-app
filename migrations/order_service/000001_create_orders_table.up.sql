@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS orders (
     completed_at TIMESTAMP WITH TIME ZONE,
     canceled_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 
     -- Khóa ngoại đến bảng users
     -- Giả sử user_service và order_service có thể giao tiếp qua một message queue hoặc API,
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS order_items (
     original_price DECIMAL(12, 2) NOT NULL,
     discount DECIMAL(5,2),
     unit_price DECIMAL(12,2) NOT NULL,
-    total_price DECIMAL(12,2) NOT NULL,
+    total_price DECIMAL(12,2) NOT NULL
 
     -- Khóa ngoại đến bảng orders
     -- Lưu ý: product_id và variant_id là các tham chiếu logic đến product_service.

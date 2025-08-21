@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS product_tags (
     product_id UUID NOT NULL,
     tag_id UUID NOT NULL,
-    PRIMARY KEY (product_id, tag_id),
+    PRIMARY KEY (product_id, tag_id)
     
 );
 
