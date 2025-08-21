@@ -77,6 +77,7 @@ func main() {
 
 	// Lấy chuỗi kết nối DB từ biến môi trường "DATABASE_URL"
 	databaseURL := os.Getenv("DATABASE_URL")
+	logger.Logger.Info("DATABASE_URL from env", zap.String("url", databaseURL))
 	if databaseURL == "" {
 		databaseURL = "postgres://user:password@localhost:5432/ecommerce_core_db?sslmode=disable"
 		logger.Logger.Info("DATABASE_URL not set, using default.", zap.String("url", databaseURL))

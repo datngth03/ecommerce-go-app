@@ -1,21 +1,15 @@
--- migrations/product_service/V<timestamp>_create_products_table.up.sql
-
--- Tạo bảng products
 CREATE TABLE IF NOT EXISTS products (
     id UUID PRIMARY KEY,
+    brand_id UUID,
     name VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) NOT NULL UNIQUE,
     description TEXT,
-    price NUMERIC(10, 2) NOT NULL, -- Giá sản phẩm với 2 chữ số thập phân
-    category_id UUID NOT NULL, -- ID danh mục, khóa ngoại đến bảng categories
-    image_urls TEXT[], -- Mảng các URL hình ảnh
-    stock_quantity INT DEFAULT 0, -- Số lượng tồn kho ban đầu
+    rating DECIMAL(3,2) DEFAULT 0,
+    review_count INT DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    -- Thêm ràng buộc khóa ngoại đến bảng categories
-    CONSTRAINT fk_category
-        FOREIGN KEY(category_id)
-        REFERENCES categories(id)
-        ON DELETE RESTRICT -- Không cho phép xóa danh mục nếu có sản phẩm liên quan
+    
+    CONSTRAINT fk_product_brand FOREIGN KEY (brand_id) REFERENCES brands (id) ON DELETE SET NULL
 );
 
 -- Tạo index cho cột name và category_id để tìm kiếm/lọc nhanh hơn

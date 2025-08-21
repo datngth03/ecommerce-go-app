@@ -36,7 +36,7 @@ COPY --from=builder /user-service .
 
 # Copy the .env file (for local testing within Docker if needed, but usually passed via env vars)
 # Be careful with sensitive data in .env in production images
-COPY .env .
+# COPY .env .
 
 # Copy migrations directory
 COPY migrations/user_service ./migrations/user_service/

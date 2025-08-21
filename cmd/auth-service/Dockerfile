@@ -22,7 +22,7 @@ RUN apk add --no-cache tzdata
 WORKDIR /app
 
 COPY --from=builder /auth-service .
-COPY .env . 
+# COPY .env . 
 COPY internal/shared/logger ./internal/shared/logger/ 
 COPY internal/shared/tracing ./internal/shared/tracing/
 
