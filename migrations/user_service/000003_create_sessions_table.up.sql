@@ -10,7 +10,6 @@ CREATE TABLE IF NOT EXISTS sessions (
     revoked_at TIMESTAMP WITH TIME ZONE,
     
     -- Khóa ngoại liên kết đến bảng users
-    CONSTRAINT fk_user_session FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
 -- Tạo index để tìm kiếm session theo người dùng

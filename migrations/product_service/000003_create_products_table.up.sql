@@ -9,9 +9,7 @@ CREATE TABLE IF NOT EXISTS products (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     
-    CONSTRAINT fk_product_brand FOREIGN KEY (brand_id) REFERENCES brands (id) ON DELETE SET NULL
 );
 
 -- Tạo index cho cột name và category_id để tìm kiếm/lọc nhanh hơn
 CREATE INDEX IF NOT EXISTS idx_products_name ON products (name);
-CREATE INDEX IF NOT EXISTS idx_products_category_id ON products (category_id);

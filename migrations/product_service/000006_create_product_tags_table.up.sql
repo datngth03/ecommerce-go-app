@@ -3,8 +3,6 @@ CREATE TABLE IF NOT EXISTS product_tags (
     tag_id UUID NOT NULL,
     PRIMARY KEY (product_id, tag_id),
     
-    CONSTRAINT fk_pt_product FOREIGN KEY (product_id) REFERENCES products (id) ON DELETE CASCADE,
-    CONSTRAINT fk_pt_tag FOREIGN KEY (tag_id) REFERENCES tags (id) ON DELETE CASCADE
 );
 
 

@@ -1,39 +1,44 @@
-# Stage 1: Build the `migrate` tool binary from source
-FROM golang:1.23-alpine AS migrator-builder
-
-WORKDIR /go/src/app
-
-# Get `golang-migrate` and build the binary
-RUN apk add --no-cache git && \
-    git clone https://github.com/golang-migrate/migrate.git && \
-    cd migrate/cmd/migrate && \
-    go build -tags 'postgres' -ldflags="-s -w" -o /go/bin/migrate
-
-# Stage 2: Create the final lean image for running migrations
+# Use Alpine Linux as base image
 FROM alpine:latest
 
-# Install postgres client (required for some versions of migrate, and useful for debugging)
-RUN apk add --no-cache postgresql-client
+# Install required packages
+RUN apk add --no-cache \
+    postgresql-client \
+    curl \
+    bash
 
+# Install golang-migrate CLI tool
+RUN curl -L https://github.com/golang-migrate/migrate/releases/latest/download/migrate.linux-amd64.tar.gz | tar xvz && \
+    mv migrate /usr/local/bin/migrate && \
+    chmod +x /usr/local/bin/migrate
+
+# Create non-root user
+RUN addgroup -g 1001 -S migration && \
+    adduser -S migration -u 1001 -G migration
+
+# Set working directory
 WORKDIR /app
 
-# Copy the pre-built `migrate` tool
-COPY --from=migrator-builder /go/bin/migrate /usr/local/bin/migrate
+# Copy migration files
+COPY migrations ./migrations
 
-# Copy all the separate migration directories
-COPY migrations/ ./migrations/
+# Copy migration script
+COPY docker/migration-service/migrate.sh ./migrate.sh
 
-# Copy the migration consolidation script and make it executable
-COPY docker/migration-service/merge-migrations.sh /usr/local/bin/merge-migrations.sh
-RUN chmod +x /usr/local/bin/merge-migrations.sh
+# Make script executable and change ownership
+RUN chmod +x ./migrate.sh && \
+    chown -R migration:migration /app
 
-# This is the key step: run the script during the build process
-# to create the final, ordered migrations directory
-RUN /usr/local/bin/merge-migrations.sh
+# Switch to non-root user
+USER migration
 
-# Copy the final entrypoint script
-COPY docker/migration-service/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
+# Set environment variables with defaults
+ENV DATABASE_URL=""
+ENV MIGRATION_PATH="./migrations"
+ENV DB_USER=""
+ENV DB_NAME=""
+ENV DB_HOST="localhost"
+ENV DB_PORT="5432"
 
-# The entrypoint will now run on the consolidated migrations
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+# Run the migration script
+CMD ["./migrate.sh"]

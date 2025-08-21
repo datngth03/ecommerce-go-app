@@ -3,8 +3,6 @@ CREATE TABLE IF NOT EXISTS product_categories (
     category_id UUID NOT NULL,
     PRIMARY KEY (product_id, category_id),
     
-    CONSTRAINT fk_pc_product FOREIGN KEY (product_id) REFERENCES products (id) ON DELETE CASCADE,
-    CONSTRAINT fk_pc_category FOREIGN KEY (category_id) REFERENCES categories (id) ON DELETE CASCADE
 );
 
 
@@ -22,6 +20,4 @@ CREATE TABLE IF NOT EXISTS product_specifications (
     attribute_id UUID NOT NULL,
     value VARCHAR(255) NOT NULL,
     
-    CONSTRAINT fk_ps_product FOREIGN KEY (product_id) REFERENCES products (id) ON DELETE CASCADE,
-    CONSTRAINT fk_ps_attribute FOREIGN KEY (attribute_id) REFERENCES specification_attributes (id) ON DELETE CASCADE
 );

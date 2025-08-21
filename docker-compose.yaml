@@ -1,25 +1,185 @@
 services:
-   # PostgreSQL Service
-   core_db:
+   # User Service Database
+   user_db:
       image: postgres:16-alpine
-      container_name: ecommerce_core_db_container
+      container_name: ecommerce_user_db
       environment:
-         POSTGRES_DB: ecommerce_core_db
-         POSTGRES_USER: user
-         POSTGRES_PASSWORD: password
+         POSTGRES_DB: user_service_db
+         POSTGRES_USER: user_service
+         POSTGRES_PASSWORD: user_password_123
       ports:
-         - "5432:5432"
+         - "5433:5432"
       volumes:
-         - ecommerce_db_data:/var/lib/postgresql/data
+         - user_db_data:/var/lib/postgresql/data
       healthcheck:
-         test: ["CMD-SHELL", "pg_isready -U user -d ecommerce_core_db"]
+         test: ["CMD-SHELL", "pg_isready -U user_service -d user_service_db"]
          interval: 5s
          timeout: 5s
          retries: 5
          start_period: 10s
       restart: always
 
-   # Redis Service
+   # Product Service Database
+   product_db:
+      image: postgres:16-alpine
+      container_name: ecommerce_product_db
+      environment:
+         POSTGRES_DB: product_service_db
+         POSTGRES_USER: product_service
+         POSTGRES_PASSWORD: product_password_123
+      ports:
+         - "5434:5432"
+      volumes:
+         - product_db_data:/var/lib/postgresql/data
+      healthcheck:
+         test: ["CMD-SHELL", "pg_isready -U product_service -d product_service_db"]
+         interval: 5s
+         timeout: 5s
+         retries: 5
+         start_period: 10s
+      restart: always
+
+   # Order Service Database
+   order_db:
+      image: postgres:16-alpine
+      container_name: ecommerce_order_db
+      environment:
+         POSTGRES_DB: order_service_db
+         POSTGRES_USER: order_service
+         POSTGRES_PASSWORD: order_password_123
+      ports:
+         - "5435:5432"
+      volumes:
+         - order_db_data:/var/lib/postgresql/data
+      healthcheck:
+         test: ["CMD-SHELL", "pg_isready -U order_service -d order_service_db"]
+         interval: 5s
+         timeout: 5s
+         retries: 5
+         start_period: 10s
+      restart: always
+
+   # Payment Service Database
+   payment_db:
+      image: postgres:16-alpine
+      container_name: ecommerce_payment_db
+      environment:
+         POSTGRES_DB: payment_service_db
+         POSTGRES_USER: payment_service
+         POSTGRES_PASSWORD: payment_password_123
+      ports:
+         - "5436:5432"
+      volumes:
+         - payment_db_data:/var/lib/postgresql/data
+      healthcheck:
+         test: ["CMD-SHELL", "pg_isready -U payment_service -d payment_service_db"]
+         interval: 5s
+         timeout: 5s
+         retries: 5
+         start_period: 10s
+      restart: always
+
+   # Shipping Service Database
+   shipping_db:
+      image: postgres:16-alpine
+      container_name: ecommerce_shipping_db
+      environment:
+         POSTGRES_DB: shipping_service_db
+         POSTGRES_USER: shipping_service
+         POSTGRES_PASSWORD: shipping_password_123
+      ports:
+         - "5437:5432"
+      volumes:
+         - shipping_db_data:/var/lib/postgresql/data
+      healthcheck:
+         test: ["CMD-SHELL", "pg_isready -U shipping_service -d shipping_service_db"]
+         interval: 5s
+         timeout: 5s
+         retries: 5
+         start_period: 10s
+      restart: always
+
+   # Notification Service Database
+   notification_db:
+      image: postgres:16-alpine
+      container_name: ecommerce_notification_db
+      environment:
+         POSTGRES_DB: notification_service_db
+         POSTGRES_USER: notification_service
+         POSTGRES_PASSWORD: notification_password_123
+      ports:
+         - "5438:5432"
+      volumes:
+         - notification_db_data:/var/lib/postgresql/data
+      healthcheck:
+         test: ["CMD-SHELL", "pg_isready -U notification_service -d notification_service_db"]
+         interval: 5s
+         timeout: 5s
+         retries: 5
+         start_period: 10s
+      restart: always
+
+   # Inventory Service Database
+   inventory_db:
+      image: postgres:16-alpine
+      container_name: ecommerce_inventory_db
+      environment:
+         POSTGRES_DB: inventory_service_db
+         POSTGRES_USER: inventory_service
+         POSTGRES_PASSWORD: inventory_password_123
+      ports:
+         - "5439:5432"
+      volumes:
+         - inventory_db_data:/var/lib/postgresql/data
+      healthcheck:
+         test: ["CMD-SHELL", "pg_isready -U inventory_service -d inventory_service_db"]
+         interval: 5s
+         timeout: 5s
+         retries: 5
+         start_period: 10s
+      restart: always
+
+   # Review Service Database
+   review_db:
+      image: postgres:16-alpine
+      container_name: ecommerce_review_db
+      environment:
+         POSTGRES_DB: review_service_db
+         POSTGRES_USER: review_service
+         POSTGRES_PASSWORD: review_password_123
+      ports:
+         - "5440:5432"
+      volumes:
+         - review_db_data:/var/lib/postgresql/data
+      healthcheck:
+         test: ["CMD-SHELL", "pg_isready -U review_service -d review_service_db"]
+         interval: 5s
+         timeout: 5s
+         retries: 5
+         start_period: 10s
+      restart: always
+
+   # Recommendation Service Database
+   recommendation_db:
+      image: postgres:16-alpine
+      container_name: ecommerce_recommendation_db
+      environment:
+         POSTGRES_DB: recommendation_service_db
+         POSTGRES_USER: recommendation_service
+         POSTGRES_PASSWORD: recommendation_password_123
+      ports:
+         - "5441:5432"
+      volumes:
+         - recommendation_db_data:/var/lib/postgresql/data
+      healthcheck:
+         test: ["CMD-SHELL", "pg_isready -U recommendation_service -d recommendation_service_db"]
+         interval: 5s
+         timeout: 5s
+         retries: 5
+         start_period: 10s
+      restart: always
+
+   # Redis Service (for Cart and Auth services)
    redis:
       image: redis:7-alpine
       container_name: ecommerce_redis
@@ -34,7 +194,7 @@ services:
          retries: 5
       restart: always
 
-   # Elasticsearch Service
+   # Elasticsearch Service (for Search service)
    elasticsearch:
       image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
       container_name: ecommerce_elasticsearch
@@ -98,11 +258,6 @@ services:
       volumes:
          - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       command: --config.file=/etc/prometheus/prometheus.yml --web.enable-remote-write-receiver --storage.tsdb.retention.time=15d
-      depends_on:
-         - core_db
-         - redis
-         - elasticsearch
-         - kafka
       restart: always
 
    # Grafana Service (metrics visualization)
@@ -135,16 +290,122 @@ services:
          - COLLECTOR_OTLP_ENABLED=true
       restart: always
 
-   # Dịch vụ Migration
-   migration-service:
+   # Migration Services for each database
+   user-migration:
       build:
          context: .
          dockerfile: ./docker/migration-service/Dockerfile
-      container_name: ecommerce_migration_service
+      container_name: ecommerce_user_migration
       environment:
-         DATABASE_URL: postgres://user:password@core_db:5432/ecommerce_core_db?sslmode=disable
+         DATABASE_URL: postgres://user_service:user_password_123@user_db:5432/user_service_db?sslmode=disable
+         MIGRATION_PATH: ./migrations/user
       depends_on:
-         - core_db
+         user_db:
+            condition: service_healthy
+      restart: "no"
+
+   product-migration:
+      build:
+         context: .
+         dockerfile: ./docker/migration-service/Dockerfile
+      container_name: ecommerce_product_migration
+      environment:
+         DATABASE_URL: postgres://product_service:product_password_123@product_db:5432/product_service_db?sslmode=disable
+         MIGRATION_PATH: ./migrations/product
+      depends_on:
+         product_db:
+            condition: service_healthy
+      restart: "no"
+
+   order-migration:
+      build:
+         context: .
+         dockerfile: ./docker/migration-service/Dockerfile
+      container_name: ecommerce_order_migration
+      environment:
+         DATABASE_URL: postgres://order_service:order_password_123@order_db:5432/order_service_db?sslmode=disable
+         MIGRATION_PATH: ./migrations/order
+      depends_on:
+         order_db:
+            condition: service_healthy
+      restart: "no"
+
+   payment-migration:
+      build:
+         context: .
+         dockerfile: ./docker/migration-service/Dockerfile
+      container_name: ecommerce_payment_migration
+      environment:
+         DATABASE_URL: postgres://payment_service:payment_password_123@payment_db:5432/payment_service_db?sslmode=disable
+         MIGRATION_PATH: ./migrations/payment
+      depends_on:
+         payment_db:
+            condition: service_healthy
+      restart: "no"
+
+   shipping-migration:
+      build:
+         context: .
+         dockerfile: ./docker/migration-service/Dockerfile
+      container_name: ecommerce_shipping_migration
+      environment:
+         DATABASE_URL: postgres://shipping_service:shipping_password_123@shipping_db:5432/shipping_service_db?sslmode=disable
+         MIGRATION_PATH: ./migrations/shipping
+      depends_on:
+         shipping_db:
+            condition: service_healthy
+      restart: "no"
+
+   notification-migration:
+      build:
+         context: .
+         dockerfile: ./docker/migration-service/Dockerfile
+      container_name: ecommerce_notification_migration
+      environment:
+         DATABASE_URL: postgres://notification_service:notification_password_123@notification_db:5432/notification_service_db?sslmode=disable
+         MIGRATION_PATH: ./migrations/notification
+      depends_on:
+         notification_db:
+            condition: service_healthy
+      restart: "no"
+
+   inventory-migration:
+      build:
+         context: .
+         dockerfile: ./docker/migration-service/Dockerfile
+      container_name: ecommerce_inventory_migration
+      environment:
+         DATABASE_URL: postgres://inventory_service:inventory_password_123@inventory_db:5432/inventory_service_db?sslmode=disable
+         MIGRATION_PATH: ./migrations/inventory
+      depends_on:
+         inventory_db:
+            condition: service_healthy
+      restart: "no"
+
+   review-migration:
+      build:
+         context: .
+         dockerfile: ./docker/migration-service/Dockerfile
+      container_name: ecommerce_review_migration
+      environment:
+         DATABASE_URL: postgres://review_service:review_password_123@review_db:5432/review_service_db?sslmode=disable
+         MIGRATION_PATH: ./migrations/review
+      depends_on:
+         review_db:
+            condition: service_healthy
+      restart: "no"
+
+   recommendation-migration:
+      build:
+         context: .
+         dockerfile: ./docker/migration-service/Dockerfile
+      container_name: ecommerce_recommendation_migration
+      environment:
+         DATABASE_URL: postgres://recommendation_service:recommendation_password_123@recommendation_db:5432/recommendation_service_db?sslmode=disable
+         MIGRATION_PATH: ./migrations/recommendation
+      depends_on:
+         recommendation_db:
+            condition: service_healthy
       restart: "no"
 
    # User Service
@@ -154,7 +415,7 @@ services:
          dockerfile: ./cmd/user-service/Dockerfile
       container_name: ecommerce_user_service
       environment:
-         DATABASE_URL: postgres://user:password@core_db:5432/ecommerce_core_db?sslmode=disable
+         DATABASE_URL: postgres://user_service:user_password_123@user_db:5432/user_service_db?sslmode=disable
          GRPC_PORT_USER: 50051
          METRICS_PORT_USER: 9101
          JAEGER_COLLECTOR_URL: http://jaeger:14268/api/traces
@@ -163,7 +424,7 @@ services:
          - "50051:50051"
          - "9101:9101"
       depends_on:
-         migration-service:
+         user-migration:
             condition: service_completed_successfully
       restart: always
 
@@ -174,7 +435,7 @@ services:
          dockerfile: ./cmd/product-service/Dockerfile
       container_name: ecommerce_product_service
       environment:
-         DATABASE_URL: postgres://user:password@core_db:5432/ecommerce_core_db?sslmode=disable
+         DATABASE_URL: postgres://product_service:product_password_123@product_db:5432/product_service_db?sslmode=disable
          GRPC_PORT_PRODUCT: 50052
          METRICS_PORT_PRODUCT: 9102
          KAFKA_BROKER_ADDR: kafka:9092
@@ -185,7 +446,7 @@ services:
          - "50052:50052"
          - "9102:9102"
       depends_on:
-         migration-service:
+         product-migration:
             condition: service_completed_successfully
       restart: always
 
@@ -196,7 +457,7 @@ services:
          dockerfile: ./cmd/order-service/Dockerfile
       container_name: ecommerce_order_service
       environment:
-         DATABASE_URL: postgres://user:password@core_db:5432/ecommerce_core_db?sslmode=disable
+         DATABASE_URL: postgres://order_service:order_password_123@order_db:5432/order_service_db?sslmode=disable
          GRPC_PORT_ORDER: 50053
          METRICS_PORT_ORDER: 9103
          PRODUCT_GRPC_ADDR: product-service:50052
@@ -206,13 +467,13 @@ services:
          - "50053:50053"
          - "9103:9103"
       depends_on:
-         migration-service:
+         order-migration:
             condition: service_completed_successfully
          product-service:
             condition: service_started
       restart: always
 
-   # Cart Service
+   # Cart Service (uses Redis)
    cart-service:
       build:
          context: .
@@ -229,6 +490,8 @@ services:
          - "50054:50054"
          - "9104:9104"
       depends_on:
+         redis:
+            condition: service_healthy
          product-service:
             condition: service_started
       restart: always
@@ -240,7 +503,7 @@ services:
          dockerfile: ./cmd/payment-service/Dockerfile
       container_name: ecommerce_payment_service
       environment:
-         DATABASE_URL: postgres://user:password@core_db:5432/ecommerce_core_db?sslmode=disable
+         DATABASE_URL: postgres://payment_service:payment_password_123@payment_db:5432/payment_service_db?sslmode=disable
          GRPC_PORT_PAYMENT: 50055
          METRICS_PORT_PAYMENT: 9105
          ORDER_GRPC_ADDR: order-service:50053
@@ -250,7 +513,7 @@ services:
          - "50055:50055"
          - "9105:9105"
       depends_on:
-         migration-service:
+         payment-migration:
             condition: service_completed_successfully
          order-service:
             condition: service_started
@@ -263,7 +526,7 @@ services:
          dockerfile: ./cmd/shipping-service/Dockerfile
       container_name: ecommerce_shipping_service
       environment:
-         DATABASE_URL: postgres://user:password@core_db:5432/ecommerce_core_db?sslmode=disable
+         DATABASE_URL: postgres://shipping_service:shipping_password_123@shipping_db:5432/shipping_service_db?sslmode=disable
          GRPC_PORT_SHIPPING: 50056
          METRICS_PORT_SHIPPING: 9106
          ORDER_GRPC_ADDR: order-service:50053
@@ -273,13 +536,13 @@ services:
          - "50056:50056"
          - "9106:9106"
       depends_on:
-         migration-service:
+         shipping-migration:
             condition: service_completed_successfully
          order-service:
             condition: service_started
       restart: always
 
-   # Auth Service
+   # Auth Service (uses Redis)
    auth-service:
       build:
          context: .
@@ -299,6 +562,8 @@ services:
          - "50057:50057"
          - "9107:9107"
       depends_on:
+         redis:
+            condition: service_healthy
          user-service:
             condition: service_started
       restart: always
@@ -310,7 +575,7 @@ services:
          dockerfile: ./cmd/notification-service/Dockerfile
       container_name: ecommerce_notification_service
       environment:
-         DATABASE_URL: postgres://user:password@core_db:5432/ecommerce_core_db?sslmode=disable
+         DATABASE_URL: postgres://notification_service:notification_password_123@notification_db:5432/notification_service_db?sslmode=disable
          GRPC_PORT_NOTIFICATION: 50058
          METRICS_PORT_NOTIFICATION: 9108
          JAEGER_COLLECTOR_URL: http://jaeger:14268/api/traces
@@ -319,7 +584,7 @@ services:
          - "50058:50058"
          - "9108:9108"
       depends_on:
-         migration-service:
+         notification-migration:
             condition: service_completed_successfully
       restart: always
 
@@ -330,7 +595,7 @@ services:
          dockerfile: ./cmd/inventory-service/Dockerfile
       container_name: ecommerce_inventory_service
       environment:
-         DATABASE_URL: postgres://user:password@core_db:5432/ecommerce_core_db?sslmode=disable
+         DATABASE_URL: postgres://inventory_service:inventory_password_123@inventory_db:5432/inventory_service_db?sslmode=disable
          GRPC_PORT_INVENTORY: 50059
          METRICS_PORT_INVENTORY: 9109
          KAFKA_BROKER_ADDR: kafka:9092
@@ -343,7 +608,7 @@ services:
          - "50059:50059"
          - "9109:9109"
       depends_on:
-         migration-service:
+         inventory-migration:
             condition: service_completed_successfully
          product-service:
             condition: service_started
@@ -356,7 +621,7 @@ services:
          dockerfile: ./cmd/review-service/Dockerfile
       container_name: ecommerce_review_service
       environment:
-         DATABASE_URL: postgres://user:password@core_db:5432/ecommerce_core_db?sslmode=disable
+         DATABASE_URL: postgres://review_service:review_password_123@review_db:5432/review_service_db?sslmode=disable
          GRPC_PORT_REVIEW: 50060
          METRICS_PORT_REVIEW: 9110
          PRODUCT_GRPC_ADDR: product-service:50052
@@ -366,13 +631,13 @@ services:
          - "50060:50060"
          - "9110:9110"
       depends_on:
-         migration-service:
+         review-migration:
             condition: service_completed_successfully
          product-service:
             condition: service_started
       restart: always
 
-   # Search Service
+   # Search Service (uses Elasticsearch)
    search-service:
       build:
          context: .
@@ -392,6 +657,8 @@ services:
          - "50061:50061"
          - "9111:9111"
       depends_on:
+         elasticsearch:
+            condition: service_healthy
          product-service:
             condition: service_started
       restart: always
@@ -403,7 +670,7 @@ services:
          dockerfile: ./cmd/recommendation-service/Dockerfile
       container_name: ecommerce_recommendation_service
       environment:
-         DATABASE_URL: postgres://user:password@core_db:5432/ecommerce_core_db?sslmode=disable
+         DATABASE_URL: postgres://recommendation_service:recommendation_password_123@recommendation_db:5432/recommendation_service_db?sslmode=disable
          GRPC_PORT_RECOMMENDATION: 50062
          METRICS_PORT_RECOMMENDATION: 9112
          PRODUCT_GRPC_ADDR: product-service:50052
@@ -416,13 +683,13 @@ services:
          - "50062:50062"
          - "9112:9112"
       depends_on:
-         migration-service:
+         recommendation-migration:
             condition: service_completed_successfully
          product-service:
             condition: service_started
       restart: always
 
-   # API Gateway (using Dockerfile)
+   # API Gateway
    api-gateway:
       build:
          context: .
@@ -452,8 +719,6 @@ services:
          - "8080:8080"
          - "9080:9080"
       depends_on:
-         migration-service:
-            condition: service_completed_successfully
          user-service:
             condition: service_started
          product-service:
@@ -481,7 +746,18 @@ services:
       restart: always
 
 volumes:
-   ecommerce_db_data:
+   # Individual database volumes
+   user_db_data:
+   product_db_data:
+   order_db_data:
+   payment_db_data:
+   shipping_db_data:
+   notification_db_data:
+   inventory_db_data:
+   review_db_data:
+   recommendation_db_data:
+
+   # Shared service volumes
    redis_data:
    elasticsearch_data:
    grafana_data:

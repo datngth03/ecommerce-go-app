@@ -27,11 +27,9 @@ CREATE TABLE IF NOT EXISTS orders (
     -- Giả sử user_service và order_service có thể giao tiếp qua một message queue hoặc API,
     -- nhưng trong migration, chúng ta không tạo khóa ngoại trực tiếp giữa các service.
     -- Bạn có thể giữ cột này như một tham chiếu logic.
-    CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
 );
 
 -- Index để tìm kiếm đơn hàng theo người dùng và số đơn hàng
-CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders (user_id);
 CREATE INDEX IF NOT EXISTS idx_orders_order_number ON orders (order_number);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders (status);
 
@@ -53,7 +51,6 @@ CREATE TABLE IF NOT EXISTS order_items (
     total_price DECIMAL(12,2) NOT NULL,
 
     -- Khóa ngoại đến bảng orders
-    CONSTRAINT fk_order_items_order FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE
     -- Lưu ý: product_id và variant_id là các tham chiếu logic đến product_service.
     -- Không tạo khóa ngoại trực tiếp giữa các service.
 );

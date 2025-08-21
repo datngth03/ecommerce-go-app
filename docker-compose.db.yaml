@@ -1,0 +1,310 @@
+services:
+   # User Service Database
+   user_db:
+      image: postgres:16-alpine
+      container_name: ecommerce_user_db
+      environment:
+         POSTGRES_DB: user_service_db
+         POSTGRES_USER: user_service
+         POSTGRES_PASSWORD: user_password_123
+      ports:
+         - "5433:5432"
+      volumes:
+         - user_db_data:/var/lib/postgresql/data
+      healthcheck:
+         test: ["CMD-SHELL", "pg_isready -U user_service -d user_service_db"]
+         interval: 5s
+         timeout: 5s
+         retries: 5
+         start_period: 10s
+      restart: always
+
+   # Product Service Database
+   product_db:
+      image: postgres:16-alpine
+      container_name: ecommerce_product_db
+      environment:
+         POSTGRES_DB: product_service_db
+         POSTGRES_USER: product_service
+         POSTGRES_PASSWORD: product_password_123
+      ports:
+         - "5434:5432"
+      volumes:
+         - product_db_data:/var/lib/postgresql/data
+      healthcheck:
+         test: ["CMD-SHELL", "pg_isready -U product_service -d product_service_db"]
+         interval: 5s
+         timeout: 5s
+         retries: 5
+         start_period: 10s
+      restart: always
+
+   # Order Service Database
+   order_db:
+      image: postgres:16-alpine
+      container_name: ecommerce_order_db
+      environment:
+         POSTGRES_DB: order_service_db
+         POSTGRES_USER: order_service
+         POSTGRES_PASSWORD: order_password_123
+      ports:
+         - "5435:5432"
+      volumes:
+         - order_db_data:/var/lib/postgresql/data
+      healthcheck:
+         test: ["CMD-SHELL", "pg_isready -U order_service -d order_service_db"]
+         interval: 5s
+         timeout: 5s
+         retries: 5
+         start_period: 10s
+      restart: always
+
+   # Payment Service Database
+   payment_db:
+      image: postgres:16-alpine
+      container_name: ecommerce_payment_db
+      environment:
+         POSTGRES_DB: payment_service_db
+         POSTGRES_USER: payment_service
+         POSTGRES_PASSWORD: payment_password_123
+      ports:
+         - "5436:5432"
+      volumes:
+         - payment_db_data:/var/lib/postgresql/data
+      healthcheck:
+         test: ["CMD-SHELL", "pg_isready -U payment_service -d payment_service_db"]
+         interval: 5s
+         timeout: 5s
+         retries: 5
+         start_period: 10s
+      restart: always
+
+   # Shipping Service Database
+   shipping_db:
+      image: postgres:16-alpine
+      container_name: ecommerce_shipping_db
+      environment:
+         POSTGRES_DB: shipping_service_db
+         POSTGRES_USER: shipping_service
+         POSTGRES_PASSWORD: shipping_password_123
+      ports:
+         - "5437:5432"
+      volumes:
+         - shipping_db_data:/var/lib/postgresql/data
+      healthcheck:
+         test: ["CMD-SHELL", "pg_isready -U shipping_service -d shipping_service_db"]
+         interval: 5s
+         timeout: 5s
+         retries: 5
+         start_period: 10s
+      restart: always
+
+   # Notification Service Database
+   notification_db:
+      image: postgres:16-alpine
+      container_name: ecommerce_notification_db
+      environment:
+         POSTGRES_DB: notification_service_db
+         POSTGRES_USER: notification_service
+         POSTGRES_PASSWORD: notification_password_123
+      ports:
+         - "5438:5432"
+      volumes:
+         - notification_db_data:/var/lib/postgresql/data
+      healthcheck:
+         test: ["CMD-SHELL", "pg_isready -U notification_service -d notification_service_db"]
+         interval: 5s
+         timeout: 5s
+         retries: 5
+         start_period: 10s
+      restart: always
+
+   # Inventory Service Database
+   inventory_db:
+      image: postgres:16-alpine
+      container_name: ecommerce_inventory_db
+      environment:
+         POSTGRES_DB: inventory_service_db
+         POSTGRES_USER: inventory_service
+         POSTGRES_PASSWORD: inventory_password_123
+      ports:
+         - "5439:5432"
+      volumes:
+         - inventory_db_data:/var/lib/postgresql/data
+      healthcheck:
+         test: ["CMD-SHELL", "pg_isready -U inventory_service -d inventory_service_db"]
+         interval: 5s
+         timeout: 5s
+         retries: 5
+         start_period: 10s
+      restart: always
+
+   # Review Service Database
+   review_db:
+      image: postgres:16-alpine
+      container_name: ecommerce_review_db
+      environment:
+         POSTGRES_DB: review_service_db
+         POSTGRES_USER: review_service
+         POSTGRES_PASSWORD: review_password_123
+      ports:
+         - "5440:5432"
+      volumes:
+         - review_db_data:/var/lib/postgresql/data
+      healthcheck:
+         test: ["CMD-SHELL", "pg_isready -U review_service -d review_service_db"]
+         interval: 5s
+         timeout: 5s
+         retries: 5
+         start_period: 10s
+      restart: always
+
+   # Recommendation Service Database
+   recommendation_db:
+      image: postgres:16-alpine
+      container_name: ecommerce_recommendation_db
+      environment:
+         POSTGRES_DB: recommendation_service_db
+         POSTGRES_USER: recommendation_service
+         POSTGRES_PASSWORD: recommendation_password_123
+      ports:
+         - "5441:5432"
+      volumes:
+         - recommendation_db_data:/var/lib/postgresql/data
+      healthcheck:
+         test: ["CMD-SHELL", "pg_isready -U recommendation_service -d recommendation_service_db"]
+         interval: 5s
+         timeout: 5s
+         retries: 5
+         start_period: 10s
+      restart: always
+
+   # Migration Services for each database
+   user-migration:
+      build:
+         context: .
+         dockerfile: ./docker/migration-service/Dockerfile
+      container_name: ecommerce_user_migration
+      environment:
+         DATABASE_URL: postgres://user_service:user_password_123@user_db:5432/user_service_db?sslmode=disable
+         MIGRATION_PATH: ./migrations/user_service
+      depends_on:
+         user_db:
+            condition: service_healthy
+      restart: "no"
+
+   product-migration:
+      build:
+         context: .
+         dockerfile: ./docker/migration-service/Dockerfile
+      container_name: ecommerce_product_migration
+      environment:
+         DATABASE_URL: postgres://product_service:product_password_123@product_db:5432/product_service_db?sslmode=disable
+         MIGRATION_PATH: ./migrations/product_service
+      depends_on:
+         product_db:
+            condition: service_healthy
+      restart: "no"
+
+   order-migration:
+      build:
+         context: .
+         dockerfile: ./docker/migration-service/Dockerfile
+      container_name: ecommerce_order_migration
+      environment:
+         DATABASE_URL: postgres://order_service:order_password_123@order_db:5432/order_service_db?sslmode=disable
+         MIGRATION_PATH: ./migrations/order_service
+      depends_on:
+         order_db:
+            condition: service_healthy
+      restart: "no"
+
+   payment-migration:
+      build:
+         context: .
+         dockerfile: ./docker/migration-service/Dockerfile
+      container_name: ecommerce_payment_migration
+      environment:
+         DATABASE_URL: postgres://payment_service:payment_password_123@payment_db:5432/payment_service_db?sslmode=disable
+         MIGRATION_PATH: ./migrations/payment_service
+      depends_on:
+         payment_db:
+            condition: service_healthy
+      restart: "no"
+
+   shipping-migration:
+      build:
+         context: .
+         dockerfile: ./docker/migration-service/Dockerfile
+      container_name: ecommerce_shipping_migration
+      environment:
+         DATABASE_URL: postgres://shipping_service:shipping_password_123@shipping_db:5432/shipping_service_db?sslmode=disable
+         MIGRATION_PATH: ./migrations/shipping_service
+      depends_on:
+         shipping_db:
+            condition: service_healthy
+      restart: "no"
+
+   notification-migration:
+      build:
+         context: .
+         dockerfile: ./docker/migration-service/Dockerfile
+      container_name: ecommerce_notification_migration
+      environment:
+         DATABASE_URL: postgres://notification_service:notification_password_123@notification_db:5432/notification_service_db?sslmode=disable
+         MIGRATION_PATH: ./migrations/notification_service
+      depends_on:
+         notification_db:
+            condition: service_healthy
+      restart: "no"
+
+   inventory-migration:
+      build:
+         context: .
+         dockerfile: ./docker/migration-service/Dockerfile
+      container_name: ecommerce_inventory_migration
+      environment:
+         DATABASE_URL: postgres://inventory_service:inventory_password_123@inventory_db:5432/inventory_service_db?sslmode=disable
+         MIGRATION_PATH: ./migrations/inventory_service
+      depends_on:
+         inventory_db:
+            condition: service_healthy
+      restart: "no"
+
+   review-migration:
+      build:
+         context: .
+         dockerfile: ./docker/migration-service/Dockerfile
+      container_name: ecommerce_review_migration
+      environment:
+         DATABASE_URL: postgres://review_service:review_password_123@review_db:5432/review_service_db?sslmode=disable
+         MIGRATION_PATH: ./migrations/review_service
+      depends_on:
+         review_db:
+            condition: service_healthy
+      restart: "no"
+
+   recommendation-migration:
+      build:
+         context: .
+         dockerfile: ./docker/migration-service/Dockerfile
+      container_name: ecommerce_recommendation_migration
+      environment:
+         DATABASE_URL: postgres://recommendation_service:recommendation_password_123@recommendation_db:5432/recommendation_service_db?sslmode=disable
+         MIGRATION_PATH: ./migrations/recommendation_service
+      depends_on:
+         recommendation_db:
+            condition: service_healthy
+      restart: "no"
+
+volumes:
+   # Individual database volumes
+   user_db_data:
+   product_db_data:
+   order_db_data:
+   payment_db_data:
+   shipping_db_data:
+   notification_db_data:
+   inventory_db_data:
+   review_db_data:
+   recommendation_db_data:
