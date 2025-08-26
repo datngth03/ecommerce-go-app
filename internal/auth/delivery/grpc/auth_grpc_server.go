@@ -1,18 +1,17 @@
-// internal/auth/delivery/grpc/auth_grpc_server.go
 package grpc
 
 import (
 	"context"
-	"log" // Temporarily using log for errors
+	"log"
 
 	"github.com/datngth03/ecommerce-go-app/internal/auth/application"
-	auth_client "github.com/datngth03/ecommerce-go-app/pkg/client/auth" // Generated Auth gRPC client
+	auth_client "github.com/datngth03/ecommerce-go-app/pkg/client/auth"
 )
 
 // AuthGRPCServer implements the auth_client.AuthServiceServer interface.
 type AuthGRPCServer struct {
-	auth_client.UnimplementedAuthServiceServer // Embedded to satisfy all methods
-	authService                                application.AuthService
+	auth_client.UnimplementedAuthServiceServer
+	authService application.AuthService
 }
 
 // NewAuthGRPCServer creates a new instance of AuthGRPCServer.
@@ -22,8 +21,19 @@ func NewAuthGRPCServer(svc application.AuthService) *AuthGRPCServer {
 	}
 }
 
-// Login implements the gRPC Login method. (THÊM PHẦN NÀY)
-func (s *AuthGRPCServer) Login(ctx context.Context, req *auth_client.LoginRequest) (*auth_client.AuthResponse, error) {
+// Register implements the gRPC Register method.
+func (s *AuthGRPCServer) Register(ctx context.Context, req *auth_client.RegisterRequest) (*auth_client.RegisterResponse, error) {
+	log.Printf("Received Register request for email: %s", req.GetEmail())
+	resp, err := s.authService.Register(ctx, req)
+	if err != nil {
+		log.Printf("Error during registration: %v", err)
+		return nil, err
+	}
+	return resp, nil
+}
+
+// Login implements the gRPC Login method.
+func (s *AuthGRPCServer) Login(ctx context.Context, req *auth_client.LoginRequest) (*auth_client.LoginResponse, error) {
 	log.Printf("Received Login request for email: %s", req.GetEmail())
 	resp, err := s.authService.Login(ctx, req)
 	if err != nil {
@@ -33,23 +43,34 @@ func (s *AuthGRPCServer) Login(ctx context.Context, req *auth_client.LoginReques
 	return resp, nil
 }
 
-// AuthenticateUser implements the gRPC AuthenticateUser method. (THÊM PHẦN NÀY)
-func (s *AuthGRPCServer) AuthenticateUser(ctx context.Context, req *auth_client.AuthenticateUserRequest) (*auth_client.AuthenticateUserResponse, error) {
-	log.Printf("Received AuthenticateUser request for email: %s", req.GetEmail())
-	resp, err := s.authService.AuthenticateUser(ctx, req)
+// LoginWithGoogle implements the gRPC LoginWithGoogle method.
+func (s *AuthGRPCServer) LoginWithGoogle(ctx context.Context, req *auth_client.LoginWithGoogleRequest) (*auth_client.LoginResponse, error) {
+	log.Printf("Received LoginWithGoogle request")
+	resp, err := s.authService.LoginWithGoogle(ctx, req)
 	if err != nil {
-		log.Printf("Error during AuthenticateUser: %v", err)
+		log.Printf("Error during LoginWithGoogle: %v", err)
 		return nil, err
 	}
 	return resp, nil
 }
 
 // RefreshToken implements the gRPC RefreshToken method.
-func (s *AuthGRPCServer) RefreshToken(ctx context.Context, req *auth_client.RefreshTokenRequest) (*auth_client.AuthResponse, error) {
+func (s *AuthGRPCServer) RefreshToken(ctx context.Context, req *auth_client.RefreshTokenRequest) (*auth_client.RefreshTokenResponse, error) {
 	log.Printf("Received RefreshToken request.")
 	resp, err := s.authService.RefreshToken(ctx, req)
 	if err != nil {
 		log.Printf("Error refreshing token: %v", err)
+		return nil, err
+	}
+	return resp, nil
+}
+
+// Logout implements the gRPC Logout method.
+func (s *AuthGRPCServer) Logout(ctx context.Context, req *auth_client.LogoutRequest) (*auth_client.LogoutResponse, error) {
+	log.Printf("Received Logout request.")
+	resp, err := s.authService.Logout(ctx, req)
+	if err != nil {
+		log.Printf("Error during logout: %v", err)
 		return nil, err
 	}
 	return resp, nil
@@ -61,17 +82,6 @@ func (s *AuthGRPCServer) ValidateToken(ctx context.Context, req *auth_client.Val
 	resp, err := s.authService.ValidateToken(ctx, req)
 	if err != nil {
 		log.Printf("Error validating token: %v", err)
-		return nil, err
-	}
-	return resp, nil
-}
-
-// LoginWithGoogle implements the gRPC LoginWithGoogle method.
-func (s *AuthGRPCServer) LoginWithGoogle(ctx context.Context, req *auth_client.LoginWithGoogleRequest) (*auth_client.AuthResponse, error) {
-	log.Printf("Received LoginWithGoogle request")
-	resp, err := s.authService.LoginWithGoogle(ctx, req)
-	if err != nil {
-		log.Printf("Error during LoginWithGoogle: %v", err)
 		return nil, err
 	}
 	return resp, nil

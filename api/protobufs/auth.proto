@@ -1,78 +1,106 @@
 // api/protobufs/auth.proto
 syntax = "proto3";
 
-// Define the package for protobuf
 package auth;
 
-// Go options:
-// go_package specifies the import path for the generated Go package.
-// It will create Go files in the "pkg/client/auth" directory.
 option go_package = "github.com/datngth03/ecommerce-go-app/pkg/client/auth;auth_client";
 
-// AuthService defines the gRPC service for authentication and authorization.
+import "google/protobuf/timestamp.proto";
+// import "google/protobuf/struct.proto";
+
+// =======================
+// Service Definition
+// =======================
 service AuthService {
-  // RPC for user login, returns access and refresh tokens
-  rpc Login (LoginRequest) returns (AuthResponse);
+    // RPC để đăng ký người dùng mới
+    rpc Register (RegisterRequest) returns (RegisterResponse);
+    
+    // RPC để đăng nhập người dùng và nhận token
+    rpc Login (LoginRequest) returns (LoginResponse);
+    
+    // RPC để đnăg nhập bằng mạng xã hội (Google, Facebook, v.v.)
+    rpc LoginWithGoogle (LoginWithGoogleRequest) returns (LoginResponse);
 
-  // RPC to authenticate user credentials without returning tokens
-  // This can be used for internal validation or specific authentication flows.
-  rpc AuthenticateUser (AuthenticateUserRequest) returns (AuthenticateUserResponse); // THÊM DÒNG NÀY
+    // RPC để làm mới access token bằng refresh token
+    rpc RefreshToken (RefreshTokenRequest) returns (RefreshTokenResponse);
+    
+    // RPC để đăng xuất (thu hồi refresh token)
+    rpc Logout (LogoutRequest) returns (LogoutResponse);
+    
+    // RPC để xác thực access token
+    rpc ValidateToken (ValidateTokenRequest) returns (ValidateTokenResponse);
 
-  // RPC to generate a new access token using a refresh token
-  rpc RefreshToken (RefreshTokenRequest) returns (AuthResponse);
-
-  // RPC to validate an access token
-  rpc ValidateToken (ValidateTokenRequest) returns (ValidateTokenResponse);
-
-  // RPC để đăng nhập bằng Google, sử dụng Google ID token
-  rpc LoginWithGoogle (LoginWithGoogleRequest) returns (AuthResponse);
 }
 
-// Request for user login
+// =======================
+// Messages
+// =======================
+
+// Yêu cầu đăng ký người dùng
+message RegisterRequest {
+    string email = 1;
+    string password = 2;
+    string first_name = 3;
+    string last_name = 4;
+}
+
+// Phản hồi đăng ký
+message RegisterResponse {
+    string user_id = 1;
+    string message = 2;
+}
+
+// Yêu cầu đăng nhập
 message LoginRequest {
-  string email = 1;
-  string password = 2;
+    string email = 1;
+    string password = 2;
 }
 
-// Request to login using Google ID token
+// Yêu cầu đăng nhập bằng Google
 message LoginWithGoogleRequest {
-  string google_token = 1; // Google ID token được gửi từ client
+    string id_token = 1;
 }
 
-// Request to authenticate user credentials
-message AuthenticateUserRequest { // THÊM PHẦN NÀY
-  string email = 1;
-  string password = 2;
+// Phản hồi đăng nhập
+message LoginResponse {
+    string user_id = 1;
+    string access_token = 2;
+    string refresh_token = 3;
+    google.protobuf.Timestamp access_token_expires_at = 4;
+    google.protobuf.Timestamp refresh_token_expires_at = 5;
 }
 
-// Response for user authentication
-message AuthenticateUserResponse { // THÊM PHẦN NÀY
-  bool is_authenticated = 1;
-  string user_id = 2;
-  string error_message = 3; // Optional error message if not authenticated
-}
-
-// Message for authentication response (contains tokens)
-message AuthResponse {
-  string access_token = 1;
-  string refresh_token = 2;
-  int64 expires_in = 3; // Access token expiration in seconds
-  string user_id = 4;
-}
-
-// Request to refresh an access token
+// Yêu cầu làm mới token
 message RefreshTokenRequest {
-  string refresh_token = 1;
+    string refresh_token = 1;
 }
 
-// Request to validate an access token
+// Phản hồi làm mới token
+message RefreshTokenResponse {
+    string access_token = 1;
+    string refresh_token = 2;
+    google.protobuf.Timestamp access_token_expires_at = 3;
+    google.protobuf.Timestamp refresh_token_expires_at = 4;
+}
+
+// Yêu cầu đăng xuất
+message LogoutRequest {
+    string refresh_token = 1;
+}
+
+// Phản hồi đăng xuất
+message LogoutResponse {
+    string message = 1;
+}
+
+// Yêu cầu xác thực token
 message ValidateTokenRequest {
-  string access_token = 1;
+    string access_token = 1;
 }
 
-// Response for token validation
+// Phản hồi xác thực token
 message ValidateTokenResponse {
-  bool is_valid = 1;
-  string user_id = 2;
-  string error_message = 3; // Optional error message if not valid
+    string user_id = 1;
+    bool is_valid = 2;
+    string error_message = 3; 
 }

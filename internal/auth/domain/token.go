@@ -2,7 +2,12 @@
 package domain
 
 import (
+	"errors"
 	"time"
+)
+
+var (
+	ErrRefreshTokenNotFound = errors.New("refresh token not found")
 )
 
 // RefreshToken represents a refresh token entity.

@@ -6,11 +6,15 @@ package user;
 // Go package path for generated code
 option go_package = "github.com/datngth03/ecommerce-go-app/pkg/client/user;user_client";
 
+// Import for standard types like Timestamp
+import "google/protobuf/timestamp.proto";
+// import "google/protobuf/struct.proto";
+
 // =======================
 // Service Definition
 // =======================
 service UserService {
-  // User account operations
+ // User account operations
   rpc RegisterUser(RegisterUserRequest) returns (RegisterUserResponse);
   rpc LoginUser(LoginUserRequest) returns (LoginUserResponse);
   rpc GetUserByEmail(GetUserByEmailRequest) returns (GetUserByEmailResponse);
@@ -39,7 +43,8 @@ service UserService {
 message RegisterUserRequest {
   string email = 1;
   string password = 2;
-  string full_name = 3;
+  string first_name = 3;
+  string last_name = 4;
 }
 
 message RegisterUserResponse {
@@ -76,18 +81,29 @@ message GetUserProfileRequest {
 
 message UpdateUserProfileRequest {
   string user_id = 1;
-  string full_name = 2;
-  string phone_number = 3;
-  string address = 4;
+  string first_name = 2;
+  string last_name = 3;
+  string phone_number = 4;
+  string avatar = 5;
+  google.protobuf.Timestamp date_of_birth = 6;
+  string gender = 7;
 }
 
 message UserProfileResponse {
   string user_id = 1;
   string email = 2;
-  string full_name = 3;
-  string phone_number = 4;
-  repeated Address addresses = 5;
-  // Add more fields if needed
+  string first_name = 3;
+  string last_name = 4;
+  string phone_number = 5;
+  string avatar = 6;
+  google.protobuf.Timestamp date_of_birth = 7;
+  string gender = 8;
+  bool is_verified = 9;
+  bool is_phone_verified = 10;
+  bool is_active = 11;
+  repeated Address addresses = 12; // Danh sách địa chỉ
+  google.protobuf.Timestamp created_at = 13;
+  google.protobuf.Timestamp updated_at = 14;
 }
 
 // =======================
@@ -116,13 +132,17 @@ message ResetPasswordResponse {
 // =======================
 message Address {
   string id = 1;
-  string full_name = 2;
-  string phone_number = 3;
-  string street_address = 4;
-  string city = 5;
-  string postal_code = 6;
-  string country = 7;
-  bool is_default = 8;
+  string user_id = 2;
+  string type = 3;
+  string name = 4; // Tương ứng với full_name trong schema cũ
+  string address_line = 5; // Tương ứng với street_address trong schema cũ
+  string city = 6;
+  string state = 7;
+  string zip_code = 8;
+  string country = 9;
+  bool is_default = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
 }
 
 message AddAddressRequest {

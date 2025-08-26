@@ -4,11 +4,14 @@ package application
 import (
 	"context"
 	"errors"
+	"time"
 
 	// "fmt"
 	"go.uber.org/zap"
+	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/datngth03/ecommerce-go-app/internal/shared/logger"
 	"github.com/datngth03/ecommerce-go-app/internal/user/domain"
@@ -50,12 +53,7 @@ func NewUserService(repo domain.UserRepository) UserService {
 // RegisterUser handles the user registration use case.
 // RegisterUser xử lý trường hợp sử dụng đăng ký người dùng.
 func (s *userService) RegisterUser(ctx context.Context, req *user_client.RegisterUserRequest) (*user_client.RegisterUserResponse, error) {
-	// Basic validation
-	if req.GetEmail() == "" || req.GetPassword() == "" || req.GetFullName() == "" {
-		return nil, status.Error(codes.InvalidArgument, "Email, password, and full name are required")
-	}
-
-	// Check if user already exists
+	// Kiểm tra xem người dùng đã tồn tại hay chưa.
 	_, err := s.userRepo.FindByEmail(ctx, req.GetEmail())
 	if err == nil {
 		return nil, status.Error(codes.AlreadyExists, "User with this email already exists")
@@ -64,20 +62,28 @@ func (s *userService) RegisterUser(ctx context.Context, req *user_client.Registe
 		return nil, status.Errorf(codes.Internal, "Failed to check for existing user: %v", err)
 	}
 
-	// Create new user domain entity
-	userID := uuid.New().String()
-	user := domain.NewUser(userID, req.GetEmail(), req.GetPassword(), req.GetFullName())
-
-	// Hash password
-	if err := user.HashPassword(); err != nil {
+	// Băm mật khẩu trước khi tạo đối tượng domain.
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.GetPassword()), bcrypt.DefaultCost)
+	if err != nil {
 		return nil, status.Error(codes.Internal, "Failed to hash password")
 	}
 
-	// Save user to repository
+	// Tạo đối tượng domain người dùng.
+	userID := uuid.New().String()
+	user := domain.NewUser(
+		userID,
+		req.GetEmail(),
+		string(hashedPassword),
+		req.GetFirstName(),
+		req.GetLastName(),
+	)
+
+	// Lưu người dùng vào repository.
 	if err := s.userRepo.Save(ctx, user); err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to save user: %v", err)
 	}
 
+	// TODO: Thay thế logger bằng một logger thích hợp.
 	logger.Logger.Info("User registered successfully", zap.String("userID", user.ID))
 
 	return &user_client.RegisterUserResponse{
@@ -98,7 +104,8 @@ func (s *userService) LoginUser(ctx context.Context, req *user_client.LoginUserR
 		return nil, status.Error(codes.Unauthenticated, "Invalid credentials")
 	}
 
-	if !user.CheckPassword(req.GetPassword()) { // Placeholder for password check
+	// So sánh mật khẩu đã nhập với mật khẩu đã băm trong database
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.GetPassword())); err != nil {
 		return nil, status.Error(codes.Unauthenticated, "Invalid credentials")
 	}
 
@@ -124,24 +131,35 @@ func (s *userService) GetUserProfile(ctx context.Context, req *user_client.GetUs
 
 	user, err := s.userRepo.FindByID(ctx, req.GetUserId())
 	if err != nil {
-		return nil, status.Error(codes.NotFound, "User not found")
+		// Dựa vào domain.ErrUserNotFound để trả về lỗi 404
+		if errors.Is(err, domain.ErrUserNotFound) {
+			return nil, status.Error(codes.NotFound, "User not found")
+		}
+		return nil, status.Errorf(codes.Internal, "Failed to get user profile: %v", err)
 	}
 
+	// Chuyển đổi slice domain.Address sang slice user_client.Address
 	addresses := make([]*user_client.Address, len(user.Addresses))
 	for i, addr := range user.Addresses {
 		addresses[i] = &user_client.Address{
-			StreetAddress: addr.StreetAddress,
-			City:          addr.City,
-			Country:       addr.Country,
-			PostalCode:    addr.PostalCode,
-			IsDefault:     addr.IsDefault,
+			Id:          addr.ID,
+			Name:        addr.FullName,      // Ánh xạ FullName -> Name
+			AddressLine: addr.StreetAddress, // Ánh xạ StreetAddress -> AddressLine
+			City:        addr.City,
+			Country:     addr.Country,
+			ZipCode:     addr.PostalCode, // Ánh xạ PostalCode -> ZipCode
+			IsDefault:   addr.IsDefault,
+			// TODO: Add other fields as needed from the domain.Address
+			CreatedAt: timestamppb.New(addr.CreatedAt),
+			UpdatedAt: timestamppb.New(addr.UpdatedAt),
 		}
 	}
 
 	return &user_client.UserProfileResponse{
 		UserId:      user.ID,
 		Email:       user.Email,
-		FullName:    user.FullName,
+		FirstName:   user.FirstName,
+		LastName:    user.LastName,
 		PhoneNumber: user.PhoneNumber,
 		Addresses:   addresses,
 	}, nil
@@ -156,30 +174,50 @@ func (s *userService) UpdateUserProfile(ctx context.Context, req *user_client.Up
 
 	user, err := s.userRepo.FindByID(ctx, req.GetUserId())
 	if err != nil {
-		return nil, status.Error(codes.NotFound, "User not found")
+		if errors.Is(err, domain.ErrUserNotFound) {
+			return nil, status.Error(codes.NotFound, "User not found")
+		}
+		return nil, status.Errorf(codes.Internal, "Failed to get user: %v", err)
 	}
 
-	user.UpdateProfile(req.GetFullName(), req.GetPhoneNumber(), req.GetAddress())
+	// Cập nhật các trường dựa trên yêu cầu
+	if req.GetFirstName() != "" {
+		user.FirstName = req.GetFirstName()
+	}
+	if req.GetLastName() != "" {
+		user.LastName = req.GetLastName()
+	}
+	if req.GetPhoneNumber() != "" {
+		user.PhoneNumber = req.GetPhoneNumber()
+	}
+	user.UpdatedAt = time.Now()
 
+	// Lưu người dùng đã cập nhật vào repository
 	if err := s.userRepo.Save(ctx, user); err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to update user profile: %v", err)
 	}
 
+	// Chuyển đổi slice domain.Address sang slice user_client.Address
 	addresses := make([]*user_client.Address, len(user.Addresses))
 	for i, addr := range user.Addresses {
 		addresses[i] = &user_client.Address{
-			StreetAddress: addr.StreetAddress,
-			City:          addr.City,
-			Country:       addr.Country,
-			PostalCode:    addr.PostalCode,
-			IsDefault:     addr.IsDefault,
+			Id:          addr.ID,
+			Name:        addr.FullName,      // Ánh xạ FullName -> Name
+			AddressLine: addr.StreetAddress, // Ánh xạ StreetAddress -> AddressLine
+			City:        addr.City,
+			Country:     addr.Country,
+			ZipCode:     addr.PostalCode, // Ánh xạ PostalCode -> ZipCode
+			IsDefault:   addr.IsDefault,
+			CreatedAt:   timestamppb.New(addr.CreatedAt),
+			UpdatedAt:   timestamppb.New(addr.UpdatedAt),
 		}
 	}
 
 	return &user_client.UserProfileResponse{
 		UserId:      user.ID,
 		Email:       user.Email,
-		FullName:    user.FullName,
+		FirstName:   user.FirstName,
+		LastName:    user.LastName,
 		PhoneNumber: user.PhoneNumber,
 		Addresses:   addresses,
 	}, nil
@@ -199,14 +237,19 @@ func (s *userService) GetUserByEmail(ctx context.Context, req *user_client.GetUs
 		return nil, status.Errorf(codes.Internal, "Failed to get user: %v", err)
 	}
 
+	// Chuyển đổi slice domain.Address sang slice user_client.Address
 	addresses := make([]*user_client.Address, len(user.Addresses))
 	for i, addr := range user.Addresses {
 		addresses[i] = &user_client.Address{
-			StreetAddress: addr.StreetAddress,
-			City:          addr.City,
-			Country:       addr.Country,
-			PostalCode:    addr.PostalCode,
-			IsDefault:     addr.IsDefault,
+			Id:          addr.ID,
+			Name:        addr.FullName,
+			AddressLine: addr.StreetAddress,
+			City:        addr.City,
+			Country:     addr.Country,
+			ZipCode:     addr.PostalCode,
+			IsDefault:   addr.IsDefault,
+			CreatedAt:   timestamppb.New(addr.CreatedAt),
+			UpdatedAt:   timestamppb.New(addr.UpdatedAt),
 		}
 	}
 
@@ -214,7 +257,8 @@ func (s *userService) GetUserByEmail(ctx context.Context, req *user_client.GetUs
 		User: &user_client.UserProfileResponse{
 			UserId:      user.ID,
 			Email:       user.Email,
-			FullName:    user.FullName,
+			FirstName:   user.FirstName,
+			LastName:    user.LastName,
 			PhoneNumber: user.PhoneNumber,
 			Addresses:   addresses,
 		},
@@ -229,18 +273,28 @@ func (s *userService) ChangePassword(ctx context.Context, req *user_client.Chang
 
 	user, err := s.userRepo.FindByID(ctx, req.GetUserId())
 	if err != nil {
-		return nil, status.Error(codes.NotFound, "User not found")
+		if errors.Is(err, domain.ErrUserNotFound) {
+			return nil, status.Error(codes.NotFound, "User not found")
+		}
+		return nil, status.Errorf(codes.Internal, "Failed to get user: %v", err)
 	}
 
-	if !user.CheckPassword(req.GetOldPassword()) {
+	// Xác thực mật khẩu cũ bằng cách so sánh với mật khẩu đã băm trong database.
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.GetOldPassword())); err != nil {
 		return nil, status.Error(codes.Unauthenticated, "Invalid old password")
 	}
 
-	user.UpdatePassword(req.GetNewPassword())
-	if err := user.HashPassword(); err != nil {
+	// Băm mật khẩu mới.
+	newPasswordHash, err := bcrypt.GenerateFromPassword([]byte(req.GetNewPassword()), bcrypt.DefaultCost)
+	if err != nil {
 		return nil, status.Error(codes.Internal, "Failed to hash new password")
 	}
 
+	// Cập nhật mật khẩu đã băm và UpdatedAt.
+	user.PasswordHash = string(newPasswordHash)
+	user.UpdatedAt = time.Now()
+
+	// Lưu người dùng đã cập nhật vào repository.
 	if err := s.userRepo.Save(ctx, user); err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to change password: %v", err)
 	}
@@ -254,9 +308,23 @@ func (s *userService) ResetPassword(ctx context.Context, req *user_client.ResetP
 		return nil, status.Error(codes.InvalidArgument, "Email is required")
 	}
 
-	// TODO: Logic for a real password reset flow would involve sending a token to the user's email.
-	// We'll simulate a successful response for now.
-	logger.Logger.Info("Simulating password reset request", zap.String("email", req.GetEmail()))
+	// TODO: A real password reset flow would involve generating a secure, time-limited token
+	// and sending it to the user's email address. The user would then use this token
+	// to set a new password. The logic below is a placeholder.
+	_, err := s.userRepo.FindByEmail(ctx, req.GetEmail())
+	if err != nil {
+		// Dựa vào domain.ErrUserNotFound để trả về lỗi 404
+		if errors.Is(err, domain.ErrUserNotFound) {
+			// Trả về phản hồi thành công ngay cả khi email không được tìm thấy
+			// để tránh tiết lộ thông tin người dùng.
+			logger.Logger.Info("Simulating password reset request for non-existent ", zap.String("email", req.GetEmail()))
+			return &user_client.ResetPasswordResponse{Message: "If the email is registered, a password reset link has been sent."}, nil
+		}
+		return nil, status.Errorf(codes.Internal, "Failed to find user by email: %v", err)
+	}
+
+	// Gửi email hoặc tạo mã token ở đây
+	logger.Logger.Info("Simulating password reset request for ", zap.String("email", req.GetEmail()))
 
 	return &user_client.ResetPasswordResponse{Message: "If the email is registered, a password reset link has been sent."}, nil
 }
@@ -266,44 +334,51 @@ func (s *userService) AddAddress(ctx context.Context, req *user_client.AddAddres
 	if req.GetUserId() == "" || req.GetAddress() == nil {
 		return nil, status.Error(codes.InvalidArgument, "User ID and address are required")
 	}
-	if req.GetAddress().GetStreetAddress() == "" {
+	if req.GetAddress().GetAddressLine() == "" {
 		return nil, status.Error(codes.InvalidArgument, "Street address is required")
 	}
 
 	user, err := s.userRepo.FindByID(ctx, req.GetUserId())
 	if err != nil {
-		return nil, status.Error(codes.NotFound, "User not found")
+		if errors.Is(err, domain.ErrUserNotFound) {
+			return nil, status.Error(codes.NotFound, "User not found")
+		}
+		return nil, status.Errorf(codes.Internal, "Failed to get user: %v", err)
 	}
 
-	// Placeholder logic to add address to the user's domain model
-	// Assuming the user domain model has a method like AddAddress
-	newAddressID := uuid.New().String()
-	req.GetAddress().Id = newAddressID
+	// Tạo một đối tượng domain.Address từ yêu cầu
+	newAddress := domain.NewAddress(
+		uuid.New().String(),
+		req.GetAddress().GetName(),
+		req.GetAddress().GetAddressLine(),
+		req.GetAddress().GetCity(),
+		req.GetAddress().GetZipCode(),
+		req.GetAddress().GetCountry(),
+		req.GetAddress().GetIsDefault(),
+	)
 
-	// Simulate adding the address to the user object
-	// This would require a `AddAddress` method on the `domain.User` struct
-	// For this example, we'll just return the provided address with an ID
+	// Thêm địa chỉ mới vào người dùng
+	user.AddAddress(newAddress)
 
-	addr := req.GetAddress()
-
-	if err := user.AddAddress(domain.Address{
-		ID:            addr.Id,
-		FullName:      addr.FullName,
-		PhoneNumber:   addr.PhoneNumber,
-		StreetAddress: addr.StreetAddress,
-		City:          addr.City,
-		PostalCode:    addr.PostalCode,
-		Country:       addr.Country,
-		IsDefault:     addr.IsDefault,
-	}); err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to add address: %v", err)
-	}
-
+	// Lưu người dùng đã cập nhật vào repository
 	if err := s.userRepo.Save(ctx, user); err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to save user with new address: %v", err)
 	}
 
-	return &user_client.AddressResponse{Address: req.GetAddress()}, nil
+	// Chuyển đổi địa chỉ đã thêm sang loại gRPC client để trả về
+	return &user_client.AddressResponse{
+		Address: &user_client.Address{
+			Id:          newAddress.ID,
+			Name:        newAddress.FullName,
+			AddressLine: newAddress.StreetAddress,
+			City:        newAddress.City,
+			ZipCode:     newAddress.PostalCode,
+			Country:     newAddress.Country,
+			IsDefault:   newAddress.IsDefault,
+			CreatedAt:   timestamppb.New(newAddress.CreatedAt),
+			UpdatedAt:   timestamppb.New(newAddress.UpdatedAt),
+		},
+	}, nil
 }
 
 // UpdateAddress updates an existing user address.
@@ -314,31 +389,60 @@ func (s *userService) UpdateAddress(ctx context.Context, req *user_client.Update
 
 	user, err := s.userRepo.FindByID(ctx, req.GetUserId())
 	if err != nil {
-		return nil, status.Error(codes.NotFound, "User not found")
+		if errors.Is(err, domain.ErrUserNotFound) {
+			return nil, status.Error(codes.NotFound, "User not found")
+		}
+		return nil, status.Errorf(codes.Internal, "Failed to get user: %v", err)
 	}
 
-	// Placeholder logic to update the address
-	// This would require a `UpdateAddress` method on the `domain.User` struct
+	// Tạo một đối tượng domain.Address từ yêu cầu
+	updatedAddress := domain.Address{
+		ID:            req.GetAddress().GetId(),
+		FullName:      req.GetAddress().GetName(),
+		StreetAddress: req.GetAddress().GetAddressLine(),
+		City:          req.GetAddress().GetCity(),
+		PostalCode:    req.GetAddress().GetZipCode(),
+		Country:       req.GetAddress().GetCountry(),
+		IsDefault:     req.GetAddress().GetIsDefault(),
+	}
 
-	addr := req.GetAddress()
-	if err := user.UpdateAddress(domain.Address{
-		ID:            addr.Id,
-		FullName:      addr.FullName,
-		PhoneNumber:   addr.PhoneNumber,
-		StreetAddress: addr.StreetAddress,
-		City:          addr.City,
-		PostalCode:    addr.PostalCode,
-		Country:       addr.Country,
-		IsDefault:     addr.IsDefault,
-	}); err != nil {
+	// Cập nhật địa chỉ trong user domain model
+	if err := user.UpdateAddress(updatedAddress); err != nil {
+		if errors.Is(err, domain.ErrAddressNotFound) {
+			return nil, status.Error(codes.NotFound, "Address not found for this user")
+		}
 		return nil, status.Errorf(codes.Internal, "Failed to update address: %v", err)
 	}
 
+	// Lưu người dùng đã cập nhật vào repository
 	if err := s.userRepo.Save(ctx, user); err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to save user with updated address: %v", err)
 	}
 
-	return &user_client.AddressResponse{Address: req.GetAddress()}, nil
+	// Tìm địa chỉ đã cập nhật trong slice của người dùng để trả về
+	var returnedAddress *user_client.Address
+	for _, addr := range user.Addresses {
+		if addr.ID == updatedAddress.ID {
+			returnedAddress = &user_client.Address{
+				Id:          addr.ID,
+				Name:        addr.FullName,
+				AddressLine: addr.StreetAddress,
+				City:        addr.City,
+				ZipCode:     addr.PostalCode,
+				Country:     addr.Country,
+				IsDefault:   addr.IsDefault,
+				CreatedAt:   timestamppb.New(addr.CreatedAt),
+				UpdatedAt:   timestamppb.New(addr.UpdatedAt),
+			}
+			break
+		}
+	}
+	if returnedAddress == nil {
+		// Đây là một lỗi hiếm gặp, nhưng nên xử lý để đảm bảo an toàn
+		return nil, status.Error(codes.Internal, "Failed to find updated address after saving")
+	}
+
+	return &user_client.AddressResponse{Address: returnedAddress}, nil
 }
 
 // DeleteAddress removes a user address.
@@ -355,7 +459,7 @@ func (s *userService) DeleteAddress(ctx context.Context, req *user_client.Delete
 	// Placeholder logic to delete the address
 	// This would require a `DeleteAddress` method on the `domain.User` struct
 
-	if err := user.DeleteAddress(req.GetAddressId()); err != nil {
+	if err := user.RemoveAddress(req.GetAddressId()); err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to delete address: %v", err)
 	}
 
@@ -374,23 +478,31 @@ func (s *userService) ListAddresses(ctx context.Context, req *user_client.ListAd
 
 	user, err := s.userRepo.FindByID(ctx, req.GetUserId())
 	if err != nil {
-		return nil, status.Error(codes.NotFound, "User not found")
+		if errors.Is(err, domain.ErrUserNotFound) {
+			return nil, status.Error(codes.NotFound, "User not found")
+		}
+		return nil, status.Errorf(codes.Internal, "Failed to get user: %v", err)
 	}
 
-	// Placeholder logic to get addresses
-	// Assuming the user domain model has a `GetAddresses` method that returns a slice of addresses
-	// For this example, we'll return an empty list
-
-	addresses := user.GetAddress()
-	protoAddresses := []*user_client.Address{}
-	for _, addr := range addresses {
+	// Chuyển đổi slice domain.Address sang slice user_client.Address
+	protoAddresses := make([]*user_client.Address, 0, len(user.Addresses))
+	for _, addr := range user.Addresses {
 		protoAddresses = append(protoAddresses, &user_client.Address{
-			Id: addr.ID,
-			// Map other fields
+			Id:          addr.ID,
+			Name:        addr.FullName,
+			AddressLine: addr.StreetAddress,
+			City:        addr.City,
+			Country:     addr.Country,
+			ZipCode:     addr.PostalCode,
+			IsDefault:   addr.IsDefault,
+			CreatedAt:   timestamppb.New(addr.CreatedAt),
+			UpdatedAt:   timestamppb.New(addr.UpdatedAt),
 		})
 	}
 
-	return &user_client.ListAddressesResponse{Addresses: []*user_client.Address{}}, nil
+	return &user_client.ListAddressesResponse{
+		Addresses: protoAddresses,
+	}, nil
 }
 
 // GetOrderHistory retrieves the order history for a user.

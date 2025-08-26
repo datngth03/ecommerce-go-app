@@ -48,9 +48,10 @@ func main() {
 	fmt.Println("\n--- Preparing test data (User Registration/Login) ---")
 	// Try to register a user
 	registerReq := &user_client.RegisterUserRequest{
-		Email:    dummyUserEmail,
-		Password: dummyUserPassword,
-		FullName: "Auth Test User",
+		Email:     dummyUserEmail,
+		Password:  dummyUserPassword,
+		FirstName: "Auth Test",
+		LastName:  "User",
 	}
 	registerResp, err := userClient.RegisterUser(ctx, registerReq)
 	if err != nil {

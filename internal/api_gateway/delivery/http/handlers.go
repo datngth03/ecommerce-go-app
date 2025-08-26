@@ -1542,7 +1542,7 @@ func (h *GatewayHandlers) LoginWithGoogle(c *gin.Context) {
 		return
 	}
 
-	grpcReq := &auth_client.LoginWithGoogleRequest{GoogleToken: req.Token}
+	grpcReq := &auth_client.LoginWithGoogleRequest{IdToken: req.Token}
 	resp, err := h.AuthClient.LoginWithGoogle(c.Request.Context(), grpcReq)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})

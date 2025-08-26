@@ -31,9 +31,10 @@ func main() {
 	// --- Test Case 1: Đăng ký người dùng mới ---
 	fmt.Println("\n--- Đăng ký người dùng mới ---")
 	registerReq := &user_client.RegisterUserRequest{
-		Email:    "testuser@example.com",
-		Password: "password123",
-		FullName: "Test User One",
+		Email:     "testuser@example.com",
+		Password:  "password123",
+		FirstName: "Test",
+		LastName:  "User",
 	}
 	registerResp, err := client.RegisterUser(context.Background(), registerReq)
 	if err != nil {
@@ -74,7 +75,7 @@ func main() {
 		if err != nil {
 			log.Printf("Lỗi khi lấy hồ sơ người dùng: %v", err)
 		} else {
-			fmt.Printf("Hồ sơ người dùng: ID: %s, Email: %s, Full Name: %s\n", profileResp.GetUserId(), profileResp.GetEmail(), profileResp.GetFullName())
+			fmt.Printf("Hồ sơ người dùng: ID: %s, Email: %s, Full Name: %s\n", profileResp.GetUserId(), profileResp.GetEmail(), profileResp.GetFirstName()+" "+profileResp.GetLastName())
 		}
 	} else {
 		fmt.Println("Không thể lấy hồ sơ vì không có User ID từ đăng ký.")
@@ -85,15 +86,15 @@ func main() {
 	if registerResp != nil && registerResp.GetUserId() != "" {
 		updateReq := &user_client.UpdateUserProfileRequest{
 			UserId:      registerResp.GetUserId(),
-			FullName:    "Updated Test User",
+			FirstName:   "Updated",
+			LastName:    "User",
 			PhoneNumber: "0987654321",
-			Address:     "123 Updated Street, City",
 		}
 		updateResp, err := client.UpdateUserProfile(context.Background(), updateReq)
 		if err != nil {
 			log.Printf("Lỗi khi cập nhật hồ sơ người dùng: %v", err)
 		} else {
-			fmt.Printf("Cập nhật hồ sơ thành công! ID: %s, Full Name mới: %s\n", updateResp.GetUserId(), updateResp.GetFullName())
+			fmt.Printf("Cập nhật hồ sơ thành công! ID: %s, Full Name mới: %s\n", updateResp.GetUserId(), updateResp.GetFirstName()+" "+updateResp.GetLastName())
 		}
 	} else {
 		fmt.Println("Không thể cập nhật hồ sơ vì không có User ID từ đăng ký.")

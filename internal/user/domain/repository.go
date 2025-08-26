@@ -7,7 +7,6 @@ import (
 )
 
 var (
-	ErrUserNotFound        = errors.New("user not found")
 	ErrProductNotFound     = errors.New("product not found")
 	ErrInvalidProductData  = errors.New("invalid product data")
 	ErrInvalidCategoryData = errors.New("invalid category data")

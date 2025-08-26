@@ -11,6 +11,7 @@ package user_client
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -30,7 +31,8 @@ type RegisterUserRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Email         string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
 	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
-	FullName      string                 `protobuf:"bytes,3,opt,name=full_name,json=fullName,proto3" json:"full_name,omitempty"`
+	FirstName     string                 `protobuf:"bytes,3,opt,name=first_name,json=firstName,proto3" json:"first_name,omitempty"`
+	LastName      string                 `protobuf:"bytes,4,opt,name=last_name,json=lastName,proto3" json:"last_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -79,9 +81,16 @@ func (x *RegisterUserRequest) GetPassword() string {
 	return ""
 }
 
-func (x *RegisterUserRequest) GetFullName() string {
+func (x *RegisterUserRequest) GetFirstName() string {
 	if x != nil {
-		return x.FullName
+		return x.FirstName
+	}
+	return ""
+}
+
+func (x *RegisterUserRequest) GetLastName() string {
+	if x != nil {
+		return x.LastName
 	}
 	return ""
 }
@@ -396,9 +405,12 @@ func (x *GetUserProfileRequest) GetUserId() string {
 type UpdateUserProfileRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	FullName      string                 `protobuf:"bytes,2,opt,name=full_name,json=fullName,proto3" json:"full_name,omitempty"`
-	PhoneNumber   string                 `protobuf:"bytes,3,opt,name=phone_number,json=phoneNumber,proto3" json:"phone_number,omitempty"`
-	Address       string                 `protobuf:"bytes,4,opt,name=address,proto3" json:"address,omitempty"`
+	FirstName     string                 `protobuf:"bytes,2,opt,name=first_name,json=firstName,proto3" json:"first_name,omitempty"`
+	LastName      string                 `protobuf:"bytes,3,opt,name=last_name,json=lastName,proto3" json:"last_name,omitempty"`
+	PhoneNumber   string                 `protobuf:"bytes,4,opt,name=phone_number,json=phoneNumber,proto3" json:"phone_number,omitempty"`
+	Avatar        string                 `protobuf:"bytes,5,opt,name=avatar,proto3" json:"avatar,omitempty"`
+	DateOfBirth   *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=date_of_birth,json=dateOfBirth,proto3" json:"date_of_birth,omitempty"`
+	Gender        string                 `protobuf:"bytes,7,opt,name=gender,proto3" json:"gender,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -440,9 +452,16 @@ func (x *UpdateUserProfileRequest) GetUserId() string {
 	return ""
 }
 
-func (x *UpdateUserProfileRequest) GetFullName() string {
+func (x *UpdateUserProfileRequest) GetFirstName() string {
 	if x != nil {
-		return x.FullName
+		return x.FirstName
+	}
+	return ""
+}
+
+func (x *UpdateUserProfileRequest) GetLastName() string {
+	if x != nil {
+		return x.LastName
 	}
 	return ""
 }
@@ -454,22 +473,45 @@ func (x *UpdateUserProfileRequest) GetPhoneNumber() string {
 	return ""
 }
 
-func (x *UpdateUserProfileRequest) GetAddress() string {
+func (x *UpdateUserProfileRequest) GetAvatar() string {
 	if x != nil {
-		return x.Address
+		return x.Avatar
+	}
+	return ""
+}
+
+func (x *UpdateUserProfileRequest) GetDateOfBirth() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DateOfBirth
+	}
+	return nil
+}
+
+func (x *UpdateUserProfileRequest) GetGender() string {
+	if x != nil {
+		return x.Gender
 	}
 	return ""
 }
 
 type UserProfileResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Email         string                 `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
-	FullName      string                 `protobuf:"bytes,3,opt,name=full_name,json=fullName,proto3" json:"full_name,omitempty"`
-	PhoneNumber   string                 `protobuf:"bytes,4,opt,name=phone_number,json=phoneNumber,proto3" json:"phone_number,omitempty"`
-	Addresses     []*Address             `protobuf:"bytes,5,rep,name=addresses,proto3" json:"addresses,omitempty"` // Add more fields if needed
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	UserId          string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Email           string                 `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
+	FirstName       string                 `protobuf:"bytes,3,opt,name=first_name,json=firstName,proto3" json:"first_name,omitempty"`
+	LastName        string                 `protobuf:"bytes,4,opt,name=last_name,json=lastName,proto3" json:"last_name,omitempty"`
+	PhoneNumber     string                 `protobuf:"bytes,5,opt,name=phone_number,json=phoneNumber,proto3" json:"phone_number,omitempty"`
+	Avatar          string                 `protobuf:"bytes,6,opt,name=avatar,proto3" json:"avatar,omitempty"`
+	DateOfBirth     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=date_of_birth,json=dateOfBirth,proto3" json:"date_of_birth,omitempty"`
+	Gender          string                 `protobuf:"bytes,8,opt,name=gender,proto3" json:"gender,omitempty"`
+	IsVerified      bool                   `protobuf:"varint,9,opt,name=is_verified,json=isVerified,proto3" json:"is_verified,omitempty"`
+	IsPhoneVerified bool                   `protobuf:"varint,10,opt,name=is_phone_verified,json=isPhoneVerified,proto3" json:"is_phone_verified,omitempty"`
+	IsActive        bool                   `protobuf:"varint,11,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
+	Addresses       []*Address             `protobuf:"bytes,12,rep,name=addresses,proto3" json:"addresses,omitempty"` // Danh sách địa chỉ
+	CreatedAt       *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt       *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *UserProfileResponse) Reset() {
@@ -516,9 +558,16 @@ func (x *UserProfileResponse) GetEmail() string {
 	return ""
 }
 
-func (x *UserProfileResponse) GetFullName() string {
+func (x *UserProfileResponse) GetFirstName() string {
 	if x != nil {
-		return x.FullName
+		return x.FirstName
+	}
+	return ""
+}
+
+func (x *UserProfileResponse) GetLastName() string {
+	if x != nil {
+		return x.LastName
 	}
 	return ""
 }
@@ -530,9 +579,65 @@ func (x *UserProfileResponse) GetPhoneNumber() string {
 	return ""
 }
 
+func (x *UserProfileResponse) GetAvatar() string {
+	if x != nil {
+		return x.Avatar
+	}
+	return ""
+}
+
+func (x *UserProfileResponse) GetDateOfBirth() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DateOfBirth
+	}
+	return nil
+}
+
+func (x *UserProfileResponse) GetGender() string {
+	if x != nil {
+		return x.Gender
+	}
+	return ""
+}
+
+func (x *UserProfileResponse) GetIsVerified() bool {
+	if x != nil {
+		return x.IsVerified
+	}
+	return false
+}
+
+func (x *UserProfileResponse) GetIsPhoneVerified() bool {
+	if x != nil {
+		return x.IsPhoneVerified
+	}
+	return false
+}
+
+func (x *UserProfileResponse) GetIsActive() bool {
+	if x != nil {
+		return x.IsActive
+	}
+	return false
+}
+
 func (x *UserProfileResponse) GetAddresses() []*Address {
 	if x != nil {
 		return x.Addresses
+	}
+	return nil
+}
+
+func (x *UserProfileResponse) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *UserProfileResponse) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
 	}
 	return nil
 }
@@ -738,13 +843,17 @@ func (x *ResetPasswordResponse) GetMessage() string {
 type Address struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	FullName      string                 `protobuf:"bytes,2,opt,name=full_name,json=fullName,proto3" json:"full_name,omitempty"`
-	PhoneNumber   string                 `protobuf:"bytes,3,opt,name=phone_number,json=phoneNumber,proto3" json:"phone_number,omitempty"`
-	StreetAddress string                 `protobuf:"bytes,4,opt,name=street_address,json=streetAddress,proto3" json:"street_address,omitempty"`
-	City          string                 `protobuf:"bytes,5,opt,name=city,proto3" json:"city,omitempty"`
-	PostalCode    string                 `protobuf:"bytes,6,opt,name=postal_code,json=postalCode,proto3" json:"postal_code,omitempty"`
-	Country       string                 `protobuf:"bytes,7,opt,name=country,proto3" json:"country,omitempty"`
-	IsDefault     bool                   `protobuf:"varint,8,opt,name=is_default,json=isDefault,proto3" json:"is_default,omitempty"`
+	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
+	Name          string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`                                  // Tương ứng với full_name trong schema cũ
+	AddressLine   string                 `protobuf:"bytes,5,opt,name=address_line,json=addressLine,proto3" json:"address_line,omitempty"` // Tương ứng với street_address trong schema cũ
+	City          string                 `protobuf:"bytes,6,opt,name=city,proto3" json:"city,omitempty"`
+	State         string                 `protobuf:"bytes,7,opt,name=state,proto3" json:"state,omitempty"`
+	ZipCode       string                 `protobuf:"bytes,8,opt,name=zip_code,json=zipCode,proto3" json:"zip_code,omitempty"`
+	Country       string                 `protobuf:"bytes,9,opt,name=country,proto3" json:"country,omitempty"`
+	IsDefault     bool                   `protobuf:"varint,10,opt,name=is_default,json=isDefault,proto3" json:"is_default,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -786,23 +895,30 @@ func (x *Address) GetId() string {
 	return ""
 }
 
-func (x *Address) GetFullName() string {
+func (x *Address) GetUserId() string {
 	if x != nil {
-		return x.FullName
+		return x.UserId
 	}
 	return ""
 }
 
-func (x *Address) GetPhoneNumber() string {
+func (x *Address) GetType() string {
 	if x != nil {
-		return x.PhoneNumber
+		return x.Type
 	}
 	return ""
 }
 
-func (x *Address) GetStreetAddress() string {
+func (x *Address) GetName() string {
 	if x != nil {
-		return x.StreetAddress
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Address) GetAddressLine() string {
+	if x != nil {
+		return x.AddressLine
 	}
 	return ""
 }
@@ -814,9 +930,16 @@ func (x *Address) GetCity() string {
 	return ""
 }
 
-func (x *Address) GetPostalCode() string {
+func (x *Address) GetState() string {
 	if x != nil {
-		return x.PostalCode
+		return x.State
+	}
+	return ""
+}
+
+func (x *Address) GetZipCode() string {
+	if x != nil {
+		return x.ZipCode
 	}
 	return ""
 }
@@ -833,6 +956,20 @@ func (x *Address) GetIsDefault() bool {
 		return x.IsDefault
 	}
 	return false
+}
+
+func (x *Address) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *Address) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
 }
 
 type AddAddressRequest struct {
@@ -1331,11 +1468,13 @@ var File_user_proto protoreflect.FileDescriptor
 const file_user_proto_rawDesc = "" +
 	"\n" +
 	"\n" +
-	"user.proto\x12\x04user\"d\n" +
+	"user.proto\x12\x04user\x1a\x1fgoogle/protobuf/timestamp.proto\"\x83\x01\n" +
 	"\x13RegisterUserRequest\x12\x14\n" +
 	"\x05email\x18\x01 \x01(\tR\x05email\x12\x1a\n" +
-	"\bpassword\x18\x02 \x01(\tR\bpassword\x12\x1b\n" +
-	"\tfull_name\x18\x03 \x01(\tR\bfullName\"I\n" +
+	"\bpassword\x18\x02 \x01(\tR\bpassword\x12\x1d\n" +
+	"\n" +
+	"first_name\x18\x03 \x01(\tR\tfirstName\x12\x1b\n" +
+	"\tlast_name\x18\x04 \x01(\tR\blastName\"I\n" +
 	"\x14RegisterUserResponse\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"D\n" +
@@ -1353,18 +1492,36 @@ const file_user_proto_rawDesc = "" +
 	"\x16GetUserByEmailResponse\x12-\n" +
 	"\x04user\x18\x01 \x01(\v2\x19.user.UserProfileResponseR\x04user\"0\n" +
 	"\x15GetUserProfileRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\"\x8d\x01\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"\x82\x02\n" +
 	"\x18UpdateUserProfileRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1b\n" +
-	"\tfull_name\x18\x02 \x01(\tR\bfullName\x12!\n" +
-	"\fphone_number\x18\x03 \x01(\tR\vphoneNumber\x12\x18\n" +
-	"\aaddress\x18\x04 \x01(\tR\aaddress\"\xb1\x01\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1d\n" +
+	"\n" +
+	"first_name\x18\x02 \x01(\tR\tfirstName\x12\x1b\n" +
+	"\tlast_name\x18\x03 \x01(\tR\blastName\x12!\n" +
+	"\fphone_number\x18\x04 \x01(\tR\vphoneNumber\x12\x16\n" +
+	"\x06avatar\x18\x05 \x01(\tR\x06avatar\x12>\n" +
+	"\rdate_of_birth\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\vdateOfBirth\x12\x16\n" +
+	"\x06gender\x18\a \x01(\tR\x06gender\"\xa0\x04\n" +
 	"\x13UserProfileResponse\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
-	"\x05email\x18\x02 \x01(\tR\x05email\x12\x1b\n" +
-	"\tfull_name\x18\x03 \x01(\tR\bfullName\x12!\n" +
-	"\fphone_number\x18\x04 \x01(\tR\vphoneNumber\x12+\n" +
-	"\taddresses\x18\x05 \x03(\v2\r.user.AddressR\taddresses\"v\n" +
+	"\x05email\x18\x02 \x01(\tR\x05email\x12\x1d\n" +
+	"\n" +
+	"first_name\x18\x03 \x01(\tR\tfirstName\x12\x1b\n" +
+	"\tlast_name\x18\x04 \x01(\tR\blastName\x12!\n" +
+	"\fphone_number\x18\x05 \x01(\tR\vphoneNumber\x12\x16\n" +
+	"\x06avatar\x18\x06 \x01(\tR\x06avatar\x12>\n" +
+	"\rdate_of_birth\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\vdateOfBirth\x12\x16\n" +
+	"\x06gender\x18\b \x01(\tR\x06gender\x12\x1f\n" +
+	"\vis_verified\x18\t \x01(\bR\n" +
+	"isVerified\x12*\n" +
+	"\x11is_phone_verified\x18\n" +
+	" \x01(\bR\x0fisPhoneVerified\x12\x1b\n" +
+	"\tis_active\x18\v \x01(\bR\bisActive\x12+\n" +
+	"\taddresses\x18\f \x03(\v2\r.user.AddressR\taddresses\x129\n" +
+	"\n" +
+	"created_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"updated_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"v\n" +
 	"\x15ChangePasswordRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12!\n" +
 	"\fold_password\x18\x02 \x01(\tR\voldPassword\x12!\n" +
@@ -1374,18 +1531,24 @@ const file_user_proto_rawDesc = "" +
 	"\x14ResetPasswordRequest\x12\x14\n" +
 	"\x05email\x18\x01 \x01(\tR\x05email\"1\n" +
 	"\x15ResetPasswordResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage\"\xee\x01\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"\xf1\x02\n" +
 	"\aAddress\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
-	"\tfull_name\x18\x02 \x01(\tR\bfullName\x12!\n" +
-	"\fphone_number\x18\x03 \x01(\tR\vphoneNumber\x12%\n" +
-	"\x0estreet_address\x18\x04 \x01(\tR\rstreetAddress\x12\x12\n" +
-	"\x04city\x18\x05 \x01(\tR\x04city\x12\x1f\n" +
-	"\vpostal_code\x18\x06 \x01(\tR\n" +
-	"postalCode\x12\x18\n" +
-	"\acountry\x18\a \x01(\tR\acountry\x12\x1d\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x12\n" +
+	"\x04type\x18\x03 \x01(\tR\x04type\x12\x12\n" +
+	"\x04name\x18\x04 \x01(\tR\x04name\x12!\n" +
+	"\faddress_line\x18\x05 \x01(\tR\vaddressLine\x12\x12\n" +
+	"\x04city\x18\x06 \x01(\tR\x04city\x12\x14\n" +
+	"\x05state\x18\a \x01(\tR\x05state\x12\x19\n" +
+	"\bzip_code\x18\b \x01(\tR\azipCode\x12\x18\n" +
+	"\acountry\x18\t \x01(\tR\acountry\x12\x1d\n" +
 	"\n" +
-	"is_default\x18\b \x01(\bR\tisDefault\"U\n" +
+	"is_default\x18\n" +
+	" \x01(\bR\tisDefault\x129\n" +
+	"\n" +
+	"created_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"U\n" +
 	"\x11AddAddressRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12'\n" +
 	"\aaddress\x18\x02 \x01(\v2\r.user.AddressR\aaddress\"X\n" +
@@ -1467,44 +1630,51 @@ var file_user_proto_goTypes = []any{
 	(*Order)(nil),                    // 21: user.Order
 	(*GetOrderHistoryRequest)(nil),   // 22: user.GetOrderHistoryRequest
 	(*GetOrderHistoryResponse)(nil),  // 23: user.GetOrderHistoryResponse
+	(*timestamppb.Timestamp)(nil),    // 24: google.protobuf.Timestamp
 }
 var file_user_proto_depIdxs = []int32{
 	8,  // 0: user.GetUserByEmailResponse.user:type_name -> user.UserProfileResponse
-	13, // 1: user.UserProfileResponse.addresses:type_name -> user.Address
-	13, // 2: user.AddAddressRequest.address:type_name -> user.Address
-	13, // 3: user.UpdateAddressRequest.address:type_name -> user.Address
-	13, // 4: user.AddressResponse.address:type_name -> user.Address
-	13, // 5: user.ListAddressesResponse.addresses:type_name -> user.Address
-	21, // 6: user.GetOrderHistoryResponse.orders:type_name -> user.Order
-	0,  // 7: user.UserService.RegisterUser:input_type -> user.RegisterUserRequest
-	2,  // 8: user.UserService.LoginUser:input_type -> user.LoginUserRequest
-	4,  // 9: user.UserService.GetUserByEmail:input_type -> user.GetUserByEmailRequest
-	6,  // 10: user.UserService.GetUserProfile:input_type -> user.GetUserProfileRequest
-	7,  // 11: user.UserService.UpdateUserProfile:input_type -> user.UpdateUserProfileRequest
-	9,  // 12: user.UserService.ChangePassword:input_type -> user.ChangePasswordRequest
-	11, // 13: user.UserService.ResetPassword:input_type -> user.ResetPasswordRequest
-	14, // 14: user.UserService.AddAddress:input_type -> user.AddAddressRequest
-	15, // 15: user.UserService.UpdateAddress:input_type -> user.UpdateAddressRequest
-	16, // 16: user.UserService.DeleteAddress:input_type -> user.DeleteAddressRequest
-	19, // 17: user.UserService.ListAddresses:input_type -> user.ListAddressesRequest
-	22, // 18: user.UserService.GetOrderHistory:input_type -> user.GetOrderHistoryRequest
-	1,  // 19: user.UserService.RegisterUser:output_type -> user.RegisterUserResponse
-	3,  // 20: user.UserService.LoginUser:output_type -> user.LoginUserResponse
-	5,  // 21: user.UserService.GetUserByEmail:output_type -> user.GetUserByEmailResponse
-	8,  // 22: user.UserService.GetUserProfile:output_type -> user.UserProfileResponse
-	8,  // 23: user.UserService.UpdateUserProfile:output_type -> user.UserProfileResponse
-	10, // 24: user.UserService.ChangePassword:output_type -> user.ChangePasswordResponse
-	12, // 25: user.UserService.ResetPassword:output_type -> user.ResetPasswordResponse
-	17, // 26: user.UserService.AddAddress:output_type -> user.AddressResponse
-	17, // 27: user.UserService.UpdateAddress:output_type -> user.AddressResponse
-	18, // 28: user.UserService.DeleteAddress:output_type -> user.DeleteAddressResponse
-	20, // 29: user.UserService.ListAddresses:output_type -> user.ListAddressesResponse
-	23, // 30: user.UserService.GetOrderHistory:output_type -> user.GetOrderHistoryResponse
-	19, // [19:31] is the sub-list for method output_type
-	7,  // [7:19] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	24, // 1: user.UpdateUserProfileRequest.date_of_birth:type_name -> google.protobuf.Timestamp
+	24, // 2: user.UserProfileResponse.date_of_birth:type_name -> google.protobuf.Timestamp
+	13, // 3: user.UserProfileResponse.addresses:type_name -> user.Address
+	24, // 4: user.UserProfileResponse.created_at:type_name -> google.protobuf.Timestamp
+	24, // 5: user.UserProfileResponse.updated_at:type_name -> google.protobuf.Timestamp
+	24, // 6: user.Address.created_at:type_name -> google.protobuf.Timestamp
+	24, // 7: user.Address.updated_at:type_name -> google.protobuf.Timestamp
+	13, // 8: user.AddAddressRequest.address:type_name -> user.Address
+	13, // 9: user.UpdateAddressRequest.address:type_name -> user.Address
+	13, // 10: user.AddressResponse.address:type_name -> user.Address
+	13, // 11: user.ListAddressesResponse.addresses:type_name -> user.Address
+	21, // 12: user.GetOrderHistoryResponse.orders:type_name -> user.Order
+	0,  // 13: user.UserService.RegisterUser:input_type -> user.RegisterUserRequest
+	2,  // 14: user.UserService.LoginUser:input_type -> user.LoginUserRequest
+	4,  // 15: user.UserService.GetUserByEmail:input_type -> user.GetUserByEmailRequest
+	6,  // 16: user.UserService.GetUserProfile:input_type -> user.GetUserProfileRequest
+	7,  // 17: user.UserService.UpdateUserProfile:input_type -> user.UpdateUserProfileRequest
+	9,  // 18: user.UserService.ChangePassword:input_type -> user.ChangePasswordRequest
+	11, // 19: user.UserService.ResetPassword:input_type -> user.ResetPasswordRequest
+	14, // 20: user.UserService.AddAddress:input_type -> user.AddAddressRequest
+	15, // 21: user.UserService.UpdateAddress:input_type -> user.UpdateAddressRequest
+	16, // 22: user.UserService.DeleteAddress:input_type -> user.DeleteAddressRequest
+	19, // 23: user.UserService.ListAddresses:input_type -> user.ListAddressesRequest
+	22, // 24: user.UserService.GetOrderHistory:input_type -> user.GetOrderHistoryRequest
+	1,  // 25: user.UserService.RegisterUser:output_type -> user.RegisterUserResponse
+	3,  // 26: user.UserService.LoginUser:output_type -> user.LoginUserResponse
+	5,  // 27: user.UserService.GetUserByEmail:output_type -> user.GetUserByEmailResponse
+	8,  // 28: user.UserService.GetUserProfile:output_type -> user.UserProfileResponse
+	8,  // 29: user.UserService.UpdateUserProfile:output_type -> user.UserProfileResponse
+	10, // 30: user.UserService.ChangePassword:output_type -> user.ChangePasswordResponse
+	12, // 31: user.UserService.ResetPassword:output_type -> user.ResetPasswordResponse
+	17, // 32: user.UserService.AddAddress:output_type -> user.AddressResponse
+	17, // 33: user.UserService.UpdateAddress:output_type -> user.AddressResponse
+	18, // 34: user.UserService.DeleteAddress:output_type -> user.DeleteAddressResponse
+	20, // 35: user.UserService.ListAddresses:output_type -> user.ListAddressesResponse
+	23, // 36: user.UserService.GetOrderHistory:output_type -> user.GetOrderHistoryResponse
+	25, // [25:37] is the sub-list for method output_type
+	13, // [13:25] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_user_proto_init() }
