@@ -64,7 +64,7 @@ require (
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/golang-jwt/jwt/v5 v5.2.3
 	github.com/gosimple/slug v1.15.0
-	github.com/jmoiron/sqlx v1.4.0
+	// github.com/jmoiron/sqlx v1.4.0
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.11 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect

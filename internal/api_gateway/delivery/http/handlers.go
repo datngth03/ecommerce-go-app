@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"time"
+	// "time"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
@@ -16,49 +16,45 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status" // Import status for gRPC error handling
 
-	auth_client "github.com/datngth03/ecommerce-go-app/pkg/client/auth"                     // Generated Auth gRPC client
-	cart_client "github.com/datngth03/ecommerce-go-app/pkg/client/cart"                     // Generated Cart gRPC client
-	inventory_client "github.com/datngth03/ecommerce-go-app/pkg/client/inventory"           // Generated Inventory gRPC client
-	notification_client "github.com/datngth03/ecommerce-go-app/pkg/client/notification"     // Generated Notification gRPC client
-	order_client "github.com/datngth03/ecommerce-go-app/pkg/client/order"                   // Generated Order gRPC client
-	payment_client "github.com/datngth03/ecommerce-go-app/pkg/client/payment"               // Generated Payment gRPC client
-	product_client "github.com/datngth03/ecommerce-go-app/pkg/client/product"               // Generated Product gRPC client
-	recommendation_client "github.com/datngth03/ecommerce-go-app/pkg/client/recommendation" // Generated Recommendation gRPC client
-	review_client "github.com/datngth03/ecommerce-go-app/pkg/client/review"                 // Generated Review gRPC client
-	search_client "github.com/datngth03/ecommerce-go-app/pkg/client/search"                 // Generated Search gRPC client
-	shipping_client "github.com/datngth03/ecommerce-go-app/pkg/client/shipping"             // Generated Shipping gRPC client
-	user_client "github.com/datngth03/ecommerce-go-app/pkg/client/user"                     // Generated User gRPC client
+	auth_client "github.com/datngth03/ecommerce-go-app/pkg/client/auth"                 // Generated Auth gRPC client
+	cart_client "github.com/datngth03/ecommerce-go-app/pkg/client/cart"                 // Generated Cart gRPC client
+	inventory_client "github.com/datngth03/ecommerce-go-app/pkg/client/inventory"       // Generated Inventory gRPC client
+	notification_client "github.com/datngth03/ecommerce-go-app/pkg/client/notification" // Generated Notification gRPC client
+	order_client "github.com/datngth03/ecommerce-go-app/pkg/client/order"               // Generated Order gRPC client
+	payment_client "github.com/datngth03/ecommerce-go-app/pkg/client/payment"           // Generated Payment gRPC client
+	product_client "github.com/datngth03/ecommerce-go-app/pkg/client/product"           // Generated Product gRPC client
+	search_client "github.com/datngth03/ecommerce-go-app/pkg/client/search"             // Generated Search gRPC client
+	user_client "github.com/datngth03/ecommerce-go-app/pkg/client/user"                 // Generated User gRPC client
 )
 
 // GatewayHandlers holds the gRPC clients for backend services.
 // GatewayHandlers chứa các gRPC client cho các dịch vụ backend.
 type GatewayHandlers struct {
-	UserClient           user_client.UserServiceClient
-	ProductClient        product_client.ProductServiceClient
-	OrderClient          order_client.OrderServiceClient
-	PaymentClient        payment_client.PaymentServiceClient
-	CartClient           cart_client.CartServiceClient
-	ShippingClient       shipping_client.ShippingServiceClient
-	AuthClient           auth_client.AuthServiceClient
-	NotificationClient   notification_client.NotificationServiceClient
-	InventoryClient      inventory_client.InventoryServiceClient
-	ReviewClient         review_client.ReviewServiceClient
-	SearchClient         search_client.SearchServiceClient
-	RecommendationClient recommendation_client.RecommendationServiceClient
+	UserClient    user_client.UserServiceClient
+	ProductClient product_client.ProductServiceClient
+	OrderClient   order_client.OrderServiceClient
+	PaymentClient payment_client.PaymentServiceClient
+	CartClient    cart_client.CartServiceClient
+	// ShippingClient       shipping_client.ShippingServiceClient
+	AuthClient         auth_client.AuthServiceClient
+	NotificationClient notification_client.NotificationServiceClient
+	InventoryClient    inventory_client.InventoryServiceClient
+	// ReviewClient         review_client.ReviewServiceClient
+	SearchClient search_client.SearchServiceClient
+	// RecommendationClient recommendation_client.RecommendationServiceClient
 
 	// gRPC connections to be closed
-	userConn           *grpc.ClientConn
-	productConn        *grpc.ClientConn
-	orderConn          *grpc.ClientConn
-	paymentConn        *grpc.ClientConn
-	cartConn           *grpc.ClientConn
-	shippingConn       *grpc.ClientConn
-	authConn           *grpc.ClientConn
-	notificationConn   *grpc.ClientConn
-	inventoryConn      *grpc.ClientConn
-	reviewConn         *grpc.ClientConn
-	searchConn         *grpc.ClientConn
-	recommendationConn *grpc.ClientConn
+	userConn         *grpc.ClientConn
+	productConn      *grpc.ClientConn
+	orderConn        *grpc.ClientConn
+	paymentConn      *grpc.ClientConn
+	cartConn         *grpc.ClientConn
+	shippingConn     *grpc.ClientConn
+	authConn         *grpc.ClientConn
+	notificationConn *grpc.ClientConn
+	inventoryConn    *grpc.ClientConn
+	reviewConn       *grpc.ClientConn
+	searchConn       *grpc.ClientConn
 }
 
 // NewGatewayHandlers creates a new instance of GatewayHandlers.
@@ -106,12 +102,12 @@ func NewGatewayHandlers(
 	}
 	handlers.CartClient = cart_client.NewCartServiceClient(handlers.cartConn)
 
-	// Connect to Shipping Service
-	handlers.shippingConn, err = grpc.Dial(shippingSvcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to Shipping Service: %w", err)
-	}
-	handlers.ShippingClient = shipping_client.NewShippingServiceClient(handlers.shippingConn)
+	// // Connect to Shipping Service
+	// handlers.shippingConn, err = grpc.Dial(shippingSvcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to connect to Shipping Service: %w", err)
+	// }
+	// handlers.ShippingClient = shipping_client.NewShippingServiceClient(handlers.shippingConn)
 
 	// Connect to Auth Service
 	handlers.authConn, err = grpc.Dial(authSvcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -134,12 +130,12 @@ func NewGatewayHandlers(
 	}
 	handlers.InventoryClient = inventory_client.NewInventoryServiceClient(handlers.inventoryConn)
 
-	// Connect to Review Service
-	handlers.reviewConn, err = grpc.Dial(reviewSvcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to Review Service: %w", err)
-	}
-	handlers.ReviewClient = review_client.NewReviewServiceClient(handlers.reviewConn)
+	// // Connect to Review Service
+	// handlers.reviewConn, err = grpc.Dial(reviewSvcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to connect to Review Service: %w", err)
+	// }
+	// handlers.ReviewClient = review_client.NewReviewServiceClient(handlers.reviewConn)
 
 	// Connect to Search Service
 	handlers.searchConn, err = grpc.Dial(searchSvcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -148,13 +144,13 @@ func NewGatewayHandlers(
 	}
 	handlers.SearchClient = search_client.NewSearchServiceClient(handlers.searchConn)
 
-	// Connect to Recommendation Service
-	handlers.recommendationConn, err = grpc.Dial(recommendationSvcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		handlers.CloseConnections()
-		return nil, fmt.Errorf("failed to connect to Recommendation Service: %w", err)
-	}
-	handlers.RecommendationClient = recommendation_client.NewRecommendationServiceClient(handlers.recommendationConn)
+	// // Connect to Recommendation Service
+	// handlers.recommendationConn, err = grpc.Dial(recommendationSvcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	// if err != nil {
+	// 	handlers.CloseConnections()
+	// 	return nil, fmt.Errorf("failed to connect to Recommendation Service: %w", err)
+	// }
+	// handlers.RecommendationClient = recommendation_client.NewRecommendationServiceClient(handlers.recommendationConn)
 
 	return &handlers, nil
 }
@@ -1186,25 +1182,25 @@ func (h *GatewayHandlers) ListPayments(c *gin.Context) {
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 500 {object} map[string]string "Internal Server Error"
 // @Router /shipping/calculate-cost [post]
-func (h *GatewayHandlers) CalculateShippingCost(c *gin.Context) {
-	var req shipping_client.CalculateShippingCostRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
+// func (h *GatewayHandlers) CalculateShippingCost(c *gin.Context) {
+// 	var req shipping_client.CalculateShippingCostRequest
+// 	if err := c.ShouldBindJSON(&req); err != nil {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+// 		return
+// 	}
 
-	resp, err := h.ShippingClient.CalculateShippingCost(context.Background(), &req)
-	if err != nil {
-		st, ok := status.FromError(err)
-		if ok {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		}
-		return
-	}
-	c.JSON(http.StatusOK, resp)
-}
+// 	resp, err := h.ShippingClient.CalculateShippingCost(context.Background(), &req)
+// 	if err != nil {
+// 		st, ok := status.FromError(err)
+// 		if ok {
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
+// 		} else {
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+// 		}
+// 		return
+// 	}
+// 	c.JSON(http.StatusOK, resp)
+// }
 
 // CreateShipment godoc
 // @Summary Tạo lô hàng mới
@@ -1219,25 +1215,25 @@ func (h *GatewayHandlers) CalculateShippingCost(c *gin.Context) {
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 500 {object} map[string]string "Internal Server Error"
 // @Router /shipping [post]
-func (h *GatewayHandlers) CreateShipment(c *gin.Context) {
-	var req shipping_client.CreateShipmentRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
+// func (h *GatewayHandlers) CreateShipment(c *gin.Context) {
+// 	var req shipping_client.CreateShipmentRequest
+// 	if err := c.ShouldBindJSON(&req); err != nil {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+// 		return
+// 	}
 
-	resp, err := h.ShippingClient.CreateShipment(context.Background(), &req)
-	if err != nil {
-		st, ok := status.FromError(err)
-		if ok {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		}
-		return
-	}
-	c.JSON(http.StatusOK, resp)
-}
+// 	resp, err := h.ShippingClient.CreateShipment(context.Background(), &req)
+// 	if err != nil {
+// 		st, ok := status.FromError(err)
+// 		if ok {
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
+// 		} else {
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+// 		}
+// 		return
+// 	}
+// 	c.JSON(http.StatusOK, resp)
+// }
 
 // GetShipmentById godoc
 // @Summary Lấy chi tiết lô hàng
@@ -1252,29 +1248,29 @@ func (h *GatewayHandlers) CreateShipment(c *gin.Context) {
 // @Failure 404 {object} map[string]string "Not Found"
 // @Failure 500 {object} map[string]string "Internal Server Error"
 // @Router /shipping/{id} [get]
-func (h *GatewayHandlers) GetShipmentById(c *gin.Context) {
-	shipmentID := c.Param("id")
-	if shipmentID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Shipment ID is required"})
-		return
-	}
+// func (h *GatewayHandlers) GetShipmentById(c *gin.Context) {
+// 	shipmentID := c.Param("id")
+// 	if shipmentID == "" {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Shipment ID is required"})
+// 		return
+// 	}
 
-	resp, err := h.ShippingClient.GetShipmentById(context.Background(), &shipping_client.GetShipmentByIdRequest{Id: shipmentID})
-	if err != nil {
-		st, ok := status.FromError(err)
-		if ok {
-			if st.Code() == 7 { // gRPC Not Found
-				c.JSON(http.StatusNotFound, gin.H{"error": st.Message()})
-				return
-			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		}
-		return
-	}
-	c.JSON(http.StatusOK, resp)
-}
+// 	resp, err := h.ShippingClient.GetShipmentById(context.Background(), &shipping_client.GetShipmentByIdRequest{Id: shipmentID})
+// 	if err != nil {
+// 		st, ok := status.FromError(err)
+// 		if ok {
+// 			if st.Code() == 7 { // gRPC Not Found
+// 				c.JSON(http.StatusNotFound, gin.H{"error": st.Message()})
+// 				return
+// 			}
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
+// 		} else {
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+// 		}
+// 		return
+// 	}
+// 	c.JSON(http.StatusOK, resp)
+// }
 
 // UpdateShipmentStatus godoc
 // @Summary Cập nhật trạng thái lô hàng
@@ -1291,36 +1287,36 @@ func (h *GatewayHandlers) GetShipmentById(c *gin.Context) {
 // @Failure 404 {object} map[string]string "Not Found"
 // @Failure 500 {object} map[string]string "Internal Server Error"
 // @Router /shipping/{id}/status [put]
-func (h *GatewayHandlers) UpdateShipmentStatus(c *gin.Context) {
-	shipmentID := c.Param("id")
-	if shipmentID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Shipment ID is required"})
-		return
-	}
+// func (h *GatewayHandlers) UpdateShipmentStatus(c *gin.Context) {
+// 	shipmentID := c.Param("id")
+// 	if shipmentID == "" {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Shipment ID is required"})
+// 		return
+// 	}
 
-	var req shipping_client.UpdateShipmentStatusRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	req.ShipmentId = shipmentID // Set ID from path parameter
+// 	var req shipping_client.UpdateShipmentStatusRequest
+// 	if err := c.ShouldBindJSON(&req); err != nil {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+// 		return
+// 	}
+// 	req.ShipmentId = shipmentID // Set ID from path parameter
 
-	resp, err := h.ShippingClient.UpdateShipmentStatus(context.Background(), &req)
-	if err != nil {
-		st, ok := status.FromError(err)
-		if ok {
-			if st.Code() == 7 { // gRPC Not Found
-				c.JSON(http.StatusNotFound, gin.H{"error": st.Message()})
-				return
-			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		}
-		return
-	}
-	c.JSON(http.StatusOK, resp)
-}
+// 	resp, err := h.ShippingClient.UpdateShipmentStatus(context.Background(), &req)
+// 	if err != nil {
+// 		st, ok := status.FromError(err)
+// 		if ok {
+// 			if st.Code() == 7 { // gRPC Not Found
+// 				c.JSON(http.StatusNotFound, gin.H{"error": st.Message()})
+// 				return
+// 			}
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
+// 		} else {
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+// 		}
+// 		return
+// 	}
+// 	c.JSON(http.StatusOK, resp)
+// }
 
 // TrackShipment godoc
 // @Summary Theo dõi lô hàng
@@ -1335,29 +1331,29 @@ func (h *GatewayHandlers) UpdateShipmentStatus(c *gin.Context) {
 // @Failure 404 {object} map[string]string "Not Found"
 // @Failure 500 {object} map[string]string "Internal Server Error"
 // @Router /shipping/{id}/track [get]
-func (h *GatewayHandlers) TrackShipment(c *gin.Context) {
-	shipmentID := c.Param("id")
-	if shipmentID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Shipment ID is required"})
-		return
-	}
+// func (h *GatewayHandlers) TrackShipment(c *gin.Context) {
+// 	shipmentID := c.Param("id")
+// 	if shipmentID == "" {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Shipment ID is required"})
+// 		return
+// 	}
 
-	resp, err := h.ShippingClient.TrackShipment(context.Background(), &shipping_client.TrackShipmentRequest{ShipmentId: shipmentID})
-	if err != nil {
-		st, ok := status.FromError(err)
-		if ok {
-			if st.Code() == 7 { // gRPC Not Found
-				c.JSON(http.StatusNotFound, gin.H{"error": st.Message()})
-				return
-			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		}
-		return
-	}
-	c.JSON(http.StatusOK, resp)
-}
+// 	resp, err := h.ShippingClient.TrackShipment(context.Background(), &shipping_client.TrackShipmentRequest{ShipmentId: shipmentID})
+// 	if err != nil {
+// 		st, ok := status.FromError(err)
+// 		if ok {
+// 			if st.Code() == 7 { // gRPC Not Found
+// 				c.JSON(http.StatusNotFound, gin.H{"error": st.Message()})
+// 				return
+// 			}
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
+// 		} else {
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+// 		}
+// 		return
+// 	}
+// 	c.JSON(http.StatusOK, resp)
+// }
 
 // ListShipments godoc
 // @Summary Liệt kê các lô hàng
@@ -1375,42 +1371,42 @@ func (h *GatewayHandlers) TrackShipment(c *gin.Context) {
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 500 {object} map[string]string "Internal Server Error"
 // @Router /shipping [get]
-func (h *GatewayHandlers) ListShipments(c *gin.Context) {
-	userID := c.Query("user_id")
-	orderID := c.Query("order_id")
-	statusFilter := c.Query("status")
-	limitStr := c.DefaultQuery("limit", "10")
-	offsetStr := c.DefaultQuery("offset", "0")
+// func (h *GatewayHandlers) ListShipments(c *gin.Context) {
+// 	userID := c.Query("user_id")
+// 	orderID := c.Query("order_id")
+// 	statusFilter := c.Query("status")
+// 	limitStr := c.DefaultQuery("limit", "10")
+// 	offsetStr := c.DefaultQuery("offset", "0")
 
-	limit, err := strconv.ParseInt(limitStr, 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit parameter"})
-		return
-	}
-	offset, err := strconv.ParseInt(offsetStr, 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset parameter"})
-		return
-	}
+// 	limit, err := strconv.ParseInt(limitStr, 10, 32)
+// 	if err != nil {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit parameter"})
+// 		return
+// 	}
+// 	offset, err := strconv.ParseInt(offsetStr, 10, 32)
+// 	if err != nil {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset parameter"})
+// 		return
+// 	}
 
-	resp, err := h.ShippingClient.ListShipments(context.Background(), &shipping_client.ListShipmentsRequest{
-		UserId:  userID,
-		OrderId: orderID,
-		Status:  statusFilter,
-		Limit:   int32(limit),
-		Offset:  int32(offset),
-	})
-	if err != nil {
-		st, ok := status.FromError(err)
-		if ok {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		}
-		return
-	}
-	c.JSON(http.StatusOK, resp)
-}
+// 	resp, err := h.ShippingClient.ListShipments(context.Background(), &shipping_client.ListShipmentsRequest{
+// 		UserId:  userID,
+// 		OrderId: orderID,
+// 		Status:  statusFilter,
+// 		Limit:   int32(limit),
+// 		Offset:  int32(offset),
+// 	})
+// 	if err != nil {
+// 		st, ok := status.FromError(err)
+// 		if ok {
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
+// 		} else {
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+// 		}
+// 		return
+// 	}
+// 	c.JSON(http.StatusOK, resp)
+// }
 
 // --- Auth Service Handlers ---
 
@@ -1940,29 +1936,29 @@ func (h *GatewayHandlers) ReleaseStock(c *gin.Context) {
 // @Failure 409 {object} map[string]string "Conflict (Review already exists)"
 // @Failure 500 {object} map[string]string "Internal Server Error"
 // @Router /reviews [post]
-func (h *GatewayHandlers) SubmitReview(c *gin.Context) {
-	var req review_client.SubmitReviewRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
+// func (h *GatewayHandlers) SubmitReview(c *gin.Context) {
+// 	var req review_client.SubmitReviewRequest
+// 	if err := c.ShouldBindJSON(&req); err != nil {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+// 		return
+// 	}
 
-	resp, err := h.ReviewClient.SubmitReview(context.Background(), &req)
-	if err != nil {
-		st, ok := status.FromError(err)
-		if ok {
-			if st.Code() == 6 { // Already Exists (gRPC code for conflict)
-				c.JSON(http.StatusConflict, gin.H{"error": st.Message()})
-				return
-			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		}
-		return
-	}
-	c.JSON(http.StatusOK, resp)
-}
+// 	resp, err := h.ReviewClient.SubmitReview(context.Background(), &req)
+// 	if err != nil {
+// 		st, ok := status.FromError(err)
+// 		if ok {
+// 			if st.Code() == 6 { // Already Exists (gRPC code for conflict)
+// 				c.JSON(http.StatusConflict, gin.H{"error": st.Message()})
+// 				return
+// 			}
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
+// 		} else {
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+// 		}
+// 		return
+// 	}
+// 	c.JSON(http.StatusOK, resp)
+// }
 
 // GetReviewById godoc
 // @Summary Lấy đánh giá theo ID
@@ -1975,29 +1971,29 @@ func (h *GatewayHandlers) SubmitReview(c *gin.Context) {
 // @Failure 404 {object} map[string]string "Not Found"
 // @Failure 500 {object} map[string]string "Internal Server Error"
 // @Router /reviews/{id} [get]
-func (h *GatewayHandlers) GetReviewById(c *gin.Context) {
-	reviewID := c.Param("id")
-	if reviewID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Review ID is required"})
-		return
-	}
+// func (h *GatewayHandlers) GetReviewById(c *gin.Context) {
+// 	reviewID := c.Param("id")
+// 	if reviewID == "" {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Review ID is required"})
+// 		return
+// 	}
 
-	resp, err := h.ReviewClient.GetReviewById(context.Background(), &review_client.GetReviewByIdRequest{Id: reviewID})
-	if err != nil {
-		st, ok := status.FromError(err)
-		if ok {
-			if st.Code() == 7 { // gRPC Not Found
-				c.JSON(http.StatusNotFound, gin.H{"error": st.Message()})
-				return
-			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		}
-		return
-	}
-	c.JSON(http.StatusOK, resp)
-}
+// 	resp, err := h.ReviewClient.GetReviewById(context.Background(), &review_client.GetReviewByIdRequest{Id: reviewID})
+// 	if err != nil {
+// 		st, ok := status.FromError(err)
+// 		if ok {
+// 			if st.Code() == 7 { // gRPC Not Found
+// 				c.JSON(http.StatusNotFound, gin.H{"error": st.Message()})
+// 				return
+// 			}
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
+// 		} else {
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+// 		}
+// 		return
+// 	}
+// 	c.JSON(http.StatusOK, resp)
+// }
 
 // UpdateReview godoc
 // @Summary Cập nhật đánh giá
@@ -2014,36 +2010,36 @@ func (h *GatewayHandlers) GetReviewById(c *gin.Context) {
 // @Failure 404 {object} map[string]string "Not Found"
 // @Failure 500 {object} map[string]string "Internal Server Error"
 // @Router /reviews/{id} [put]
-func (h *GatewayHandlers) UpdateReview(c *gin.Context) {
-	reviewID := c.Param("id")
-	if reviewID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Review ID is required"})
-		return
-	}
+// func (h *GatewayHandlers) UpdateReview(c *gin.Context) {
+// 	reviewID := c.Param("id")
+// 	if reviewID == "" {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Review ID is required"})
+// 		return
+// 	}
 
-	var req review_client.UpdateReviewRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	req.Id = reviewID // Set ID from path parameter
+// 	var req review_client.UpdateReviewRequest
+// 	if err := c.ShouldBindJSON(&req); err != nil {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+// 		return
+// 	}
+// 	req.Id = reviewID // Set ID from path parameter
 
-	resp, err := h.ReviewClient.UpdateReview(context.Background(), &req)
-	if err != nil {
-		st, ok := status.FromError(err)
-		if ok {
-			if st.Code() == 7 { // gRPC Not Found
-				c.JSON(http.StatusNotFound, gin.H{"error": st.Message()})
-				return
-			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		}
-		return
-	}
-	c.JSON(http.StatusOK, resp)
-}
+// 	resp, err := h.ReviewClient.UpdateReview(context.Background(), &req)
+// 	if err != nil {
+// 		st, ok := status.FromError(err)
+// 		if ok {
+// 			if st.Code() == 7 { // gRPC Not Found
+// 				c.JSON(http.StatusNotFound, gin.H{"error": st.Message()})
+// 				return
+// 			}
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
+// 		} else {
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+// 		}
+// 		return
+// 	}
+// 	c.JSON(http.StatusOK, resp)
+// }
 
 // DeleteReview godoc
 // @Summary Xóa đánh giá
@@ -2058,29 +2054,29 @@ func (h *GatewayHandlers) UpdateReview(c *gin.Context) {
 // @Failure 404 {object} map[string]string "Not Found"
 // @Failure 500 {object} map[string]string "Internal Server Error"
 // @Router /reviews/{id} [delete]
-func (h *GatewayHandlers) DeleteReview(c *gin.Context) {
-	reviewID := c.Param("id")
-	if reviewID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Review ID is required"})
-		return
-	}
+// func (h *GatewayHandlers) DeleteReview(c *gin.Context) {
+// 	reviewID := c.Param("id")
+// 	if reviewID == "" {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Review ID is required"})
+// 		return
+// 	}
 
-	resp, err := h.ReviewClient.DeleteReview(context.Background(), &review_client.DeleteReviewRequest{Id: reviewID})
-	if err != nil {
-		st, ok := status.FromError(err)
-		if ok {
-			if st.Code() == 7 { // gRPC Not Found
-				c.JSON(http.StatusNotFound, gin.H{"error": st.Message()})
-				return
-			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		}
-		return
-	}
-	c.JSON(http.StatusOK, resp)
-}
+// 	resp, err := h.ReviewClient.DeleteReview(context.Background(), &review_client.DeleteReviewRequest{Id: reviewID})
+// 	if err != nil {
+// 		st, ok := status.FromError(err)
+// 		if ok {
+// 			if st.Code() == 7 { // gRPC Not Found
+// 				c.JSON(http.StatusNotFound, gin.H{"error": st.Message()})
+// 				return
+// 			}
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
+// 		} else {
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+// 		}
+// 		return
+// 	}
+// 	c.JSON(http.StatusOK, resp)
+// }
 
 // ListReviewsByProduct godoc
 // @Summary Liệt kê đánh giá theo sản phẩm
@@ -2094,43 +2090,43 @@ func (h *GatewayHandlers) DeleteReview(c *gin.Context) {
 // @Failure 400 {object} map[string]string "Bad Request"
 // @Failure 500 {object} map[string]string "Internal Server Error"
 // @Router /reviews/products/{product_id} [get]
-func (h *GatewayHandlers) ListReviewsByProduct(c *gin.Context) {
-	productID := c.Param("product_id")
-	if productID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Product ID is required"})
-		return
-	}
+// func (h *GatewayHandlers) ListReviewsByProduct(c *gin.Context) {
+// 	productID := c.Param("product_id")
+// 	if productID == "" {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Product ID is required"})
+// 		return
+// 	}
 
-	limitStr := c.DefaultQuery("limit", "10")
-	offsetStr := c.DefaultQuery("offset", "0")
+// 	limitStr := c.DefaultQuery("limit", "10")
+// 	offsetStr := c.DefaultQuery("offset", "0")
 
-	limit, err := strconv.ParseInt(limitStr, 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit parameter"})
-		return
-	}
-	offset, err := strconv.ParseInt(offsetStr, 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset parameter"})
-		return
-	}
+// 	limit, err := strconv.ParseInt(limitStr, 10, 32)
+// 	if err != nil {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit parameter"})
+// 		return
+// 	}
+// 	offset, err := strconv.ParseInt(offsetStr, 10, 32)
+// 	if err != nil {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset parameter"})
+// 		return
+// 	}
 
-	resp, err := h.ReviewClient.ListReviewsByProduct(context.Background(), &review_client.ListReviewsByProductRequest{
-		ProductId: productID,
-		Limit:     int32(limit),
-		Offset:    int32(offset),
-	})
-	if err != nil {
-		st, ok := status.FromError(err)
-		if ok {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		}
-		return
-	}
-	c.JSON(http.StatusOK, resp)
-}
+// 	resp, err := h.ReviewClient.ListReviewsByProduct(context.Background(), &review_client.ListReviewsByProductRequest{
+// 		ProductId: productID,
+// 		Limit:     int32(limit),
+// 		Offset:    int32(offset),
+// 	})
+// 	if err != nil {
+// 		st, ok := status.FromError(err)
+// 		if ok {
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
+// 		} else {
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+// 		}
+// 		return
+// 	}
+// 	c.JSON(http.StatusOK, resp)
+// }
 
 // ListAllReviews godoc
 // @Summary Liệt kê tất cả đánh giá
@@ -2146,52 +2142,52 @@ func (h *GatewayHandlers) ListReviewsByProduct(c *gin.Context) {
 // @Failure 400 {object} map[string]string "Bad Request"
 // @Failure 500 {object} map[string]string "Internal Server Error"
 // @Router /reviews [get]
-func (h *GatewayHandlers) ListAllReviews(c *gin.Context) {
-	productID := c.Query("product_id")
-	userID := c.Query("user_id")
-	minRatingStr := c.Query("min_rating")
-	limitStr := c.DefaultQuery("limit", "10")
-	offsetStr := c.DefaultQuery("offset", "0")
+// func (h *GatewayHandlers) ListAllReviews(c *gin.Context) {
+// 	productID := c.Query("product_id")
+// 	userID := c.Query("user_id")
+// 	minRatingStr := c.Query("min_rating")
+// 	limitStr := c.DefaultQuery("limit", "10")
+// 	offsetStr := c.DefaultQuery("offset", "0")
 
-	limit, err := strconv.ParseInt(limitStr, 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit parameter"})
-		return
-	}
-	offset, err := strconv.ParseInt(offsetStr, 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset parameter"})
-		return
-	}
+// 	limit, err := strconv.ParseInt(limitStr, 10, 32)
+// 	if err != nil {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit parameter"})
+// 		return
+// 	}
+// 	offset, err := strconv.ParseInt(offsetStr, 10, 32)
+// 	if err != nil {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset parameter"})
+// 		return
+// 	}
 
-	var minRating int32
-	if minRatingStr != "" {
-		val, err := strconv.ParseInt(minRatingStr, 10, 32)
-		if err != nil || val < 1 || val > 5 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid min_rating parameter (must be 1-5)"})
-			return
-		}
-		minRating = int32(val)
-	}
+// 	var minRating int32
+// 	if minRatingStr != "" {
+// 		val, err := strconv.ParseInt(minRatingStr, 10, 32)
+// 		if err != nil || val < 1 || val > 5 {
+// 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid min_rating parameter (must be 1-5)"})
+// 			return
+// 		}
+// 		minRating = int32(val)
+// 	}
 
-	resp, err := h.ReviewClient.ListAllReviews(context.Background(), &review_client.ListAllReviewsRequest{
-		ProductId: productID,
-		UserId:    userID,
-		MinRating: minRating,
-		Limit:     int32(limit),
-		Offset:    int32(offset),
-	})
-	if err != nil {
-		st, ok := status.FromError(err)
-		if ok {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		}
-		return
-	}
-	c.JSON(http.StatusOK, resp)
-}
+// 	resp, err := h.ReviewClient.ListAllReviews(context.Background(), &review_client.ListAllReviewsRequest{
+// 		ProductId: productID,
+// 		UserId:    userID,
+// 		MinRating: minRating,
+// 		Limit:     int32(limit),
+// 		Offset:    int32(offset),
+// 	})
+// 	if err != nil {
+// 		st, ok := status.FromError(err)
+// 		if ok {
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
+// 		} else {
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+// 		}
+// 		return
+// 	}
+// 	c.JSON(http.StatusOK, resp)
+// }
 
 // --- Search Service Handlers (THÊM PHẦN NÀY) ---
 
@@ -2353,30 +2349,30 @@ func (h *GatewayHandlers) DeleteProductFromIndex(c *gin.Context) {
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 500 {object} map[string]string "Internal Server Error"
 // @Router /recommendations/interact [post]
-func (h *GatewayHandlers) RecordInteraction(c *gin.Context) {
-	var req recommendation_client.RecordInteractionRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
+// func (h *GatewayHandlers) RecordInteraction(c *gin.Context) {
+// 	var req recommendation_client.RecordInteractionRequest
+// 	if err := c.ShouldBindJSON(&req); err != nil {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+// 		return
+// 	}
 
-	// Set timestamp if not provided (optional, Recommendation service can set it)
-	if req.GetTimestamp() == 0 {
-		req.Timestamp = time.Now().Unix()
-	}
+// 	// Set timestamp if not provided (optional, Recommendation service can set it)
+// 	if req.GetTimestamp() == 0 {
+// 		req.Timestamp = time.Now().Unix()
+// 	}
 
-	resp, err := h.RecommendationClient.RecordInteraction(context.Background(), &req)
-	if err != nil {
-		st, ok := status.FromError(err)
-		if ok {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		}
-		return
-	}
-	c.JSON(http.StatusOK, resp)
-}
+// 	resp, err := h.RecommendationClient.RecordInteraction(context.Background(), &req)
+// 	if err != nil {
+// 		st, ok := status.FromError(err)
+// 		if ok {
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
+// 		} else {
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+// 		}
+// 		return
+// 	}
+// 	c.JSON(http.StatusOK, resp)
+// }
 
 // GetRecommendations godoc
 // @Summary Lấy các gợi ý sản phẩm cho người dùng
@@ -2392,43 +2388,43 @@ func (h *GatewayHandlers) RecordInteraction(c *gin.Context) {
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 500 {object} map[string]string "Internal Server Error"
 // @Router /recommendations [get]
-func (h *GatewayHandlers) GetRecommendations(c *gin.Context) {
-	userID := c.Query("user_id")
-	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID is required for recommendations"})
-		return
-	}
+// func (h *GatewayHandlers) GetRecommendations(c *gin.Context) {
+// 	userID := c.Query("user_id")
+// 	if userID == "" {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID is required for recommendations"})
+// 		return
+// 	}
 
-	limitStr := c.DefaultQuery("limit", "10")
-	offsetStr := c.DefaultQuery("offset", "0")
+// 	limitStr := c.DefaultQuery("limit", "10")
+// 	offsetStr := c.DefaultQuery("offset", "0")
 
-	limit, err := strconv.ParseInt(limitStr, 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit parameter"})
-		return
-	}
-	offset, err := strconv.ParseInt(offsetStr, 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset parameter"})
-		return
-	}
+// 	limit, err := strconv.ParseInt(limitStr, 10, 32)
+// 	if err != nil {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit parameter"})
+// 		return
+// 	}
+// 	offset, err := strconv.ParseInt(offsetStr, 10, 32)
+// 	if err != nil {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset parameter"})
+// 		return
+// 	}
 
-	resp, err := h.RecommendationClient.GetRecommendations(context.Background(), &recommendation_client.GetRecommendationsRequest{
-		UserId: userID,
-		Limit:  int32(limit),
-		Offset: int32(offset),
-	})
-	if err != nil {
-		st, ok := status.FromError(err)
-		if ok {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		}
-		return
-	}
-	c.JSON(http.StatusOK, resp)
-}
+// 	resp, err := h.RecommendationClient.GetRecommendations(context.Background(), &recommendation_client.GetRecommendationsRequest{
+// 		UserId: userID,
+// 		Limit:  int32(limit),
+// 		Offset: int32(offset),
+// 	})
+// 	if err != nil {
+// 		st, ok := status.FromError(err)
+// 		if ok {
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
+// 		} else {
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+// 		}
+// 		return
+// 	}
+// 	c.JSON(http.StatusOK, resp)
+// }
 
 // GetPopularProducts godoc
 // @Summary Lấy danh sách sản phẩm phổ biến
@@ -2440,26 +2436,26 @@ func (h *GatewayHandlers) GetRecommendations(c *gin.Context) {
 // @Failure 400 {object} map[string]string "Bad Request"
 // @Failure 500 {object} map[string]string "Internal Server Error"
 // @Router /recommendations/popular [get]
-func (h *GatewayHandlers) GetPopularProducts(c *gin.Context) {
-	limitStr := c.DefaultQuery("limit", "10")
+// func (h *GatewayHandlers) GetPopularProducts(c *gin.Context) {
+// 	limitStr := c.DefaultQuery("limit", "10")
 
-	limit, err := strconv.ParseInt(limitStr, 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit parameter"})
-		return
-	}
+// 	limit, err := strconv.ParseInt(limitStr, 10, 32)
+// 	if err != nil {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit parameter"})
+// 		return
+// 	}
 
-	resp, err := h.RecommendationClient.GetPopularProducts(context.Background(), &recommendation_client.GetPopularProductsRequest{
-		Limit: int32(limit),
-	})
-	if err != nil {
-		st, ok := status.FromError(err)
-		if ok {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		}
-		return
-	}
-	c.JSON(http.StatusOK, resp)
-}
+// 	resp, err := h.RecommendationClient.GetPopularProducts(context.Background(), &recommendation_client.GetPopularProductsRequest{
+// 		Limit: int32(limit),
+// 	})
+// 	if err != nil {
+// 		st, ok := status.FromError(err)
+// 		if ok {
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": st.Message()})
+// 		} else {
+// 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+// 		}
+// 		return
+// 	}
+// 	c.JSON(http.StatusOK, resp)
+// }
