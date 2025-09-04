@@ -47,18 +47,18 @@ func (s *cartService) AddItemToCart(ctx context.Context, req *cart_client.AddIte
 		return nil, errors.New("user ID, product ID, and positive quantity are required")
 	}
 
-	// Get product details from Product Service to ensure valid product and get correct price/name
-	productResp, err := s.productClient.GetProductById(ctx, &product_client.GetProductByIdRequest{Id: req.GetProductId()})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get product details for ID %s: %w", req.GetProductId(), err)
-	}
-	if productResp.GetProduct() == nil {
-		return nil, fmt.Errorf("product with ID %s not found", req.GetProductId())
-	}
+	// // Get product details from Product Service to ensure valid product and get correct price/name
+	// productResp, err := s.productClient.GetProductById(ctx, &product_client.GetProductByIdRequest{Id: req.GetProductId()})
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to get product details for ID %s: %w", req.GetProductId(), err)
+	// }
+	// if productResp.GetProduct() == nil {
+	// 	return nil, fmt.Errorf("product with ID %s not found", req.GetProductId())
+	// }
 
-	// Use product details from Product Service, not from request directly, for consistency
-	productName := productResp.GetProduct().GetName()
-	price := productResp.GetProduct().GetPrice()
+	// // Use product details from Product Service, not from request directly, for consistency
+	// productName := productResp.GetProduct().GetName()
+	// price := productResp.GetProduct().GetPrice()
 
 	cart, err := s.cartRepo.GetCart(ctx, req.GetUserId())
 	if err != nil {
@@ -68,11 +68,11 @@ func (s *cartService) AddItemToCart(ctx context.Context, req *cart_client.AddIte
 		cart = domain.NewCart(req.GetUserId())
 	}
 
-	cart.AddItem(req.GetProductId(), productName, price, req.GetQuantity())
+	// cart.AddItem(req.GetProductId(), productName, price, req.GetQuantity())
 
-	if err := s.cartRepo.SaveCart(ctx, cart); err != nil {
-		return nil, fmt.Errorf("failed to save cart: %w", err)
-	}
+	// if err := s.cartRepo.SaveCart(ctx, cart); err != nil {
+	// 	return nil, fmt.Errorf("failed to save cart: %w", err)
+	// }
 
 	return &cart_client.CartResponse{Cart: mapDomainCartToProto(cart)}, nil
 }

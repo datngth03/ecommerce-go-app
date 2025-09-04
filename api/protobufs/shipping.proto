@@ -1,105 +1,105 @@
-// api/protobufs/shipping.proto
-syntax = "proto3";
+// // api/protobufs/shipping.proto
+// syntax = "proto3";
 
-// Define the package for protobuf
-package shipping;
+// // Define the package for protobuf
+// package shipping;
 
-// Go options:
-// go_package specifies the import path for the generated Go package.
-// It will create Go files in the "pkg/client/shipping" directory.
-option go_package = "github.com/datngth03/ecommerce-go-app/pkg/client/shipping;shipping_client";
+// // Go options:
+// // go_package specifies the import path for the generated Go package.
+// // It will create Go files in the "pkg/client/shipping" directory.
+// option go_package = "github.com/datngth03/ecommerce-go-app/pkg/client/shipping;shipping_client";
 
-// ShippingService defines the gRPC service for shipping management.
-service ShippingService {
-  // RPC to calculate shipping cost for an order
-  rpc CalculateShippingCost (CalculateShippingCostRequest) returns (CalculateShippingCostResponse);
+// // ShippingService defines the gRPC service for shipping management.
+// service ShippingService {
+//   // RPC to calculate shipping cost for an order
+//   rpc CalculateShippingCost (CalculateShippingCostRequest) returns (CalculateShippingCostResponse);
 
-  // RPC to create a shipment for an order
-  rpc CreateShipment (CreateShipmentRequest) returns (ShipmentResponse);
+//   // RPC to create a shipment for an order
+//   rpc CreateShipment (CreateShipmentRequest) returns (ShipmentResponse);
 
-  // RPC to get shipment details by ID
-  rpc GetShipmentById (GetShipmentByIdRequest) returns (ShipmentResponse);
+//   // RPC to get shipment details by ID
+//   rpc GetShipmentById (GetShipmentByIdRequest) returns (ShipmentResponse);
 
-  // RPC to update shipment status (e.g., from pending to in_transit/delivered)
-  rpc UpdateShipmentStatus (UpdateShipmentStatusRequest) returns (ShipmentResponse);
+//   // RPC to update shipment status (e.g., from pending to in_transit/delivered)
+//   rpc UpdateShipmentStatus (UpdateShipmentStatusRequest) returns (ShipmentResponse);
 
-  // RPC to track a shipment (might involve calling third-party APIs)
-  rpc TrackShipment (TrackShipmentRequest) returns (ShipmentResponse);
+//   // RPC to track a shipment (might involve calling third-party APIs)
+//   rpc TrackShipment (TrackShipmentRequest) returns (ShipmentResponse);
 
-  // RPC to list shipments for a user or with filters
-  rpc ListShipments (ListShipmentsRequest) returns (ListShipmentsResponse);
-}
+//   // RPC to list shipments for a user or with filters
+//   rpc ListShipments (ListShipmentsRequest) returns (ListShipmentsResponse);
+// }
 
-// Message for shipment details
-message Shipment {
-  string id = 1;
-  string order_id = 2;
-  string user_id = 3;
-  double shipping_cost = 4;
-  string tracking_number = 5; // Tracking number from carrier
-  string carrier = 6;         // Shipping carrier (e.g., "FedEx", "UPS", "LocalPost")
-  string status = 7;          // e.g., "pending", "in_transit", "delivered", "failed"
-  string shipping_address = 8; // Denormalized or fetched from Order Service
-  string created_at = 9;      // ISO 8601 string
-  string updated_at = 10;     // ISO 8601 string
-}
+// // Message for shipment details
+// message Shipment {
+//   string id = 1;
+//   string order_id = 2;
+//   string user_id = 3;
+//   double shipping_cost = 4;
+//   string tracking_number = 5; // Tracking number from carrier
+//   string carrier = 6;         // Shipping carrier (e.g., "FedEx", "UPS", "LocalPost")
+//   string status = 7;          // e.g., "pending", "in_transit", "delivered", "failed"
+//   string shipping_address = 8; // Denormalized or fetched from Order Service
+//   string created_at = 9;      // ISO 8601 string
+//   string updated_at = 10;     // ISO 8601 string
+// }
 
-// Request to calculate shipping cost
-message CalculateShippingCostRequest {
-  string order_id = 1; // Used to fetch order details (items, weight, dimensions)
-  string shipping_address = 2; // Destination address
-  string origin_address = 3; // Origin address (e.g., warehouse)
-}
+// // Request to calculate shipping cost
+// message CalculateShippingCostRequest {
+//   string order_id = 1; // Used to fetch order details (items, weight, dimensions)
+//   string shipping_address = 2; // Destination address
+//   string origin_address = 3; // Origin address (e.g., warehouse)
+// }
 
-// Response for shipping cost calculation
-message CalculateShippingCostResponse {
-  double cost = 1;
-  string currency = 2;
-  string estimated_delivery_time = 3; // e.g., "3-5 business days"
-}
+// // Response for shipping cost calculation
+// message CalculateShippingCostResponse {
+//   double cost = 1;
+//   string currency = 2;
+//   string estimated_delivery_time = 3; // e.g., "3-5 business days"
+// }
 
-// Request to create a shipment
-message CreateShipmentRequest {
-  string order_id = 1;
-  string user_id = 2;
-  double shipping_cost = 3;
-  string shipping_address = 4;
-  string carrier = 5;
-}
+// // Request to create a shipment
+// message CreateShipmentRequest {
+//   string order_id = 1;
+//   string user_id = 2;
+//   double shipping_cost = 3;
+//   string shipping_address = 4;
+//   string carrier = 5;
+// }
 
-// Response for shipment operations
-message ShipmentResponse {
-  Shipment shipment = 1;
-}
+// // Response for shipment operations
+// message ShipmentResponse {
+//   Shipment shipment = 1;
+// }
 
-// Request to get shipment by ID
-message GetShipmentByIdRequest {
-  string id = 1;
-}
+// // Request to get shipment by ID
+// message GetShipmentByIdRequest {
+//   string id = 1;
+// }
 
-// Request to update shipment status
-message UpdateShipmentStatusRequest {
-  string shipment_id = 1;
-  string new_status = 2; // e.g., "in_transit", "delivered", "failed"
-  string tracking_number = 3; // Optional: update tracking number if not set
-}
+// // Request to update shipment status
+// message UpdateShipmentStatusRequest {
+//   string shipment_id = 1;
+//   string new_status = 2; // e.g., "in_transit", "delivered", "failed"
+//   string tracking_number = 3; // Optional: update tracking number if not set
+// }
 
-// Request to track a shipment
-message TrackShipmentRequest {
-  string shipment_id = 1;
-}
+// // Request to track a shipment
+// message TrackShipmentRequest {
+//   string shipment_id = 1;
+// }
 
-// Request to list shipments
-message ListShipmentsRequest {
-  string user_id = 1; // Optional filter by user ID
-  string order_id = 2; // Optional filter by order ID
-  string status = 3;  // Optional filter by status
-  int32 limit = 4;    // Pagination limit
-  int32 offset = 5;   // Pagination offset
-}
+// // Request to list shipments
+// message ListShipmentsRequest {
+//   string user_id = 1; // Optional filter by user ID
+//   string order_id = 2; // Optional filter by order ID
+//   string status = 3;  // Optional filter by status
+//   int32 limit = 4;    // Pagination limit
+//   int32 offset = 5;   // Pagination offset
+// }
 
-// Response for listing shipments
-message ListShipmentsResponse {
-  repeated Shipment shipments = 1;
-  int32 total_count = 2; // Total number of shipments matching criteria
-}
+// // Response for listing shipments
+// message ListShipmentsResponse {
+//   repeated Shipment shipments = 1;
+//   int32 total_count = 2; // Total number of shipments matching criteria
+// }

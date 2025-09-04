@@ -332,7 +332,7 @@ func (h *GatewayHandlers) GetProductById(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.ProductClient.GetProductById(context.Background(), &product_client.GetProductByIdRequest{Id: productID})
+	resp, err := h.ProductClient.GetProduct(context.Background(), &product_client.GetProductRequest{Id: productID})
 	if err != nil {
 		st, ok := status.FromError(err)
 		if ok {
@@ -461,9 +461,11 @@ func (h *GatewayHandlers) ListProducts(c *gin.Context) {
 	}
 
 	resp, err := h.ProductClient.ListProducts(context.Background(), &product_client.ListProductsRequest{
-		CategoryId: categoryID,
-		Limit:      int32(limit),
-		Offset:     int32(offset),
+		CategoryIds: []string{categoryID},
+		Pagination: &product_client.PaginationRequest{
+			Limit: int32(limit),
+			Page:  int32(offset),
+		},
 	})
 	if err != nil {
 		st, ok := status.FromError(err)
@@ -528,7 +530,7 @@ func (h *GatewayHandlers) GetCategoryById(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.ProductClient.GetCategoryById(context.Background(), &product_client.GetCategoryByIdRequest{Id: categoryID})
+	resp, err := h.ProductClient.GetCategory(context.Background(), &product_client.GetCategoryRequest{Id: categoryID})
 	if err != nil {
 		st, ok := status.FromError(err)
 		if ok {

@@ -110,8 +110,10 @@ func main() {
 	logger.Logger.Info("Successfully connected to PostgreSQL database for Product Service.")
 
 	// Initialize repositories
-	productRepo := repository.NewPostgreSQLProductRepository(db)
-	categoryRepo := repository.NewPostgreSQLCategoryRepository(db)
+	productRepo := repository.NewPostgresProductRepository(db)
+	categoryRepo := repository.NewPostgresCategoryRepository(db)
+	brandRepo := repository.NewPostgresBrandRepository(db)
+	tagRepo := repository.NewPostgresTagRepository(db)
 
 	// Initialize Kafka Event Publisher
 	eventPublisher := messaging.NewKafkaProductEventPublisher(kafkaBroker, productEventsTopic)
@@ -119,7 +121,7 @@ func main() {
 	logger.Logger.Info("Kafka Product Event Publisher initialized", zap.String("topic", productEventsTopic), zap.String("broker", kafkaBroker))
 
 	// Initialize Application Service (Inject Event Publisher)
-	productService := application.NewProductService(productRepo, categoryRepo, eventPublisher)
+	productService := application.NewProductService(productRepo, categoryRepo, brandRepo, tagRepo, eventPublisher)
 
 	// Create a listener on the defined gRPC port
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", grpcPort))

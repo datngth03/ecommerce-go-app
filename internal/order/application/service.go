@@ -52,31 +52,31 @@ func (s *orderService) CreateOrder(ctx context.Context, req *order_client.Create
 	var totalAmount float64
 
 	// Validate products and calculate total amount
-	for _, itemReq := range req.GetItems() {
-		// Call Product Service to get product details and validate price/existence
-		productResp, err := s.productClient.GetProductById(ctx, &product_client.GetProductByIdRequest{Id: itemReq.GetProductId()})
-		if err != nil {
-			return nil, fmt.Errorf("failed to get product details for ID %s: %w", itemReq.GetProductId(), err)
-		}
-		if productResp.GetProduct() == nil {
-			return nil, fmt.Errorf("product with ID %s not found", itemReq.GetProductId())
-		}
-		if productResp.GetProduct().GetPrice() != itemReq.GetPrice() {
-			return nil, fmt.Errorf("price mismatch for product %s. Expected %.2f, got %.2f",
-				itemReq.GetProductId(), productResp.GetProduct().GetPrice(), itemReq.GetPrice())
-		}
-		if itemReq.GetQuantity() <= 0 {
-			return nil, fmt.Errorf("quantity for product %s must be positive", itemReq.GetProductId())
-		}
+	// for _, itemReq := range req.GetItems() {
+	// 	// Call Product Service to get product details and validate price/existence
+	// 	productResp, err := s.productClient.GetProduct(ctx, &product_client.GetProductRequest{Id: itemReq.GetProductId()})
+	// 	if err != nil {
+	// 		return nil, fmt.Errorf("failed to get product details for ID %s: %w", itemReq.GetProductId(), err)
+	// 	}
+	// 	if productResp.GetProduct() == nil {
+	// 		return nil, fmt.Errorf("product with ID %s not found", itemReq.GetProductId())
+	// 	}
+	// 	if productResp.GetProduct().GetPrice() != itemReq.GetPrice() {
+	// 		return nil, fmt.Errorf("price mismatch for product %s. Expected %.2f, got %.2f",
+	// 			itemReq.GetProductId(), productResp.GetProduct().GetPrice(), itemReq.GetPrice())
+	// 	}
+	// 	if itemReq.GetQuantity() <= 0 {
+	// 		return nil, fmt.Errorf("quantity for product %s must be positive", itemReq.GetProductId())
+	// 	}
 
-		orderItems = append(orderItems, domain.OrderItem{
-			ProductID:   itemReq.GetProductId(),
-			ProductName: productResp.GetProduct().GetName(),
-			Price:       itemReq.GetPrice(),
-			Quantity:    itemReq.GetQuantity(),
-		})
-		totalAmount += itemReq.GetPrice() * float64(itemReq.GetQuantity())
-	}
+	// 	orderItems = append(orderItems, domain.OrderItem{
+	// 		ProductID:   itemReq.GetProductId(),
+	// 		ProductName: productResp.GetProduct().GetName(),
+	// 		Price:       itemReq.GetPrice(),
+	// 		Quantity:    itemReq.GetQuantity(),
+	// 	})
+	// 	totalAmount += itemReq.GetPrice() * float64(itemReq.GetQuantity())
+	// }
 
 	orderID := uuid.New().String()
 	order := domain.NewOrder(orderID, req.GetUserId(), orderItems, totalAmount, req.GetShippingAddress())

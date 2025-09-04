@@ -1,138 +1,512 @@
-// api/protobufs/product.proto
 syntax = "proto3";
 
-// Define the package for protobuf
-package product; 
+package product.v1;
 
-// Go options:
-// go_package specifies the import path for the generated Go package.
-// It will create Go files in the "pkg/client/product" directory.
-option go_package = "github.com/datngth03/ecommerce-go-app/pkg/client/product;product_client";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
 
-// ProductService defines the gRPC service for product management.
-service ProductService {
-  // RPC to create a new product
-  rpc CreateProduct (CreateProductRequest) returns (ProductResponse);
+option go_package = "github.com/yourproject/product-service/pb/product/v1;productv1";
 
-  // RPC to get product details by ID
-  rpc GetProductById (GetProductByIdRequest) returns (ProductResponse);
+// ======================== Core Entities ========================
 
-  // RPC to update product information
-  rpc UpdateProduct (UpdateProductRequest) returns (ProductResponse);
-
-  // RPC to delete a product
-  rpc DeleteProduct (DeleteProductRequest) returns (DeleteProductResponse);
-
-  // RPC to list products with optional filters and pagination
-  rpc ListProducts (ListProductsRequest) returns (ListProductsResponse);
-
-  // RPC to create a new category
-  rpc CreateCategory (CreateCategoryRequest) returns (CategoryResponse);
-
-  // RPC to get category details by ID
-  rpc GetCategoryById (GetCategoryByIdRequest) returns (CategoryResponse);
-
-  // RPC to list all categories
-  rpc ListCategories (ListCategoriesRequest) returns (ListCategoriesResponse);
+message Brand {
+  string id = 1;
+  string name = 2;
+  string slug = 3;
+  optional string logo = 4;
+  optional string description = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
 }
 
-// Message for product details
+message Category {
+  string id = 1;
+  string name = 2;
+  string slug = 3;
+  optional string description = 4;
+  optional string image = 5;
+  optional string parent_id = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+  
+  // Nested data (optional)
+  repeated Category children = 9;
+  optional Category parent = 10;
+}
+
 message Product {
   string id = 1;
-  string name = 2;
-  string description = 3;
+  optional string brand_id = 2;
+  string name = 3;
+  string slug = 4;
+  optional string description = 5;
+  double rating = 6;
+  int32 review_count = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+  
+  // Related entities
+  optional Brand brand = 10;
+  repeated Category categories = 11;
+  repeated ProductImage images = 12;
+  repeated ProductVariant variants = 13;
+  repeated Tag tags = 14;
+  repeated ProductSpecification specifications = 15;
+}
+
+message ProductImage {
+  string id = 1;
+  string product_id = 2;
+  string url = 3;
+  bool is_primary = 4;
+}
+
+message ProductVariant {
+  string id = 1;
+  string product_id = 2;
+  string sku = 3;
   double price = 4;
-  string category_id = 5;
-  repeated string image_urls = 6;
-  int32 stock_quantity = 7; // This might be pulled from Inventory Service
-  string created_at = 8; // ISO 8601 string
-  string updated_at = 9; // ISO 8601 string
+  double original_price = 5;
+  optional double discount = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+  
+  // Related data
+  repeated VariantAttributeValue attribute_values = 9;
 }
 
-// Request to create a product
-message CreateProductRequest {
+message Tag {
+  string id = 1;
+  string name = 2;
+  string slug = 3;
+}
+
+message SpecificationAttribute {
+  string id = 1;
+  string name = 2;
+  string slug = 3;
+}
+
+message ProductSpecification {
+  string id = 1;
+  string product_id = 2;
+  string attribute_id = 3;
+  string value = 4;
+  optional SpecificationAttribute attribute = 5;
+}
+
+message VariantAttribute {
+  string id = 1;
+  string name = 2;
+  string slug = 3;
+}
+
+message VariantAttributeValue {
+  string id = 1;
+  string attribute_id = 2;
+  string value = 3;
+  optional VariantAttribute attribute = 4;
+}
+
+// ======================== Common Types ========================
+
+enum SortOrder {
+  SORT_ORDER_UNSPECIFIED = 0;
+  SORT_ORDER_ASC = 1;
+  SORT_ORDER_DESC = 2;
+}
+
+message PaginationRequest {
+  int32 page = 1;     // Page number (default: 1)
+  int32 limit = 2;    // Items per page (default: 10, max: 100)
+}
+
+message PaginationResponse {
+  int32 total = 1;      // Total number of items
+  int32 page = 2;       // Current page
+  int32 limit = 3;      // Items per page
+  int32 total_pages = 4; // Total number of pages
+}
+
+// ======================== Brand Operations ========================
+
+message CreateBrandRequest {
   string name = 1;
-  string description = 2;
-  double price = 3;
-  string category_id = 4;
-  repeated string image_urls = 5;
+  string slug = 2;
+  optional string logo = 3;
+  optional string description = 4;
 }
 
-// Response for product operations
-message ProductResponse {
-  Product product = 1;
-}
-
-// Request to get product by ID
-message GetProductByIdRequest {
+message GetBrandRequest {
   string id = 1;
 }
 
-// Request to update product information
+message UpdateBrandRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string slug = 3;
+  optional string logo = 4;
+  optional string description = 5;
+  google.protobuf.FieldMask field_mask = 6;
+}
+
+message DeleteBrandRequest {
+  string id = 1;
+}
+
+message ListBrandsRequest {
+  PaginationRequest pagination = 1;
+  optional string search = 2;
+  optional string sort_by = 3;    // name, created_at
+  SortOrder sort_order = 4;
+}
+
+message ListBrandsResponse {
+  repeated Brand brands = 1;
+  PaginationResponse pagination = 2;
+}
+
+// ======================== Category Operations ========================
+
+message CreateCategoryRequest {
+  string name = 1;
+  string slug = 2;
+  optional string description = 3;
+  optional string image = 4;
+  optional string parent_id = 5;
+}
+
+message GetCategoryRequest {
+  string id = 1;
+  bool include_children = 2;
+  bool include_parent = 3;
+}
+
+message UpdateCategoryRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string slug = 3;
+  optional string description = 4;
+  optional string image = 5;
+  optional string parent_id = 6;
+  google.protobuf.FieldMask field_mask = 7;
+}
+
+message DeleteCategoryRequest {
+  string id = 1;
+}
+
+message ListCategoriesRequest {
+  PaginationRequest pagination = 1;
+  optional string search = 2;
+  optional string parent_id = 3;  // Filter by parent
+  bool only_root = 4;             // Get only root categories
+  optional string sort_by = 5;    // name, created_at
+  SortOrder sort_order = 6;
+}
+
+message ListCategoriesResponse {
+  repeated Category categories = 1;
+  PaginationResponse pagination = 2;
+}
+
+// ======================== Product Operations ========================
+
+message CreateProductRequest {
+  optional string brand_id = 1;
+  string name = 2;
+  string slug = 3;
+  optional string description = 4;
+  repeated string category_ids = 5;
+  repeated CreateProductImageRequest images = 6;
+  repeated CreateProductSpecificationRequest specifications = 7;
+  repeated string tag_ids = 8;
+}
+
+message CreateProductImageRequest {
+  string url = 1;
+  bool is_primary = 2;
+}
+
+message CreateProductSpecificationRequest {
+  string attribute_id = 1;
+  string value = 2;
+}
+
+message GetProductRequest {
+  string id = 1;
+  bool include_brand = 2;
+  bool include_categories = 3;
+  bool include_images = 4;
+  bool include_variants = 5;
+  bool include_tags = 6;
+  bool include_specifications = 7;
+}
+
 message UpdateProductRequest {
   string id = 1;
-  string name = 2;
-  string description = 3;
-  double price = 4;
-  string category_id = 5;
-  repeated string image_urls = 6;
+  optional string brand_id = 2;
+  optional string name = 3;
+  optional string slug = 4;
+  optional string description = 5;
+  repeated string category_ids = 6;
+  google.protobuf.FieldMask field_mask = 7;
 }
 
-// Request to delete a product
 message DeleteProductRequest {
   string id = 1;
 }
 
-// Response for product deletion
-message DeleteProductResponse {
-  bool success = 1;
-  string message = 2;
-}
-
-// Request to list products
 message ListProductsRequest {
-  string category_id = 1; // Optional filter by category
-  int32 limit = 2;        // Pagination limit
-  int32 offset = 3;       // Pagination offset
+  PaginationRequest pagination = 1;
+  optional string search = 2;
+  repeated string category_ids = 3;
+  repeated string brand_ids = 4;
+  repeated string tag_ids = 5;
+  optional double min_price = 6;
+  optional double max_price = 7;
+  optional double min_rating = 8;
+  optional string sort_by = 9;    // name, price, rating, created_at
+  SortOrder sort_order = 10;
+  
+  // Include options
+  bool include_brand = 11;
+  bool include_categories = 12;
+  bool include_images = 13;
+  bool include_variants = 14;
 }
 
-// Response for listing products
 message ListProductsResponse {
   repeated Product products = 1;
-  int32 total_count = 2; // Total number of products matching criteria
+  PaginationResponse pagination = 2;
 }
 
-// Message for category details
-message Category {
+// ======================== Product Variant Operations ========================
+
+message CreateProductVariantRequest {
+  string product_id = 1;
+  string sku = 2;
+  double price = 3;
+  double original_price = 4;
+  optional double discount = 5;
+  repeated string attribute_value_ids = 6;
+}
+
+message GetProductVariantRequest {
   string id = 1;
-  string name = 2;
-  string description = 3;
-  string created_at = 4; // ISO 8601 string
-  string updated_at = 5; // ISO 8601 string
+  bool include_attribute_values = 2;
 }
 
-// Request to create a category
-message CreateCategoryRequest {
+message UpdateProductVariantRequest {
+  string id = 1;
+  optional string sku = 2;
+  optional double price = 3;
+  optional double original_price = 4;
+  optional double discount = 5;
+  repeated string attribute_value_ids = 6;
+  google.protobuf.FieldMask field_mask = 7;
+}
+
+message DeleteProductVariantRequest {
+  string id = 1;
+}
+
+message ListProductVariantsRequest {
+  optional string product_id = 1;
+  PaginationRequest pagination = 2;
+  optional string search = 3;
+  optional double min_price = 4;
+  optional double max_price = 5;
+  bool include_attribute_values = 6;
+}
+
+message ListProductVariantsResponse {
+  repeated ProductVariant variants = 1;
+  PaginationResponse pagination = 2;
+}
+
+// ======================== Tag Operations ========================
+
+message CreateTagRequest {
   string name = 1;
-  string description = 2;
+  string slug = 2;
 }
 
-// Response for category operations
-message CategoryResponse {
-  Category category = 1;
-}
-
-// Request to get category by ID
-message GetCategoryByIdRequest {
+message GetTagRequest {
   string id = 1;
 }
 
-// Request to list categories
-message ListCategoriesRequest {
-  // No specific fields for now, but can add filters later
+message UpdateTagRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string slug = 3;
+  google.protobuf.FieldMask field_mask = 4;
 }
 
-// Response for listing categories
-message ListCategoriesResponse {
-  repeated Category categories = 1;
+message DeleteTagRequest {
+  string id = 1;
+}
+
+message ListTagsRequest {
+  PaginationRequest pagination = 1;
+  optional string search = 2;
+}
+
+message ListTagsResponse {
+  repeated Tag tags = 1;
+  PaginationResponse pagination = 2;
+}
+
+// ======================== Specification Attribute Operations ========================
+
+message CreateSpecificationAttributeRequest {
+  string name = 1;
+  string slug = 2;
+}
+
+message GetSpecificationAttributeRequest {
+  string id = 1;
+}
+
+message UpdateSpecificationAttributeRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string slug = 3;
+  google.protobuf.FieldMask field_mask = 4;
+}
+
+message DeleteSpecificationAttributeRequest {
+  string id = 1;
+}
+
+message ListSpecificationAttributesRequest {
+  PaginationRequest pagination = 1;
+  optional string search = 2;
+}
+
+message ListSpecificationAttributesResponse {
+  repeated SpecificationAttribute attributes = 1;
+  PaginationResponse pagination = 2;
+}
+
+// ======================== Variant Attribute Operations ========================
+
+message CreateVariantAttributeRequest {
+  string name = 1;
+  string slug = 2;
+}
+
+message GetVariantAttributeRequest {
+  string id = 1;
+}
+
+message UpdateVariantAttributeRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string slug = 3;
+}
+
+message DeleteVariantAttributeRequest {
+  string id = 1;
+}
+
+message CreateVariantAttributeValueRequest {
+  string attribute_id = 1;
+  string value = 2;
+}
+
+message GetVariantAttributeValueRequest {
+  string id = 1;
+}
+
+message UpdateVariantAttributeValueRequest {
+  string id = 1;
+  optional string attribute_id = 2;
+  optional string value = 3;
+}
+
+message DeleteVariantAttributeValueRequest {
+  string id = 1;
+}
+
+message ListVariantAttributesRequest {
+  PaginationRequest pagination = 1;
+  optional string search = 2;
+}
+
+message ListVariantAttributesResponse {
+  repeated VariantAttribute attributes = 1;
+  PaginationResponse pagination = 2;
+}
+
+message ListVariantAttributeValuesRequest {
+  optional string attribute_id = 1;
+  PaginationRequest pagination = 2;
+  optional string search = 3;
+}
+
+message ListVariantAttributeValuesResponse {
+  repeated VariantAttributeValue values = 1;
+  PaginationResponse pagination = 2;
+}
+
+// ======================== Service Definition ========================
+
+service ProductService {
+  // Brand operations
+  rpc CreateBrand(CreateBrandRequest) returns (Brand);
+  rpc GetBrand(GetBrandRequest) returns (Brand);
+  rpc UpdateBrand(UpdateBrandRequest) returns (Brand);
+  rpc DeleteBrand(DeleteBrandRequest) returns (google.protobuf.Empty);
+  rpc ListBrands(ListBrandsRequest) returns (ListBrandsResponse);
+  
+  // Category operations
+  rpc CreateCategory(CreateCategoryRequest) returns (Category);
+  rpc GetCategory(GetCategoryRequest) returns (Category);
+  rpc UpdateCategory(UpdateCategoryRequest) returns (Category);
+  rpc DeleteCategory(DeleteCategoryRequest) returns (google.protobuf.Empty);
+  rpc ListCategories(ListCategoriesRequest) returns (ListCategoriesResponse);
+  
+  // Product operations
+  rpc CreateProduct(CreateProductRequest) returns (Product);
+  rpc GetProduct(GetProductRequest) returns (Product);
+  rpc UpdateProduct(UpdateProductRequest) returns (Product);
+  rpc DeleteProduct(DeleteProductRequest) returns (google.protobuf.Empty);
+  rpc ListProducts(ListProductsRequest) returns (ListProductsResponse);
+  
+  // Product Variant operations
+  rpc CreateProductVariant(CreateProductVariantRequest) returns (ProductVariant);
+  rpc GetProductVariant(GetProductVariantRequest) returns (ProductVariant);
+  rpc UpdateProductVariant(UpdateProductVariantRequest) returns (ProductVariant);
+  rpc DeleteProductVariant(DeleteProductVariantRequest) returns (google.protobuf.Empty);
+  rpc ListProductVariants(ListProductVariantsRequest) returns (ListProductVariantsResponse);
+  
+  // Tag operations
+  rpc CreateTag(CreateTagRequest) returns (Tag);
+  rpc GetTag(GetTagRequest) returns (Tag);
+  rpc UpdateTag(UpdateTagRequest) returns (Tag);
+  rpc DeleteTag(DeleteTagRequest) returns (google.protobuf.Empty);
+  rpc ListTags(ListTagsRequest) returns (ListTagsResponse);
+  
+  // Specification Attribute operations
+  rpc CreateSpecificationAttribute(CreateSpecificationAttributeRequest) returns (SpecificationAttribute);
+  rpc GetSpecificationAttribute(GetSpecificationAttributeRequest) returns (SpecificationAttribute);
+  rpc UpdateSpecificationAttribute(UpdateSpecificationAttributeRequest) returns (SpecificationAttribute);
+  rpc DeleteSpecificationAttribute(DeleteSpecificationAttributeRequest) returns (google.protobuf.Empty);
+  rpc ListSpecificationAttributes(ListSpecificationAttributesRequest) returns (ListSpecificationAttributesResponse);
+  
+  // Variant Attribute operations
+  rpc CreateVariantAttribute(CreateVariantAttributeRequest) returns (VariantAttribute);
+  rpc GetVariantAttribute(GetVariantAttributeRequest) returns (VariantAttribute);
+  rpc UpdateVariantAttribute(UpdateVariantAttributeRequest) returns (VariantAttribute);
+  rpc DeleteVariantAttribute(DeleteVariantAttributeRequest) returns (google.protobuf.Empty);
+  rpc ListVariantAttributes(ListVariantAttributesRequest) returns (ListVariantAttributesResponse);
+
+  // Variant Attribute Value operations
+  rpc CreateVariantAttributeValue(CreateVariantAttributeValueRequest) returns (VariantAttributeValue);
+  rpc GetVariantAttributeValue(GetVariantAttributeValueRequest) returns (VariantAttributeValue);
+  rpc UpdateVariantAttributeValue(UpdateVariantAttributeValueRequest) returns (VariantAttributeValue);
+  rpc DeleteVariantAttributeValue(DeleteVariantAttributeValueRequest) returns (google.protobuf.Empty);
+  rpc ListVariantAttributeValues(ListVariantAttributeValuesRequest) returns (ListVariantAttributeValuesResponse);
 }
