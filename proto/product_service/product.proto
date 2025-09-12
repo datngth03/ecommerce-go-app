@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package product_service;
+
+option go_package = "ecommerce-microservices/proto/product_service";
+
+// Category message mirrors the 'categories' table.
+message Category {
+  string id = 1;
+  string name = 2;
+  string slug = 3;
+}
+
+// Product message mirrors the 'products' table.
+message Product {
+  string id = 1;
+  string name = 2;
+  string slug = 3;
+  string description = 4;
+  double price = 5;
+  string category_id = 6;
+  string image_url = 7;
+  bool is_active = 8;
+  string created_at = 9;
+}
+
+message CreateProductRequest {
+  string name = 1;
+  string description = 2;
+  double price = 3;
+  string category_id = 4;
+  string image_url = 5;
+}
+
+message CreateProductResponse {
+  Product product = 1;
+}
+
+message GetProductRequest {
+  string id = 1;
+}
+
+message GetProductResponse {
+  Product product = 1;
+}
+
+// Service for product-related gRPC calls.
+service ProductService {
+  rpc CreateProduct(CreateProductRequest) returns (CreateProductResponse);
+  rpc GetProduct(GetProductRequest) returns (GetProductResponse);
+}

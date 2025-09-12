@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package notification_service;
+
+option go_package = "ecommerce-microservices/proto/notification_service";
+
+// Enum để định nghĩa loại thông báo
+enum NotificationType {
+  NOTIFICATION_TYPE_UNSPECIFIED = 0;
+  NOTIFICATION_TYPE_EMAIL = 1;
+  NOTIFICATION_TYPE_SMS = 2;
+  NOTIFICATION_TYPE_PUSH = 3; // Thêm nếu bạn có ứng dụng di động
+}
+
+// Thông điệp để gửi email
+message EmailNotification {
+  string recipient_email = 1;
+  string subject = 2;
+  string body = 3;
+}
+
+// Thông điệp để gửi SMS
+message SmsNotification {
+  string recipient_phone_number = 1;
+  string message = 2;
+}
+
+// Thông điệp chung cho yêu cầu gửi thông báo
+message SendNotificationRequest {
+  NotificationType notification_type = 1;
+  oneof notification_data {
+    EmailNotification email_data = 2;
+    SmsNotification sms_data = 3;
+  }
+}
+
+// Thông điệp phản hồi sau khi gửi
+message SendNotificationResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Dịch vụ gRPC cho Notification Service
+service NotificationService {
+  rpc SendNotification(SendNotificationRequest) returns (SendNotificationResponse);
+}

@@ -1,261 +1,304 @@
-# 🛒 E-Commerce Microservices with Go
+# 🛒 E-commerce Microservices Platform
 
-## 🧭 Overview
+A scalable e-commerce platform built with **Go microservices architecture**, designed for high performance and maintainability.
 
-The **E-Commerce Microservice** project is built using the Go programming language, applying modern microservices architecture to achieve **scalability**, **maintainability**, and **deployability**.  
-The architecture is divided into multiple independent services such as `user-service`, `product-service`, `order-service`, `auth-service`, etc., and they can communicate with each other via **gRPC**, **REST**, or **Message Broker**.
+## 🚀 Features
 
----
+- **Microservices Architecture**: 6 independent services with clear separation of concerns
+- **API Gateway**: Centralized routing, authentication, and rate limiting
+- **Event-Driven**: Asynchronous communication using message queues
+- **Database per Service**: Each service has its own database for data isolation
+- **Containerized**: Docker-ready with docker-compose for easy deployment
+- **gRPC Communication**: High-performance inter-service communication
+- **Clean Architecture**: Following Domain-Driven Design principles
 
-## 🗂️ Main Folder Structure
-
-
-``` 
-ecommerce-go-app/
-├── cmd/
-│ ├── api-gateway/ # Main entry point for clients (Web/Mobile)
-│ │ └── main.go
-│ ├── user-service/ # Microservice: Registration, login, user profile
-│ │ └── main.go
-│ ├── product-service/ # Microservice: Product info, categories, inventory
-│ │ └── main.go
-│ ├── order-service/ # Microservice: Create, update, cancel orders
-│ │ └── main.go
-│ ├── cart-service/ # Microservice: Temporary shopping cart
-│ │ └── main.go
-│ ├── payment-service/ # Microservice: Payment processing
-│ │ └── main.go
-│ ├── shipping-service/ # Microservice: Shipping
-│ │ └── main.go
-│ ├── auth-service/ # Microservice: Authentication & authorization (JWT, OAuth)
-│ │ └── main.go
-│ ├── notification-service/ # Microservice: Sending notifications (email, SMS, push)
-│ │ └── main.go
-│ ├── inventory-service/ # Microservice: Inventory control
-│ │ └── main.go
-│ ├── review-service/ # Microservice: Reviews & comments
-│ │ └── main.go
-│ ├── search-service/ # Microservice: Product search
-│ │ └── main.go
-│ └── recommendation-service/ # Microservice: Product recommendations
-│ └── main.go
-│
-├── internal/
-│ ├── user/ # Bounded Context/Module: User
-│ │ ├── domain/ # Entities, Value Objects, Aggregates, Interfaces (UserRepository)
-│ │ │ ├── user.go
-│ │ │ └── repository.go
-│ │ ├── application/ # Use Cases (RegisterUser, GetUserProfile)
-│ │ │ └── service.go
-│ │ ├── infrastructure/ # Implementations (PostgreSQLRepo, KafkaProducer)
-│ │ │ ├── repository/
-│ │ │ │ └── postgres_user_repo.go
-│ │ │ └── messaging/
-│ │ │ └── kafka_event_publisher.go
-│ │ ├── delivery/ # API Layer (HTTP Handlers, gRPC Services)
-│ │ │ ├── http/
-│ │ │ │ └── user_handler.go
-│ │ │ └── grpc/
-│ │ │ └── user_grpc.go
-│ │ └── config/ # User service-specific configuration
-│ │ └── config.go
-│ ├── product/ # Bounded Context/Module: Product (Same structure as User)
-│ │ └── ...
-│ ├── order/ # Bounded Context/Module: Order (Same structure as User)
-│ │ └── ...
-│ ├── cart/ # Bounded Context/Module: Cart (Same structure as User)
-│ │ └── ...
-│ ├── payment/ # Bounded Context/Module: Payment (Same structure as User)
-│ │ └── ...
-│ ├── shipping/ # Bounded Context/Module: Shipping (Same structure as User)
-│ │ └── ...
-│ ├── auth/ # Bounded Context/Module: Auth (Same structure as User)
-│ │ └── ...
-│ ├── notification/ # Bounded Context/Module: Notification (Same structure as User)
-│ │ └── ...
-│ ├── inventory/ # Bounded Context/Module: Inventory (Same structure as User)
-│ │ └── ...
-│ ├── review/ # Bounded Context/Module: Review (Same structure as User)
-│ │ └── ...
-│ ├── search/ # Bounded Context/Module: Search (Same structure as User)
-│ │ └── ...
-│ ├── recommendation/ # Bounded Context/Module: Recommendation (Same structure as User)
-│ │ └── ...
-│ ├── api_gateway/ # Internal logic for API Gateway (routing, middleware)
-│ │ ├── delivery/
-│ │ │ └── http/
-│ │ │ └── router.go
-│ │ └── middleware/
-│ │ └── auth_middleware.go
-│ ├── shared/ # Internal shared code among services (in monorepo)
-│ │ ├── auth/ # Shared auth middleware/logic
-│ │ ├── logger/ # Centralized logging configuration
-│ │ ├── metrics/ # Centralized metrics setup
-│ │ └── tracing/ # Tracing setup (OpenTelemetry)
-│ └── common/ # Internal common utilities
-│ ├── errors.go # Standardized error handling
-│ ├── validator.go # Data validation helpers
-│ └── constants.go # Shared constants
-│
-├── pkg/ # Reusable Go packages that can be imported externally
-│ ├── client/ # Client SDKs for services (gRPC/HTTP clients)
-│ │ ├── user_client.go
-│ │ ├── product_client.go
-│ │ └── ...
-│ ├── models/ # Shared models/DTOs for multiple services (if any)
-│ │ ├── common_types.go
-│ │ └── product_dto.go # Shared DTO for Product service
-│ └── utils/ # Generic reusable utilities
-│ └── pagination.go
-│ └── time_utils.go
-│
-├── api/ # API definitions (language-neutral)
-│ ├── protobufs/ # .proto files for gRPC
-│ │ ├── user.proto
-│ │ ├── product.proto
-│ │ ├── order.proto
-│ │ └── common.proto # Shared protobuf definitions
-│ ├── openapi/ # OpenAPI/Swagger files (.yaml/.json) for REST
-│ │ ├── user.yaml
-│ │ ├── product.yaml
-│ │ └── order.yaml
-│ └── graphql/ # GraphQL schema definitions (if used)
-│ └── schema.graphqls
-│
-├── scripts/ # Automation scripts
-│ ├── build.sh # Build script for all services
-│ ├── deploy.sh # Deployment script
-│ ├── run_local.sh # Script to run local environment with Docker Compose
-│ ├── generate_protos.sh # Script to generate Go code from .proto files
-│ └── db_setup.sh # Script to set up databases
-│
-├── migrations/ # Database migration files
-│ ├── user_service/
-│ │ └── 001_create_users_table.up.sql
-│ ├── product_service/
-│ │ └── 001_create_products_table.up.sql
-│ └── order_service/
-│ └── 001_create_orders_table.up.sql
-│
-├── docs/ # Project documentation
-│ ├── architecture.md # System architecture overview
-│ ├── api_design.md # API design details
-│ └── deployment_guide.md # Deployment guide
-│
-├── deployments/ # Deployment configuration
-│ ├── kubernetes/ # Kubernetes manifests for each service
-│ │ ├── user-service.yaml
-│ │ ├── product-service.yaml
-│ │ └── ...
-│ ├── helm/ # Helm charts (if used)
-│ │ ├── ecommerce-chart/
-│ │ └── ...
-│ └── docker-compose.yaml # Docker Compose config for dev/test environment
-│
-├── tests/ # End-to-end or integration tests
-│ ├── e2e/ # End-to-end tests across the system
-│ │ └── full_flow_test.go
-│ └── integration/ # Integration tests between services
-│ └── product_order_integration_test.go
-│
-├── vendor/ # Go module dependencies (optional)
-├── .env # environment variables file
-├── .gitignore
-├── Dockerfile # Common Dockerfile or per-service (inside cmd)
-├── go.mod # Main Go module file
-├── go.sum # Go module checksums
-└── README.md # Project description, installation & usage guide
+## 🏗️ Architecture
 
 ```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Web Client    │    │   Mobile App    │    │  Admin Portal   │
+└─────────┬───────┘    └─────────┬───────┘    └─────────┬───────┘
+          │                      │                      │
+          └──────────────────────┼──────────────────────┘
+                                 │
+                    ┌─────────────┴──────────────┐
+                    │      API Gateway           │
+                    │   (Authentication,         │
+                    │    Rate Limiting)          │
+                    └─────────────┬──────────────┘
+                                  │
+        ┌─────────────────────────┼─────────────────────────┐
+        │                         │                         │
+   ┌────▼────┐  ┌────▼────┐  ┌───▼────┐  ┌────▼────┐  ┌───▼────┐
+   │  User   │  │Product  │  │ Order  │  │Payment  │  │Inventory│
+   │Service  │  │Service  │  │Service │  │Service  │  │Service  │
+   └─────────┘  └─────────┘  └────────┘  └─────────┘  └────────┘
+        │            │           │           │            │
+   ┌────▼────┐  ┌───▼────┐  ┌───▼────┐  ┌───▼────┐   ┌──▼────┐
+   │PostgreSQL│  │PostgreSQL│ │PostgreSQL│ │PostgreSQL│ │PostgreSQL│
+   └─────────┘  └────────┘  └────────┘  └────────┘   └───────┘
+```
 
+## 🛠️ Tech Stack
 
+### Backend
+- **Language**: Go 1.21+
+- **Framework**: Gin/Echo
+- **Database**: PostgreSQL
+- **Cache**: Redis
+- **Message Queue**: RabbitMQ
+- **Communication**: gRPC + HTTP REST
+- **Container**: Docker + Docker Compose
+
+### DevOps & Tools
+- **API Documentation**: Swagger/OpenAPI
+- **Testing**: Testify, Integration Tests
+- **Monitoring**: Prometheus + Grafana
+- **Logging**: Structured logging with Zap
+- **Migration**: golang-migrate
+
+## 📋 Services
+
+| Service | Port | Description | Database |
+|---------|------|-------------|----------|
+| API Gateway | 8080 | Entry point, routing, auth | - |
+| User Service | 8081 | User management, authentication | users_db |
+| Product Service | 8082 | Product catalog, categories | products_db |
+| Order Service | 8083 | Order processing, shopping cart | orders_db |
+| Payment Service | 8084 | Payment processing, transactions | payments_db |
+| Inventory Service | 8085 | Stock management | inventory_db |
+| Notification Service | 8086 | Email, SMS notifications | notifications_db |
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Go 1.21 or higher
+- Docker & Docker Compose
+- PostgreSQL 14+
+- Redis 6+
+
+### 1. Clone the repository
+```bash
+git clone https://github.com/your-username/ecommerce-microservices.git
+cd ecommerce-microservices
+```
+
+### 2. Environment Setup
+```bash
+cp .env.example .env
+# Edit .env with your configurations
+```
+
+### 3. Start Infrastructure
+```bash
+# Start databases, message queue, and monitoring
+docker-compose up -d postgres redis rabbitmq prometheus grafana
+```
+
+### 4. Database Migration
+```bash
+# Run migrations for all services
+make migrate-up
+```
+
+### 5. Start Services
+```bash
+# Option 1: Using Docker (Recommended)
+docker-compose up
+
+# Option 2: Local development
+make run-all
+```
+
+### 6. Verify Installation
+```bash
+# Check API Gateway health
+curl http://localhost:8080/health
+
+# Check individual services
+curl http://localhost:8081/health  # User Service
+curl http://localhost:8082/health  # Product Service
+```
+
+## 📚 API Documentation
+
+### Swagger UI
+- **API Gateway**: http://localhost:8080/swagger/
+- **Individual Services**: http://localhost:808X/swagger/
+
+### Postman Collection
+Import `docs/api/postman/ecommerce.postman_collection.json` for testing APIs.
+
+## 🧪 Testing
+
+### Unit Tests
+```bash
+# Run tests for all services
+make test
+
+# Run tests for specific service
+cd services/user-service && go test ./...
+```
+
+### Integration Tests
+```bash
+# Start test environment
+make test-env-up
+
+# Run integration tests
+make test-integration
+```
+
+### Load Testing
+```bash
+# Using K6
+k6 run tests/load/k6/load_test.js
+```
+
+## 📊 Monitoring
+
+### Prometheus Metrics
+- **URL**: http://localhost:9090
+- **Metrics**: Request duration, error rates, database connections
+
+### Grafana Dashboards
+- **URL**: http://localhost:3000
+- **Default Login**: admin/admin
+- **Dashboards**: Service metrics, business metrics
+
+### Application Logs
+```bash
+# View logs for all services
+docker-compose logs -f
+
+# View logs for specific service
+docker-compose logs -f user-service
+```
+
+## 🔧 Development
+
+### Project Structure
+```
+ecommerce-microservices/
+├── services/           # Microservices
+├── shared/            # Shared libraries
+├── infrastructure/    # Docker, K8s configs
+├── docs/             # Documentation
+└── scripts/          # Build and deployment scripts
+```
+
+### Adding a New Service
+1. Create service directory in `services/`
+2. Follow the established structure (cmd, internal, pkg)
+3. Add to docker-compose.yml
+4. Update API Gateway routing
+5. Add monitoring and documentation
+
+### Code Standards
+- Follow Go conventions and best practices
+- Use dependency injection
+- Implement proper error handling
+- Write comprehensive tests
+- Document APIs with Swagger
+
+## 📱 Client Applications
+
+The backend provides RESTful APIs that can be consumed by:
+- **Web Applications** (React, Vue.js, Angular)
+- **Mobile Apps** (React Native, Flutter)
+- **Desktop Applications** (Electron)
+- **Third-party Integrations**
+
+### Example API Calls
+```bash
+# User Registration
+curl -X POST http://localhost:8080/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"password123"}'
+
+# Get Products
+curl -X GET http://localhost:8080/api/v1/products?page=1&limit=10
+
+# Create Order
+curl -X POST http://localhost:8080/api/v1/orders \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"items":[{"product_id":1,"quantity":2}]}'
+```
+
+## 🚀 Deployment
+
+### Docker Production
+```bash
+# Build all services
+make build-docker
+
+# Deploy to production
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+### Kubernetes
+```bash
+# Apply Kubernetes manifests
+kubectl apply -f infrastructure/k8s/
+```
+
+### Environment Variables
+Key environment variables for production:
+```bash
+# Database
+DB_HOST=your-postgres-host
+DB_PASSWORD=your-secure-password
+
+# JWT
+JWT_SECRET=your-jwt-secret
+
+# Payment
+STRIPE_SECRET_KEY=your-stripe-key
+
+# Notification
+SMTP_PASSWORD=your-smtp-password
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### Development Workflow
+- Follow Git Flow branching model
+- Write tests for new features
+- Update documentation
+- Ensure all CI checks pass
+
+## 📜 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 👨‍💻 Author
+
+**Your Name**
+- GitHub: [@your-username](https://github.com/datngth03)
+- LinkedIn: [Your LinkedIn](https://linkedin.com/in/datngth9903)
+- Email: datnt9903@gmail.com
+
+## 🙏 Acknowledgments
+
+- Go community for excellent libraries and tools
+- Microservices patterns from industry best practices
+- Clean Architecture principles by Robert C. Martin
 
 ---
 
-## 🚀 Project Development Plan
+⭐ **Star this repository if you find it helpful!**
 
-### ✅ Phase 1: Initialization & Architecture Design
+## 📈 Project Status
 
-- **Objective:** Gather requirements, design architecture, select technologies.
-- **Key Activities:**
-  - Analyze use cases and non-functional requirements.
-  - Define boundaries for microservices.
-  - Design APIs (OpenAPI, Protobuf).
-  - Build internal communication & security architecture.
-  - Choose frameworks: Gin, gRPC, Kafka, PostgreSQL, Redis, Docker, Kubernetes.
+- ✅ **MVP**: Core e-commerce functionality
+- 🚧 **In Progress**: Advanced analytics, recommendation engine
+- 📋 **Planned**: Multi-tenant support, advanced search
 
----
-
-### 🧩 Phase 2: Develop Core Business Services
-
-- **Main Services:**
-  - `user-service`: registration, login, user profile.
-  - `product-service`: categories, inventory.
-  - `order-service`: orders, order history.
-  - `cart-service`: temporary shopping cart.
-  - `payment-service`: payment processing.
-  - `shipping-service`: delivery/shipping.
-- **Development Layers:** `domain`, `application`, `infrastructure`, `delivery`.
-
----
-
-### 🛠️ Phase 3: Develop Infrastructure & Platform Services
-
-- **Supporting Services:**
-  - `auth-service`: JWT, OAuth2.
-  - `notification-service`: email, SMS, push.
-  - `inventory-service`: inventory control.
-  - `review-service`: product reviews.
-  - `search-service`: ElasticSearch.
-  - `recommendation-service`: product recommendations (ML-based).
-
----
-
-### 🌐 Phase 4: Support Services & API Gateway
-
-- **Core Components:**
-  - `api-gateway`: routing, auth middleware, rate limiting.
-  - Logging, Metrics, Tracing (OpenTelemetry, Jaeger, Prometheus).
-
----
-
-### 🧪 Phase 5: Testing & Optimization
-
-- **Test Types:**
-  - Integration Testing
-  - End-to-End (E2E)
-  - Load & Performance Testing
-  - Security Testing (OWASP Top 10)
-- **Tools:** Selenium, K6, JMeter, Postman.
-
----
-
-### 📦 Phase 6: Deployment & Operations
-
-- **Key Activities:**
-  - Deploy system to cloud (AWS/GCP/Azure).
-  - Set up CI/CD pipelines.
-  - Manage secrets, scaling, zero-downtime.
-  - Configure alerting & log monitoring.
-
----
-
-## ⚙️ Technologies & Tools Used
-
-| Component         | Technology             |
-|------------------|------------------------|
-| API Framework     | Gin / gRPC             |
-| DB                | PostgreSQL             |
-| Message Queue     | Kafka / RabbitMQ       |
-| Caching           | Redis                  |
-| Auth              | JWT, OAuth2            |
-| Search Engine     | ElasticSearch          |
-| Tracing           | Jaeger / OpenTelemetry |
-| Metrics           | Prometheus / Grafana   |
-| CI/CD             | GitHub Actions / GitLab CI |
-| Containerization  | Docker / Kubernetes    |
-
----
-
-
-
+**Last Updated**: September 2025

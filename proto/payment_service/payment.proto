@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package payment_service;
+
+option go_package = "ecommerce-microservices/proto/payment_service";
+
+// Payment message mirrors the 'payments' table.
+message Payment {
+  string id = 1;
+  string order_id = 2;
+  double amount = 3;
+  string status = 4;
+  string method = 5;
+  string stripe_id = 6;
+  string created_at = 7;
+}
+
+message CreatePaymentRequest {
+  string order_id = 1;
+  double amount = 2;
+  string method = 3;
+}
+
+message CreatePaymentResponse {
+  Payment payment = 1;
+}
+
+message GetPaymentRequest {
+  string id = 1;
+}
+
+message GetPaymentResponse {
+  Payment payment = 1;
+}
+
+// Service for payment-related gRPC calls.
+service PaymentService {
+  rpc CreatePayment(CreatePaymentRequest) returns (CreatePaymentResponse);
+  rpc GetPayment(GetPaymentRequest) returns (GetPaymentResponse);
+}

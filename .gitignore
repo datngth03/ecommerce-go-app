@@ -1,18 +1,62 @@
-# Binaries
+# Go
 *.exe
 *.dll
 *.so
 *.dylib
-*.a
+*.test
 *.out
-*.env
-/bin/
+vendor/
 
-# Dependency directories
-/vendor/
-/pkg/ # Nếu bạn không commit generated code
-/go.sum # Nếu bạn không muốn commit go.sum (nhưng thường nên commit)
-
-# Environment variables
+# Environment
 .env
-.env.example
+.env.local
+.env.production
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+tmp/
+
+# Build
+build/
+dist/
+bin/
+
+# Docker
+docker-compose.override.yml
+
+# Database
+*.db
+*.sqlite
+backup.sql
+
+# Cache
+.cache/
+cache/
+
+# Uploads
+uploads/
+media/
+
+# SSL
+*.pem
+*.key
+*.crt
+
+# Secrets
+*.secret
+secrets/
+
+# Coverage
+coverage.out
+coverage.html

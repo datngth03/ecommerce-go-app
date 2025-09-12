@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package order_service;
+
+option go_package = "ecommerce-microservices/proto/order_service";
+
+// OrderItem message mirrors the 'order_items' table.
+message OrderItem {
+  string id = 1;
+  string order_id = 2;
+  string product_id = 3;
+  int32 quantity = 4;
+  double price = 5;
+}
+
+// Order message mirrors the 'orders' table.
+message Order {
+  string id = 1;
+  string user_id = 2;
+  string status = 3;
+  double total_amount = 4;
+  string created_at = 5;
+  repeated OrderItem items = 6; // A list of order items
+}
+
+message CreateOrderRequest {
+  string user_id = 1;
+  // This is a simplified request. In a real scenario, you'd pass a list of product IDs and quantities.
+  repeated string product_ids = 2; 
+  repeated int32 quantities = 3;
+}
+
+message CreateOrderResponse {
+  Order order = 1;
+}
+
+message GetOrderRequest {
+  string id = 1;
+}
+
+message GetOrderResponse {
+  Order order = 1;
+}
+
+// Service for order-related gRPC calls.
+service OrderService {
+  rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse);
+  rpc GetOrder(GetOrderRequest) returns (GetOrderResponse);
+}
