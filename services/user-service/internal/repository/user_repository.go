@@ -1,38 +1,24 @@
+// internal/repository/interfaces.go
 package repository
 
 import (
-	"fmt"
+	"context"
 
-	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
-
-	"github.com/ecommerce/services/user-service/internal/repository/postgres"
+	"github.com/datngth03/ecommerce-go-app/services/user-service/internal/models"
 )
 
-type Repositories struct {
-	User UserRepository
-}
+// UserRepositoryInterface defines the contract for user repository
+type UserRepositoryInterface interface {
+	// CRUD operations
+	Create(ctx context.Context, user *models.User) (*models.User, error)
+	GetByID(ctx context.Context, id int64) (*models.User, error)
+	GetByEmail(ctx context.Context, email string) (*models.User, error)
+	Update(ctx context.Context, updateData *models.UserUpdateData) (*models.User, error)
+	Delete(ctx context.Context, id int64) error
 
-func NewRepositories(db *sqlx.DB) *Repositories {
-	return &Repositories{
-		User: postgres.NewUserRepository(db),
-	}
-}
+	// Password operations
+	UpdatePassword(ctx context.Context, userID int64, hashedPassword string) error
 
-func NewDatabase(databaseURL string) (*sqlx.DB, error) {
-	db, err := sqlx.Connect("postgres", databaseURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
-	}
-
-	// Test the connection
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
-	}
-
-	// Set connection pool settings
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(25)
-
-	return db, nil
+	// Additional utility methods
+	ExistsByEmail(ctx context.Context, email string) (bool, error)
 }

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package inventory_service;
 
-option go_package = "ecommerce-microservices/proto/inventory_service";
+option go_package = "github.com/datngth03/ecommerce-go-app/proto/inventory_service";
 
 // Inventory message mirrors the 'inventory' table.
 message Inventory {

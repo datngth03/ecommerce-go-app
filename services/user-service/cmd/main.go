@@ -2,159 +2,118 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
-	"github.com/gorilla/mux"
+	// "time"
+
+	pb "github.com/datngth03/ecommerce-go-app/proto/user_service"
+	"github.com/datngth03/ecommerce-go-app/services/user-service/internal/config"
+	"github.com/datngth03/ecommerce-go-app/services/user-service/internal/handler"
+	"github.com/datngth03/ecommerce-go-app/services/user-service/internal/models"
+	"github.com/datngth03/ecommerce-go-app/services/user-service/internal/repository"
+	"github.com/datngth03/ecommerce-go-app/services/user-service/internal/service"
+
+	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 
-	"github.com/ecommerce/proto/user_service"
-	"github.com/ecommerce/services/user-service/internal/config"
-	"github.com/ecommerce/services/user-service/internal/handler"
-	"github.com/ecommerce/services/user-service/internal/middleware"
-	"github.com/ecommerce/services/user-service/internal/repository"
-	"github.com/ecommerce/services/user-service/internal/rpc"
-	"github.com/ecommerce/services/user-service/internal/service"
-	"github.com/ecommerce/services/user-service/pkg/validator"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	// "gorm.io/gorm"
 )
 
 func main() {
-	// Load configuration
+	// 1. Load Configuration
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
-	// Initialize database
-	db, err := repository.NewDatabase(cfg.GetDatabaseURL())
+	// 2. Setup Database Connections
+	// PostgreSQL Connection
+	db, err := gorm.Open(postgres.Open(cfg.GetDatabaseDSN()), &gorm.Config{})
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		log.Fatalf("Failed to connect to PostgreSQL: %v", err)
 	}
-	defer db.Close()
+	log.Println("PostgreSQL connection established.")
 
-	// Initialize repositories
-	repos := repository.NewRepositories(db)
+	// Auto Migrate (Tự động tạo/cập nhật bảng dựa trên struct models.User)
+	db.AutoMigrate(&models.User{})
 
-	// Initialize validator
-	userValidator := validator.NewUserValidator()
+	// Redis Connection
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     fmt.Sprintf("%s:%s", cfg.Redis.Host, cfg.Redis.Port),
+		Password: cfg.Redis.Password,
+		DB:       cfg.Redis.DB,
+	})
+	if _, err := redisClient.Ping(context.Background()).Result(); err != nil {
+		log.Fatalf("Failed to connect to Redis: %v", err)
+	}
+	log.Println("Redis connection established.")
 
-	// Initialize services
-	userService := service.NewUserService(repos.User, userValidator)
-	authService := service.NewAuthService(userService)
+	// 3. Database Migration
+	// Tự động tạo/cập nhật bảng 'users' dựa trên struct models.User
+	log.Println("Running database migrations...")
+	if err := db.AutoMigrate(&models.User{}); err != nil {
+		log.Fatalf("Failed to migrate database: %v", err)
+	}
+	log.Println("Database migration completed.")
 
-	// Initialize handlers
-	userHandler := handler.NewUserHandler(userService)
-	authHandler := handler.NewAuthHandler(authService, userService)
+	// 4. Dependency Injection (Wiring everything together)
+	// Khởi tạo Repositories
+	sqlDB, err := db.DB()
+	userRepo := repository.NewSQLUserRepository(sqlDB)
+	tokenRepo := repository.NewRedisTokenRepository(redisClient)
 
-	// Initialize middleware
-	authMiddleware := middleware.NewAuthMiddleware(authService)
+	// Khởi tạo Services
+	authService := service.NewAuthService(
+		userRepo,
+		tokenRepo,
+		cfg.JWT.Secret,
+		cfg.JWT.AccessTokenTTL,
+		cfg.JWT.RefreshTokenTTL,
+		cfg.JWT.ResetTokenTTL,
+	)
+	userService := service.NewUserService(userRepo, authService)
 
-	// Start gRPC server
-	go startGRPCServer(cfg, userService, authService)
+	// 5. Setup gRPC Server
+	grpcServer := handler.NewGRPCServer(userService, authService)
 
-	// Start HTTP server
-	startHTTPServer(cfg, userHandler, authHandler, authMiddleware)
-}
-
-func startHTTPServer(cfg *config.Config, userHandler *handler.UserHandler, authHandler *handler.AuthHandler, authMiddleware *middleware.AuthMiddleware) {
-	router := mux.NewRouter()
-
-	// Apply global middleware
-	router.Use(middleware.CORSMiddleware)
-
-	// API routes
-	api := router.PathPrefix("/api/v1").Subrouter()
-
-	// Auth routes (public)
-	authRoutes := api.PathPrefix("/auth").Subrouter()
-	authRoutes.HandleFunc("/login", authHandler.Login).Methods("POST")
-	authRoutes.HandleFunc("/refresh", authHandler.RefreshToken).Methods("POST")
-	authRoutes.HandleFunc("/validate", authHandler.ValidateToken).Methods("POST")
-	authRoutes.HandleFunc("/logout", authHandler.Logout).Methods("POST")
-	authRoutes.HandleFunc("/profile", authHandler.GetProfile).Methods("GET")
-
-	// User routes
-	userRoutes := api.PathPrefix("/users").Subrouter()
-
-	// Public user routes
-	userRoutes.HandleFunc("", userHandler.CreateUser).Methods("POST") // Register
-
-	// Protected user routes
-	protectedUserRoutes := userRoutes.PathPrefix("").Subrouter()
-	protectedUserRoutes.Use(authMiddleware.RequireAuth)
-	protectedUserRoutes.HandleFunc("", userHandler.ListUsers).Methods("GET")
-	protectedUserRoutes.HandleFunc("/{id:[0-9]+}", userHandler.GetUser).Methods("GET")
-	protectedUserRoutes.HandleFunc("/{id:[0-9]+}", userHandler.UpdateUser).Methods("PUT")
-
-	// Admin only routes
-	adminRoutes := userRoutes.PathPrefix("").Subrouter()
-	adminRoutes.Use(authMiddleware.RequireAuth)
-	adminRoutes.Use(authMiddleware.RequireRole("admin"))
-	adminRoutes.HandleFunc("/{id:[0-9]+}", userHandler.DeleteUser).Methods("DELETE")
-
-	// Health check
-	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status": "ok", "service": "user-service"}`))
-	}).Methods("GET")
-
-	// Create HTTP server
-	server := &http.Server{
-		Addr:         cfg.Server.Host + ":" + cfg.Server.HTTPPort,
-		Handler:      router,
-		ReadTimeout:  cfg.Server.Timeout,
-		WriteTimeout: cfg.Server.Timeout,
-		IdleTimeout:  60 * time.Second,
+	lis, err := net.Listen("tcp", ":"+cfg.Server.GRPCPort)
+	if err != nil {
+		log.Fatalf("Failed to listen on port %s: %v", cfg.Server.GRPCPort, err)
 	}
 
-	// Start server in a goroutine
+	s := grpc.NewServer()
+	pb.RegisterUserServiceServer(s, grpcServer)
+
+	// Đăng ký reflection service trên gRPC server.
+	reflection.Register(s)
+
+	// Chạy gRPC server trong một goroutine riêng
 	go func() {
-		log.Printf("User Service HTTP server starting on %s:%s", cfg.Server.Host, cfg.Server.HTTPPort)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("HTTP server failed to start: %v", err)
+		log.Printf("gRPC server listening at %v", lis.Addr())
+		if err := s.Serve(lis); err != nil {
+			log.Fatalf("Failed to serve gRPC: %v", err)
 		}
 	}()
 
-	// Wait for interrupt signal to gracefully shutdown
+	// 6. Graceful Shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
+	<-quit // Chờ tín hiệu shutdown
 
-	log.Println("User Service shutting down...")
+	log.Println("Shutting down gRPC server...")
+	s.GracefulStop()
+	log.Println("gRPC server stopped.")
 
-	// Graceful shutdown with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	if err := server.Shutdown(ctx); err != nil {
-		log.Printf("HTTP server forced to shutdown: %v", err)
-	}
-
-	log.Println("User Service stopped")
-}
-
-func startGRPCServer(cfg *config.Config, userService service.UserService, authService service.AuthService) {
-	listener, err := net.Listen("tcp", cfg.Server.Host+":"+cfg.Server.GRPCPort)
-	if err != nil {
-		log.Fatalf("Failed to listen for gRPC: %v", err)
-	}
-
-	// Create gRPC server
-	grpcServer := grpc.NewServer()
-
-	// Register services
-	userGRPCServer := rpc.NewUserServer(userService, authService)
-	user_service.RegisterUserServiceServer(grpcServer, userGRPCServer)
-
-	log.Printf("User Service gRPC server starting on %s:%s", cfg.Server.Host, cfg.Server.GRPCPort)
-
-	// Start serving
-	if err := grpcServer.Serve(listener); err != nil {
-		log.Fatalf("Failed to serve gRPC: %v", err)
-	}
+	// Đóng các kết nối
+	sqlDB.Close()
+	redisClient.Close()
+	log.Println("Database connections closed.")
 }

@@ -1,102 +1,129 @@
+// pkg/utils/jwt.go
 package utils
 
 import (
+	"crypto/rand"
+	"encoding/hex"
+	"errors"
 	"fmt"
-	"os"
-	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var (
-	jwtSecret    = []byte(getEnv("JWT_SECRET", "your-secret-key"))
-	jwtExpiresIn = getJWTExpiration()
-)
-
-// JWTClaims represents the claims in a JWT token
+// JWTClaims represents JWT token claims
 type JWTClaims struct {
 	UserID int64  `json:"user_id"`
 	Email  string `json:"email"`
-	Role   string `json:"role"`
+	// ExpiresAt int64  `json:"exp"`
+	// IssuedAt  int64  `json:"iat"`
 	jwt.RegisteredClaims
 }
 
-// GenerateToken generates a new JWT token for a user
-func GenerateToken(userID int64, email, role string) (string, error) {
-	claims := JWTClaims{
+// TokenPair represents access and refresh token pair
+type TokenPair struct {
+	AccessToken      string    `json:"access_token"`
+	RefreshToken     string    `json:"refresh_token"`
+	AccessExpiresAt  time.Time `json:"access_expires_at"`
+	RefreshExpiresAt time.Time `json:"refresh_expires_at"`
+}
+
+// RefreshTokenData represents refresh token data from storage
+type RefreshTokenData struct {
+	UserID    int64     `json:"user_id"`
+	Token     string    `json:"token"`
+	ExpiresAt time.Time `json:"expires_at"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// PasswordResetTokenData represents password reset token data
+type PasswordResetTokenData struct {
+	UserID    int64     `json:"user_id"`
+	Token     string    `json:"token"`
+	ExpiresAt time.Time `json:"expires_at"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// GenerateJWT generates a JWT access token
+func GenerateJWT(userID int64, email string, expiresAt time.Time, secret string) (string, error) {
+	now := time.Now()
+
+	// Sử dụng các trường chuẩn từ jwt.RegisteredClaims
+	claims := &JWTClaims{
 		UserID: userID,
 		Email:  email,
-		Role:   role,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(jwtExpiresIn)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			NotBefore: jwt.NewNumericDate(time.Now()),
-			Issuer:    "ecommerce-user-service",
-			Subject:   strconv.FormatInt(userID, 10),
+			ExpiresAt: jwt.NewNumericDate(expiresAt),
+			IssuedAt:  jwt.NewNumericDate(now),
+			NotBefore: jwt.NewNumericDate(now),
 		},
 	}
 
+	// Tạo token với claims và phương thức ký HS256
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(jwtSecret)
+
+	// Ký token với secret key và trả về chuỗi token
+	signedToken, err := token.SignedString([]byte(secret))
+	if err != nil {
+		return "", fmt.Errorf("could not sign token: %w", err)
+	}
+
+	return signedToken, nil
 }
 
-// ValidateToken validates a JWT token and returns the claims
-func ValidateToken(tokenString string) (jwt.MapClaims, error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		// Verify the signing method
+// ValidateJWT validates a JWT token and returns its claims if valid
+func ValidateJWT(tokenString string, secret string) (*JWTClaims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+		// Kiểm tra phương thức ký, đảm bảo là HMAC
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return jwtSecret, nil
+		return []byte(secret), nil
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not parse token: %w", err)
 	}
 
-	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		// Check if token is expired
-		if exp, ok := claims["exp"].(float64); ok {
-			if time.Now().Unix() > int64(exp) {
-				return nil, fmt.Errorf("token has expired")
-			}
-		}
-		return claims, nil
+	// Trích xuất claims và kiểm tra tính hợp lệ
+	claims, ok := token.Claims.(*JWTClaims)
+	if !ok || !token.Valid {
+		return nil, errors.New("invalid token")
 	}
 
-	return nil, fmt.Errorf("invalid token")
+	return claims, nil
 }
 
-// ExtractUserIDFromToken extracts the user ID from a JWT token
-func ExtractUserIDFromToken(tokenString string) (int64, error) {
-	claims, err := ValidateToken(tokenString)
+// GenerateRefreshToken creates a secure, random string for a refresh token
+func GenerateRefreshToken() (string, error) {
+	bytes := make([]byte, 32) // Tạo 32 bytes ngẫu nhiên
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes), nil
+}
+
+// GenerateTokenPair creates a new access and refresh token pair
+func GenerateTokenPair(userID int64, email, secret string, accessDuration, refreshDuration time.Duration) (*TokenPair, error) {
+	accessExpiresAt := time.Now().Add(accessDuration)
+	refreshExpiresAt := time.Now().Add(refreshDuration)
+
+	// Tạo access token
+	accessToken, err := GenerateJWT(userID, email, accessExpiresAt, secret)
 	if err != nil {
-		return 0, err
+		return nil, fmt.Errorf("could not generate access token: %w", err)
 	}
 
-	userID, ok := claims["user_id"].(float64)
-	if !ok {
-		return 0, fmt.Errorf("user_id not found in token")
-	}
-
-	return int64(userID), nil
-}
-
-// getJWTExpiration gets JWT expiration duration from environment
-func getJWTExpiration() time.Duration {
-	hours := getEnv("JWT_EXPIRATION_HOURS", "24")
-	h, err := strconv.Atoi(hours)
+	// Tạo refresh token
+	refreshToken, err := GenerateRefreshToken()
 	if err != nil {
-		h = 24 // default to 24 hours
+		return nil, fmt.Errorf("could not generate refresh token: %w", err)
 	}
-	return time.Duration(h) * time.Hour
-}
 
-// getEnv gets environment variable or returns default value
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
+	return &TokenPair{
+		AccessToken:      accessToken,
+		RefreshToken:     refreshToken,
+		AccessExpiresAt:  accessExpiresAt,
+		RefreshExpiresAt: refreshExpiresAt,
+	}, nil
 }

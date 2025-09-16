@@ -2,7 +2,8 @@ syntax = "proto3";
 
 package product_service;
 
-option go_package = "ecommerce-microservices/proto/product_service";
+option go_package = "github.com/datngth03/ecommerce-go-app/proto/product_service";
+
 
 // Category message mirrors the 'categories' table.
 message Category {

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package order_service;
 
-option go_package = "ecommerce-microservices/proto/order_service";
+option go_package = "github.com/datngth03/ecommerce-go-app/proto/order_service";
 
 // OrderItem message mirrors the 'order_items' table.
 message OrderItem {

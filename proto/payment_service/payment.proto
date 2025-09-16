@@ -2,7 +2,8 @@ syntax = "proto3";
 
 package payment_service;
 
-option go_package = "ecommerce-microservices/proto/payment_service";
+option go_package = "github.com/datngth03/ecommerce-go-app/proto/payment_service";
+
 
 // Payment message mirrors the 'payments' table.
 message Payment {

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package notification_service;
 
-option go_package = "ecommerce-microservices/proto/notification_service";
+option go_package = "github.com/datngth03/ecommerce-go-app/proto/notification_service";
 
 // Enum để định nghĩa loại thông báo
 enum NotificationType {

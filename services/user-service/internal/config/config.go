@@ -31,8 +31,10 @@ type DatabaseConfig struct {
 }
 
 type JWTConfig struct {
-	Secret     string
-	Expiration time.Duration
+	Secret          string
+	AccessTokenTTL  time.Duration // Sửa lại
+	RefreshTokenTTL time.Duration // Thêm vào
+	ResetTokenTTL   time.Duration // Thêm vào
 }
 
 type RedisConfig struct {
@@ -48,10 +50,9 @@ func Load() (*Config, error) {
 		timeout = 30
 	}
 
-	jwtExp, err := strconv.Atoi(getEnv("JWT_EXPIRATION_HOURS", "24"))
-	if err != nil {
-		jwtExp = 24
-	}
+	accessTokenTTL, _ := strconv.Atoi(getEnv("JWT_ACCESS_TOKEN_TTL_MINUTES", "15"))
+	refreshTokenTTL, _ := strconv.Atoi(getEnv("JWT_REFRESH_TOKEN_TTL_HOURS", "168"))
+	resetTokenTTL, _ := strconv.Atoi(getEnv("JWT_RESET_TOKEN_TTL_MINUTES", "30"))
 
 	redisDB, err := strconv.Atoi(getEnv("REDIS_DB", "0"))
 	if err != nil {
@@ -74,8 +75,10 @@ func Load() (*Config, error) {
 			SSLMode:  getEnv("DB_SSL_MODE", "disable"),
 		},
 		JWT: JWTConfig{
-			Secret:     getEnv("JWT_SECRET", "your-secret-key"),
-			Expiration: time.Duration(jwtExp) * time.Hour,
+			Secret:          getEnv("JWT_SECRET", "your-secret-key"),
+			AccessTokenTTL:  time.Duration(accessTokenTTL) * time.Minute,
+			RefreshTokenTTL: time.Duration(refreshTokenTTL) * time.Hour,
+			ResetTokenTTL:   time.Duration(resetTokenTTL) * time.Minute,
 		},
 		Redis: RedisConfig{
 			Host:     getEnv("REDIS_HOST", "localhost"),
@@ -93,6 +96,17 @@ func (c *Config) GetDatabaseURL() string {
 		c.Database.Host,
 		c.Database.Port,
 		c.Database.DBName,
+		c.Database.SSLMode,
+	)
+}
+
+func (c *Config) GetDatabaseDSN() string {
+	return fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
+		c.Database.Host,
+		c.Database.User,
+		c.Database.Password,
+		c.Database.DBName,
+		c.Database.Port,
 		c.Database.SSLMode,
 	)
 }

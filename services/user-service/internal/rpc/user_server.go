@@ -1,207 +1,248 @@
+// internal/rpc/user_server.go
 package rpc
 
 import (
 	"context"
+	"log"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/ecommerce/proto/user_service"
-	"github.com/ecommerce/services/user-service/internal/models"
-	"github.com/ecommerce/services/user-service/internal/service"
+	pb "github.com/datngth03/ecommerce-go-app/proto/user_service"
+	"github.com/datngth03/ecommerce-go-app/services/user-service/internal/models"
+	"github.com/datngth03/ecommerce-go-app/services/user-service/internal/service"
 )
 
+// UserServer implements the UserService gRPC server
 type UserServer struct {
-	user_service.UnimplementedUserServiceServer
-	userService service.UserService
-	authService service.AuthService
+	pb.UnimplementedUserServiceServer
+	userService service.UserServiceInterface
 }
 
-func NewUserServer(userService service.UserService, authService service.AuthService) *UserServer {
+// NewUserServer creates a new UserServer instance
+func NewUserServer(userService service.UserServiceInterface) *UserServer {
 	return &UserServer{
 		userService: userService,
-		authService: authService,
 	}
 }
 
-func (s *UserServer) CreateUser(ctx context.Context, req *user_service.CreateUserRequest) (*user_service.UserResponse, error) {
-	// Convert gRPC request to internal model
-	createReq := &models.CreateUserRequest{
+// =================================
+// CRUD Operations Implementation
+// =================================
+
+// CreateUser creates a new user
+func (s *UserServer) CreateUser(ctx context.Context, req *pb.CreateUserRequest) (*pb.UserResponse, error) {
+	log.Printf("CreateUser RPC called with email: %s", req.Email)
+
+	// Validate request
+	if err := s.validateCreateUserRequest(req); err != nil {
+		return &pb.UserResponse{
+			Success: false,
+			Message: err.Error(),
+		}, nil
+	}
+
+	// Convert proto request to domain model
+	user := &models.User{
 		Email:    req.Email,
-		Password: req.Password,
 		Name:     req.Name,
 		Phone:    req.Phone,
-		Role:     req.Role,
+		Password: req.Password, // Will be hashed in service layer
 	}
 
-	// Call service
-	user, err := s.userService.CreateUser(ctx, createReq)
+	// Call service layer
+	createdUser, err := s.userService.CreateUser(ctx, user)
 	if err != nil {
-		return &user_service.UserResponse{
-			Success: false,
-			Message: err.Error(),
-		}, status.Error(codes.Internal, err.Error())
+		log.Printf("CreateUser service error: %v", err)
+
+		// Handle business logic errors
+		if err.Error() == "user already exists" {
+			return &pb.UserResponse{
+				Success: false,
+				Message: "User with this email already exists",
+			}, nil
+		}
+
+		return nil, status.Errorf(codes.Internal, "Failed to create user: %v", err)
 	}
 
-	// Convert to gRPC response
-	return &user_service.UserResponse{
+	// Convert domain model to proto response
+	pbUser := s.modelToProtoUser(createdUser)
+
+	return &pb.UserResponse{
 		Success: true,
 		Message: "User created successfully",
-		User:    s.modelToProto(user),
+		User:    pbUser,
 	}, nil
 }
 
-func (s *UserServer) GetUser(ctx context.Context, req *user_service.GetUserRequest) (*user_service.UserResponse, error) {
-	user, err := s.userService.GetUserByID(ctx, req.Id)
-	if err != nil {
-		code := codes.Internal
-		if err.Error() == "user not found" {
-			code = codes.NotFound
-		}
-		return &user_service.UserResponse{
+// GetUser retrieves a user by ID or email
+func (s *UserServer) GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.UserResponse, error) {
+	log.Printf("GetUser RPC called")
+
+	var user *models.User
+	var err error
+
+	// Determine query type and call appropriate service method
+	switch identifier := req.Identifier.(type) {
+	case *pb.GetUserRequest_Id:
+		log.Printf("Getting user by ID: %d", identifier.Id)
+		user, err = s.userService.GetUserByID(ctx, identifier.Id)
+
+	case *pb.GetUserRequest_Email:
+		log.Printf("Getting user by email: %s", identifier.Email)
+		user, err = s.userService.GetUserByEmail(ctx, identifier.Email)
+
+	default:
+		return &pb.UserResponse{
 			Success: false,
-			Message: err.Error(),
-		}, status.Error(code, err.Error())
+			Message: "Either ID or email must be provided",
+		}, nil
 	}
 
-	return &user_service.UserResponse{
+	if err != nil {
+		log.Printf("GetUser service error: %v", err)
+
+		if err.Error() == "user not found" {
+			return &pb.UserResponse{
+				Success: false,
+				Message: "User not found",
+			}, nil
+		}
+
+		return nil, status.Errorf(codes.Internal, "Failed to get user: %v", err)
+	}
+
+	// Convert domain model to proto response
+	pbUser := s.modelToProtoUser(user)
+
+	return &pb.UserResponse{
 		Success: true,
 		Message: "User retrieved successfully",
-		User:    s.modelToProto(user),
+		User:    pbUser,
 	}, nil
 }
 
-func (s *UserServer) UpdateUser(ctx context.Context, req *user_service.UpdateUserRequest) (*user_service.UserResponse, error) {
-	updateReq := &models.UpdateUserRequest{
-		Name:  req.Name,
-		Phone: req.Phone,
-		Role:  req.Role,
-	}
+// UpdateUser updates user information
+func (s *UserServer) UpdateUser(ctx context.Context, req *pb.UpdateUserRequest) (*pb.UserResponse, error) {
+	log.Printf("UpdateUser RPC called for user ID: %d", req.Id)
 
-	user, err := s.userService.UpdateUser(ctx, req.Id, updateReq)
-	if err != nil {
-		code := codes.Internal
-		if err.Error() == "user not found" {
-			code = codes.NotFound
-		}
-		return &user_service.UserResponse{
+	if req.Id == 0 {
+		return &pb.UserResponse{
 			Success: false,
-			Message: err.Error(),
-		}, status.Error(code, err.Error())
+			Message: "User ID is required",
+		}, nil
 	}
 
-	return &user_service.UserResponse{
+	// Convert proto request to update data
+	updateData := &models.UserUpdateData{
+		ID: req.Id,
+	}
+
+	// Set optional fields if provided
+	if req.Name != nil {
+		updateData.Name = req.Name
+	}
+	if req.Phone != nil {
+		updateData.Phone = req.Phone
+	}
+	if req.IsActive != nil {
+		updateData.IsActive = req.IsActive
+	}
+
+	// Call service layer
+	updatedUser, err := s.userService.UpdateUser(ctx, updateData)
+	if err != nil {
+		log.Printf("UpdateUser service error: %v", err)
+
+		if err.Error() == "user not found" {
+			return &pb.UserResponse{
+				Success: false,
+				Message: "User not found",
+			}, nil
+		}
+
+		return nil, status.Errorf(codes.Internal, "Failed to update user: %v", err)
+	}
+
+	// Convert domain model to proto response
+	pbUser := s.modelToProtoUser(updatedUser)
+
+	return &pb.UserResponse{
 		Success: true,
 		Message: "User updated successfully",
-		User:    s.modelToProto(user),
+		User:    pbUser,
 	}, nil
 }
 
-func (s *UserServer) DeleteUser(ctx context.Context, req *user_service.DeleteUserRequest) (*user_service.DeleteUserResponse, error) {
-	err := s.userService.DeleteUser(ctx, req.Id)
-	if err != nil {
-		code := codes.Internal
-		if err.Error() == "user not found" {
-			code = codes.NotFound
-		}
-		return &user_service.DeleteUserResponse{
+// DeleteUser deletes a user
+func (s *UserServer) DeleteUser(ctx context.Context, req *pb.DeleteUserRequest) (*pb.DeleteUserResponse, error) {
+	log.Printf("DeleteUser RPC called for user ID: %d", req.Id)
+
+	if req.Id == 0 {
+		return &pb.DeleteUserResponse{
 			Success: false,
-			Message: err.Error(),
-		}, status.Error(code, err.Error())
+			Message: "User ID is required",
+		}, nil
 	}
 
-	return &user_service.DeleteUserResponse{
+	// Call service layer
+	err := s.userService.DeleteUser(ctx, req.Id)
+	if err != nil {
+		log.Printf("DeleteUser service error: %v", err)
+
+		if err.Error() == "user not found" {
+			return &pb.DeleteUserResponse{
+				Success: false,
+				Message: "User not found",
+			}, nil
+		}
+
+		return nil, status.Errorf(codes.Internal, "Failed to delete user: %v", err)
+	}
+
+	return &pb.DeleteUserResponse{
 		Success: true,
 		Message: "User deleted successfully",
 	}, nil
 }
 
-func (s *UserServer) ListUsers(ctx context.Context, req *user_service.ListUsersRequest) (*user_service.ListUsersResponse, error) {
-	page := int(req.Page)
-	if page <= 0 {
-		page = 1
-	}
-	limit := int(req.Limit)
-	if limit <= 0 {
-		limit = 10
-	}
+// =================================
+// Helper Methods
+// =================================
 
-	users, total, err := s.userService.ListUsers(ctx, page, limit, req.Role)
-	if err != nil {
-		return &user_service.ListUsersResponse{
-			Success: false,
-			Message: err.Error(),
-		}, status.Error(codes.Internal, err.Error())
+// validateCreateUserRequest validates the create user request
+func (s *UserServer) validateCreateUserRequest(req *pb.CreateUserRequest) error {
+	if req.Email == "" {
+		return status.Error(codes.InvalidArgument, "email is required")
 	}
-
-	// Convert users to proto
-	protoUsers := make([]*user_service.User, len(users))
-	for i, user := range users {
-		protoUsers[i] = s.modelToProto(&user)
+	if req.Name == "" {
+		return status.Error(codes.InvalidArgument, "name is required")
 	}
-
-	return &user_service.ListUsersResponse{
-		Success: true,
-		Message: "Users retrieved successfully",
-		Users:   protoUsers,
-		Total:   int32(total),
-	}, nil
+	if req.Password == "" {
+		return status.Error(codes.InvalidArgument, "password is required")
+	}
+	return nil
 }
 
-func (s *UserServer) Login(ctx context.Context, req *user_service.LoginRequest) (*user_service.LoginResponse, error) {
-	loginReq := &models.LoginRequest{
-		Email:    req.Email,
-		Password: req.Password,
+// modelToProtoUser converts domain model User to protobuf User
+func (s *UserServer) modelToProtoUser(user *models.User) *pb.User {
+	pbUser := &pb.User{
+		Id:       user.ID,
+		Email:    user.Email,
+		Name:     user.Name,
+		Phone:    user.Phone,
+		IsActive: user.IsActive,
 	}
 
-	loginResp, err := s.userService.Login(ctx, loginReq)
-	if err != nil {
-		code := codes.Internal
-		if err.Error() == "invalid credentials" {
-			code = codes.Unauthenticated
-		}
-		return &user_service.LoginResponse{
-			Success: false,
-			Message: err.Error(),
-		}, status.Error(code, err.Error())
+	// Convert timestamps
+	if !user.CreatedAt.IsZero() {
+		pbUser.CreatedAt = timestamppb.New(user.CreatedAt)
+	}
+	if !user.UpdatedAt.IsZero() {
+		pbUser.UpdatedAt = timestamppb.New(user.UpdatedAt)
 	}
 
-	return &user_service.LoginResponse{
-		Success: true,
-		Message: "Login successful",
-		Token:   loginResp.Token,
-		User:    s.modelToProto(loginResp.User),
-	}, nil
-}
-
-func (s *UserServer) ValidateToken(ctx context.Context, req *user_service.ValidateTokenRequest) (*user_service.ValidateTokenResponse, error) {
-	user, err := s.authService.ValidateToken(ctx, req.Token)
-	if err != nil {
-		return &user_service.ValidateTokenResponse{
-			Success: false,
-			Message: err.Error(),
-		}, status.Error(codes.Unauthenticated, err.Error())
-	}
-
-	return &user_service.ValidateTokenResponse{
-		Success: true,
-		Message: "Token is valid",
-		User:    s.modelToProto(user),
-	}, nil
-}
-
-// Helper function to convert internal model to proto
-func (s *UserServer) modelToProto(user *models.User) *user_service.User {
-	if user == nil {
-		return nil
-	}
-
-	return &user_service.User{
-		Id:        user.ID,
-		Email:     user.Email,
-		Name:      user.Name,
-		Phone:     user.Phone,
-		Role:      user.Role,
-		CreatedAt: user.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-	}
+	return pbUser
 }

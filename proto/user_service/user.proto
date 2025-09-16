@@ -1,66 +1,80 @@
 syntax = "proto3";
 
-package user;
+package user_service;
 
-option go_package = "github.com/ecommerce/proto/user_service";
+// Import message Timestamp tiêu chuẩn
+import "google/protobuf/timestamp.proto";
 
-// User service definition
+option go_package = "github.com/datngth03/ecommerce-go-app/proto/user_service;user_service";
+
+// =================================
+// Service Definition
+// =================================
 service UserService {
+    // Basic CRUD
     rpc CreateUser(CreateUserRequest) returns (UserResponse);
     rpc GetUser(GetUserRequest) returns (UserResponse);
     rpc UpdateUser(UpdateUserRequest) returns (UserResponse);
     rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
-    rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+
+    // Auth & Session
     rpc Login(LoginRequest) returns (LoginResponse);
     rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+    rpc RefreshToken(RefreshTokenRequest) returns (LoginResponse);
+    rpc Logout(LogoutRequest) returns (LogoutResponse);
+
+    // Password Management
+    rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse);
+    rpc ForgotPassword(ForgotPasswordRequest) returns (ForgotPasswordResponse);
+    rpc ResetPassword(ResetPasswordRequest) returns (ResetPasswordResponse);
 }
 
-// Messages
+// =================================
+// Core Messages
+// =================================
 message User {
+    // Maps to BIGSERIAL
     int64 id = 1;
+    // Maps to VARCHAR(255)
     string email = 2;
+    // Maps to VARCHAR(100)
     string name = 3;
+    // Maps to VARCHAR(20)
     string phone = 4;
-    string role = 5;
-    string created_at = 6;
+    // Thêm trường is_verified để khớp với logic VerifyEmail
+    bool is_active = 5;
+    // Maps to TIMESTAMP
+    google.protobuf.Timestamp created_at = 6;
+    // Maps to TIMESTAMP
+    google.protobuf.Timestamp updated_at = 7;
 }
 
+// =================================
+// CRUD Request/Response Messages
+// =================================
 message CreateUserRequest {
     string email = 1;
-    string password = 2;
-    string name = 3;
-    string phone = 4;
-    string role = 5;
+    string name = 2;
+    string phone = 3;
+    string password = 4;
 }
 
 message GetUserRequest {
-    int64 id = 1;
+    oneof identifier {
+        int64 id = 1;
+        string email = 2;
+    }
 }
 
 message UpdateUserRequest {
     int64 id = 1;
-    string name = 2;
-    string phone = 3;
-    string role = 4;
+    optional string name = 2;
+    optional string phone = 3;
+    optional bool is_active = 4;
 }
 
 message DeleteUserRequest {
     int64 id = 1;
-}
-
-message ListUsersRequest {
-    int32 page = 1;
-    int32 limit = 2;
-    string role = 3;
-}
-
-message LoginRequest {
-    string email = 1;
-    string password = 2;
-}
-
-message ValidateTokenRequest {
-    string token = 1;
 }
 
 message UserResponse {
@@ -74,22 +88,81 @@ message DeleteUserResponse {
     string message = 2;
 }
 
-message ListUsersResponse {
-    bool success = 1;
-    string message = 2;
-    repeated User users = 3;
-    int32 total = 4;
+// =================================
+// Auth & Session Messages
+// =================================
+message LoginRequest {
+    string email = 1;
+    string password = 2;
 }
 
 message LoginResponse {
     bool success = 1;
     string message = 2;
-    string token = 3;
-    User user = 4;
+    string access_token = 3;
+    string refresh_token = 4;
+    User user = 5;
+    google.protobuf.Timestamp expires_at = 6;
+}
+
+message ValidateTokenRequest {
+    string token = 1;
 }
 
 message ValidateTokenResponse {
+    bool valid = 1;
+    string message = 2;
+    int64 user_id = 3;
+    string email = 4;
+    google.protobuf.Timestamp expires_at = 5;
+}
+
+message RefreshTokenRequest {
+    string refresh_token = 1;
+}
+
+message LogoutRequest {
+    string access_token = 1;
+    optional string refresh_token = 2;
+}
+
+message LogoutResponse {
     bool success = 1;
     string message = 2;
-    User user = 3;
+}
+
+// =================================
+// Password Management Messages
+// =================================
+message ChangePasswordRequest {
+    string old_password = 1;
+    string new_password = 2;
+    // user_id sẽ được extract từ authentication token ở server side
+}
+
+message ChangePasswordResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message ForgotPasswordRequest {
+    string email = 1;
+}
+
+message ForgotPasswordResponse {
+    bool success = 1;
+    string message = 2;
+    // Optional: có thể thêm reset_token_expires_at nếu cần
+    optional google.protobuf.Timestamp reset_token_expires_at = 3;
+}
+
+message ResetPasswordRequest {
+    string email = 1;
+    string reset_token = 2;
+    string new_password = 3;
+}
+
+message ResetPasswordResponse {
+    bool success = 1;
+    string message = 2;
 }

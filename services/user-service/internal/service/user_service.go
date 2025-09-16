@@ -1,193 +1,237 @@
+// internal/service/user_service.go
 package service
 
 import (
 	"context"
-	"fmt"
+	"errors"
+	"log"
 
-	"github.com/ecommerce/services/user-service/internal/models"
-	"github.com/ecommerce/services/user-service/internal/repository"
-	"github.com/ecommerce/services/user-service/pkg/utils"
-	"github.com/ecommerce/services/user-service/pkg/validator"
+	"github.com/datngth03/ecommerce-go-app/services/user-service/internal/models"
+	"github.com/datngth03/ecommerce-go-app/services/user-service/internal/repository"
+	"github.com/datngth03/ecommerce-go-app/services/user-service/pkg/utils"
 )
 
-type UserService interface {
-	CreateUser(ctx context.Context, req *models.CreateUserRequest) (*models.User, error)
+// UserServiceInterface defines the user service contract
+type UserServiceInterface interface {
+	// CRUD operations
+	CreateUser(ctx context.Context, user *models.User) (*models.User, error)
 	GetUserByID(ctx context.Context, id int64) (*models.User, error)
-	UpdateUser(ctx context.Context, id int64, req *models.UpdateUserRequest) (*models.User, error)
+	GetUserByEmail(ctx context.Context, email string) (*models.User, error)
+	UpdateUser(ctx context.Context, updateData *models.UserUpdateData) (*models.User, error)
 	DeleteUser(ctx context.Context, id int64) error
-	ListUsers(ctx context.Context, page, limit int, role string) ([]models.User, int, error)
-	Login(ctx context.Context, req *models.LoginRequest) (*models.LoginResponse, error)
-	ValidateToken(ctx context.Context, token string) (*models.User, error)
+
+	// Auth operations (will be used by auth_server later)
+	ValidateUserCredentials(ctx context.Context, email, password string) (*models.User, error)
+	ChangePassword(ctx context.Context, userID int64, oldPassword, newPassword string) error
+	UpdatePasswordByEmail(ctx context.Context, email, newPassword string) error
 }
 
-type userService struct {
-	userRepo  repository.UserRepository
-	validator *validator.UserValidator
+// UserService implements the UserServiceInterface
+type UserService struct {
+	userRepo    repository.UserRepositoryInterface
+	authService AuthServiceInterface
 }
 
-func NewUserService(userRepo repository.UserRepository, validator *validator.UserValidator) UserService {
-	return &userService{
-		userRepo:  userRepo,
-		validator: validator,
+// NewUserService creates a new UserService instance
+func NewUserService(userRepo repository.UserRepositoryInterface, authService AuthServiceInterface) UserServiceInterface {
+	return &UserService{
+		userRepo:    userRepo,
+		authService: authService, // Thêm dòng này
 	}
 }
 
-func (s *userService) CreateUser(ctx context.Context, req *models.CreateUserRequest) (*models.User, error) {
-	// Validate request
-	if err := s.validator.ValidateCreateUser(req); err != nil {
-		return nil, fmt.Errorf("validation failed: %w", err)
-	}
+// =================================
+// CRUD Operations Implementation
+// =================================
 
-	// Check if email already exists
-	exists, err := s.userRepo.EmailExists(ctx, req.Email, 0)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check email existence: %w", err)
-	}
-	if exists {
-		return nil, fmt.Errorf("email already exists")
+// CreateUser creates a new user
+func (s *UserService) CreateUser(ctx context.Context, user *models.User) (*models.User, error) {
+	log.Printf("UserService: Creating user with email: %s", user.Email)
+
+	// Check if user already exists
+	existingUser, err := s.userRepo.GetByEmail(ctx, user.Email)
+	if err == nil && existingUser != nil {
+		return nil, errors.New("user already exists")
 	}
 
 	// Hash password
-	hashedPassword, err := utils.HashPassword(req.Password)
+	hashedPassword, err := utils.HashPassword(user.Password)
 	if err != nil {
-		return nil, fmt.Errorf("failed to hash password: %w", err)
+		log.Printf("UserService: Failed to hash password: %v", err)
+		return nil, errors.New("failed to process password")
 	}
+	user.Password = hashedPassword
 
-	// Create user model
-	user := &models.User{
-		Email:    req.Email,
-		Password: hashedPassword,
-		Name:     req.Name,
-		Phone:    req.Phone,
-		Role:     req.Role,
-	}
+	// Set defaults
+	user.IsActive = true
 
-	// Save to database
+	// Create user
 	createdUser, err := s.userRepo.Create(ctx, user)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create user: %w", err)
+		log.Printf("UserService: Failed to create user: %v", err)
+		return nil, errors.New("failed to create user")
 	}
 
+	log.Printf("UserService: User created successfully with ID: %d", createdUser.ID)
 	return createdUser, nil
 }
 
-func (s *userService) GetUserByID(ctx context.Context, id int64) (*models.User, error) {
-	if id <= 0 {
-		return nil, fmt.Errorf("invalid user id")
-	}
+// GetUserByID retrieves a user by ID
+func (s *UserService) GetUserByID(ctx context.Context, id int64) (*models.User, error) {
+	log.Printf("UserService: Getting user by ID: %d", id)
 
 	user, err := s.userRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get user: %w", err)
+		log.Printf("UserService: User not found with ID: %d", id)
+		return nil, errors.New("user not found")
 	}
 
 	return user, nil
 }
 
-func (s *userService) UpdateUser(ctx context.Context, id int64, req *models.UpdateUserRequest) (*models.User, error) {
-	if id <= 0 {
-		return nil, fmt.Errorf("invalid user id")
+// GetUserByEmail retrieves a user by email
+func (s *UserService) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
+	log.Printf("UserService: Getting user by email: %s", email)
+
+	user, err := s.userRepo.GetByEmail(ctx, email)
+	if err != nil {
+		log.Printf("UserService: User not found with email: %s", email)
+		return nil, errors.New("user not found")
 	}
 
-	// Validate request
-	if err := s.validator.ValidateUpdateUser(req); err != nil {
-		return nil, fmt.Errorf("validation failed: %w", err)
-	}
+	return user, nil
+}
+
+// UpdateUser updates user information
+func (s *UserService) UpdateUser(ctx context.Context, updateData *models.UserUpdateData) (*models.User, error) {
+	log.Printf("UserService: Updating user with ID: %d", updateData.ID)
 
 	// Check if user exists
-	_, err := s.userRepo.GetByID(ctx, id)
-	if err != nil {
-		return nil, fmt.Errorf("user not found: %w", err)
-	}
+	// existingUser, err := s.userRepo.GetByID(ctx, updateData.ID)
+	// if err != nil {
+	// 	log.Printf("UserService: User not found with ID: %d", updateData.ID)
+	// 	return nil, errors.New("user not found")
+	// }
 
 	// Update user
-	updatedUser, err := s.userRepo.Update(ctx, id, req)
+	updatedUser, err := s.userRepo.Update(ctx, updateData)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update user: %w", err)
+		log.Printf("UserService: Failed to update user: %v", err)
+		return nil, errors.New("failed to update user")
 	}
 
+	log.Printf("UserService: User updated successfully with ID: %d", updatedUser.ID)
 	return updatedUser, nil
 }
 
-func (s *userService) DeleteUser(ctx context.Context, id int64) error {
-	if id <= 0 {
-		return fmt.Errorf("invalid user id")
-	}
+// DeleteUser deletes a user
+func (s *UserService) DeleteUser(ctx context.Context, id int64) error {
+	log.Printf("UserService: Deleting user with ID: %d", id)
 
 	// Check if user exists
 	_, err := s.userRepo.GetByID(ctx, id)
 	if err != nil {
-		return fmt.Errorf("user not found: %w", err)
+		log.Printf("UserService: User not found with ID: %d", id)
+		return errors.New("user not found")
 	}
 
 	// Delete user
 	err = s.userRepo.Delete(ctx, id)
 	if err != nil {
-		return fmt.Errorf("failed to delete user: %w", err)
+		log.Printf("UserService: Failed to delete user: %v", err)
+		return errors.New("failed to delete user")
 	}
 
+	log.Printf("UserService: User deleted successfully with ID: %d", id)
 	return nil
 }
 
-func (s *userService) ListUsers(ctx context.Context, page, limit int, role string) ([]models.User, int, error) {
-	if page <= 0 {
-		page = 1
-	}
-	if limit <= 0 || limit > 100 {
-		limit = 10
-	}
+// =================================
+// Auth Operations Implementation
+// =================================
 
-	users, total, err := s.userRepo.List(ctx, page, limit, role)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to list users: %w", err)
-	}
-
-	return users, total, nil
-}
-
-func (s *userService) Login(ctx context.Context, req *models.LoginRequest) (*models.LoginResponse, error) {
-	// Validate request
-	if err := s.validator.ValidateLogin(req); err != nil {
-		return nil, fmt.Errorf("validation failed: %w", err)
-	}
+// ValidateUserCredentials validates user login credentials
+func (s *UserService) ValidateUserCredentials(ctx context.Context, email, password string) (*models.User, error) {
+	log.Printf("UserService: Validating credentials for email: %s", email)
 
 	// Get user by email
-	user, err := s.userRepo.GetByEmail(ctx, req.Email)
+	user, err := s.userRepo.GetByEmail(ctx, email)
 	if err != nil {
-		return nil, fmt.Errorf("invalid credentials")
+		log.Printf("UserService: User not found with email: %s", email)
+		return nil, errors.New("invalid credentials")
+	}
+
+	// Check if user is active
+	if !user.IsActive {
+		log.Printf("UserService: User is inactive: %s", email)
+		return nil, errors.New("user account is inactive")
 	}
 
 	// Verify password
-	if !utils.CheckPassword(req.Password, user.Password) {
-		return nil, fmt.Errorf("invalid credentials")
+	if !utils.CheckPasswordHash(password, user.Password) {
+		log.Printf("UserService: Invalid password for email: %s", email)
+		return nil, errors.New("invalid credentials")
 	}
 
-	// Generate JWT token
-	token, err := utils.GenerateToken(user.ID, user.Email, user.Role)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate token: %w", err)
-	}
-
-	// Clear password from response
-	user.Password = ""
-
-	return &models.LoginResponse{
-		Token: token,
-		User:  user,
-	}, nil
+	log.Printf("UserService: Credentials validated for user ID: %d", user.ID)
+	return user, nil
 }
 
-func (s *userService) ValidateToken(ctx context.Context, token string) (*models.User, error) {
-	claims, err := utils.ValidateToken(token)
-	if err != nil {
-		return nil, fmt.Errorf("invalid token: %w", err)
-	}
+// ChangePassword changes user password
+func (s *UserService) ChangePassword(ctx context.Context, userID int64, oldPassword, newPassword string) error {
+	log.Printf("UserService: Changing password for user ID: %d", userID)
 
-	userID := int64(claims["user_id"].(float64))
+	// Get user
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
-		return nil, fmt.Errorf("user not found: %w", err)
+		return errors.New("user not found")
 	}
 
-	return user, nil
+	// Verify old password
+	if !utils.CheckPasswordHash(oldPassword, user.Password) {
+		return errors.New("invalid old password")
+	}
+
+	// Hash new password
+	hashedPassword, err := utils.HashPassword(newPassword)
+	if err != nil {
+		return errors.New("failed to process new password")
+	}
+
+	// Update password
+	err = s.userRepo.UpdatePassword(ctx, userID, hashedPassword)
+	if err != nil {
+		log.Printf("UserService: Failed to update password: %v", err)
+		return errors.New("failed to update password")
+	}
+
+	log.Printf("UserService: Password changed successfully for user ID: %d", userID)
+	return nil
+}
+
+// UpdatePasswordByEmail updates password by email (for reset password)
+func (s *UserService) UpdatePasswordByEmail(ctx context.Context, email, newPassword string) error {
+	log.Printf("UserService: Updating password by email: %s", email)
+
+	// Get user by email
+	user, err := s.userRepo.GetByEmail(ctx, email)
+	if err != nil {
+		return errors.New("user not found")
+	}
+
+	// Hash new password
+	hashedPassword, err := utils.HashPassword(newPassword)
+	if err != nil {
+		return errors.New("failed to process new password")
+	}
+
+	// Update password
+	err = s.userRepo.UpdatePassword(ctx, user.ID, hashedPassword)
+	if err != nil {
+		log.Printf("UserService: Failed to update password: %v", err)
+		return errors.New("failed to update password")
+	}
+
+	log.Printf("UserService: Password updated successfully for email: %s", email)
+	return nil
 }
