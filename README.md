@@ -39,9 +39,9 @@ A scalable e-commerce platform built with **Go microservices architecture**, des
    └─────────┘  └────────┘  └────────┘  └────────┘   └───────┘
 ```
 
-# 🏗️ Hệ thống E-commerce Microservices
 
-Dưới đây là sơ đồ kiến trúc cho product-sevice:
+
+- Dưới đây là sơ đồ kiến trúc cho product-sevice:
 
 ```mermaid
 graph TB
