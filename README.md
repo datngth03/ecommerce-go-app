@@ -172,7 +172,7 @@ graph TB
 ## 🛠️ Tech Stack
 
 ### Backend
-- **Language**: Go 1.21+
+- **Language**: Go 1.24+
 - **Framework**: Gin/Echo
 - **Database**: PostgreSQL
 - **Cache**: Redis
