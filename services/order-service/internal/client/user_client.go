@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	pb "github.com/datngth03/ecommerce-go-app/proto/user_service"
-	sharedConfig "github.com/ecommerce-go-app/shared/pkg/config"
+	sharedConfig "github.com/datngth03/ecommerce-go-app/shared/pkg/config"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

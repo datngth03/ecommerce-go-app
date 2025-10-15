@@ -1,7 +1,7 @@
 package config
 
 import (
-	sharedConfig "github.com/ecommerce-go-app/shared/pkg/config"
+	sharedConfig "github.com/datngth03/ecommerce-go-app/shared/pkg/config"
 )
 
 // Config holds order service specific configuration
