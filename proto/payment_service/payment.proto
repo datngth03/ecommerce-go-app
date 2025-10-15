@@ -4,38 +4,204 @@ package payment_service;
 
 option go_package = "github.com/datngth03/ecommerce-go-app/proto/payment_service";
 
-
-// Payment message mirrors the 'payments' table.
+// Payment represents a payment transaction
 message Payment {
   string id = 1;
   string order_id = 2;
+  string user_id = 3;
+  double amount = 4;
+  string currency = 5;              // USD, VND, EUR, etc.
+  string status = 6;                // PENDING, PROCESSING, COMPLETED, FAILED, REFUNDED
+  string method = 7;                // STRIPE, PAYPAL, CREDIT_CARD, BANK_TRANSFER
+  string gateway_payment_id = 8;    // Stripe/PayPal transaction ID
+  string gateway_customer_id = 9;   // Stripe/PayPal customer ID
+  string failure_reason = 10;
+  string metadata = 11;             // JSON metadata
+  string created_at = 12;
+  string updated_at = 13;
+}
+
+// Refund represents a payment refund
+message Refund {
+  string id = 1;
+  string payment_id = 2;
   double amount = 3;
-  string status = 4;
-  string method = 5;
-  string stripe_id = 6;
+  string reason = 4;
+  string status = 5;                // PENDING, PROCESSING, COMPLETED, FAILED
+  string gateway_refund_id = 6;
+  string created_at = 7;
+  string updated_at = 8;
+}
+
+// Transaction represents a payment transaction log
+message Transaction {
+  string id = 1;
+  string payment_id = 2;
+  string transaction_type = 3;      // CHARGE, REFUND, AUTHORIZATION, CAPTURE
+  double amount = 4;
+  string status = 5;
+  string gateway_response = 6;      // Raw gateway response
   string created_at = 7;
 }
 
-message CreatePaymentRequest {
-  string order_id = 1;
-  double amount = 2;
-  string method = 3;
-}
-
-message CreatePaymentResponse {
-  Payment payment = 1;
-}
-
-message GetPaymentRequest {
+// PaymentMethod represents saved payment method
+message PaymentMethod {
   string id = 1;
+  string user_id = 2;
+  string method_type = 3;           // CARD, BANK_ACCOUNT
+  string last4 = 4;                 // Last 4 digits
+  string brand = 5;                 // VISA, MASTERCARD, etc.
+  string gateway_method_id = 6;
+  bool is_default = 7;
+  string created_at = 8;
+}
+
+// =================================
+// ProcessPayment - Main payment processing
+// =================================
+message ProcessPaymentRequest {
+  string order_id = 1;
+  string user_id = 2;
+  double amount = 3;
+  string currency = 4;
+  string method = 5;                // STRIPE, PAYPAL
+  string payment_method_id = 6;     // Optional: saved payment method
+  map<string, string> metadata = 7;
+}
+
+message ProcessPaymentResponse {
+  Payment payment = 1;
+  bool success = 2;
+  string message = 3;
+  string client_secret = 4;         // For 3D Secure / frontend confirmation
+}
+
+// =================================
+// RefundPayment - Process refund
+// =================================
+message RefundPaymentRequest {
+  string payment_id = 1;
+  double amount = 2;                // Partial or full refund
+  string reason = 3;
+}
+
+message RefundPaymentResponse {
+  Refund refund = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+// =================================
+// GetPayment - Retrieve payment details
+// =================================
+message GetPaymentRequest {
+  string payment_id = 1;
 }
 
 message GetPaymentResponse {
   Payment payment = 1;
+  repeated Transaction transactions = 2;
+  repeated Refund refunds = 3;
 }
 
-// Service for payment-related gRPC calls.
+// =================================
+// GetPaymentByOrder - Get payment by order ID
+// =================================
+message GetPaymentByOrderRequest {
+  string order_id = 1;
+}
+
+message GetPaymentByOrderResponse {
+  Payment payment = 1;
+  repeated Transaction transactions = 2;
+  repeated Refund refunds = 3;
+}
+
+// =================================
+// GetPaymentHistory - User payment history
+// =================================
+message GetPaymentHistoryRequest {
+  string user_id = 1;
+  int32 limit = 2;
+  int32 offset = 3;
+}
+
+message GetPaymentHistoryResponse {
+  repeated Payment payments = 1;
+  int32 total = 2;
+}
+
+// =================================
+// ConfirmPayment - Confirm pending payment (for 3D Secure)
+// =================================
+message ConfirmPaymentRequest {
+  string payment_id = 1;
+  string payment_intent_id = 2;     // From frontend
+}
+
+message ConfirmPaymentResponse {
+  Payment payment = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+// =================================
+// SavePaymentMethod - Save payment method for future use
+// =================================
+message SavePaymentMethodRequest {
+  string user_id = 1;
+  string method_type = 2;
+  string gateway_method_id = 3;
+  bool is_default = 4;
+}
+
+message SavePaymentMethodResponse {
+  PaymentMethod payment_method = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+// =================================
+// GetPaymentMethods - Get user's saved payment methods
+// =================================
+message GetPaymentMethodsRequest {
+  string user_id = 1;
+}
+
+message GetPaymentMethodsResponse {
+  repeated PaymentMethod payment_methods = 1;
+}
+
+// =================================
+// WebhookEvent - Handle payment gateway webhooks
+// =================================
+message WebhookEventRequest {
+  string gateway = 1;               // STRIPE, PAYPAL
+  string event_type = 2;
+  string event_data = 3;            // JSON payload
+}
+
+message WebhookEventResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Payment Service
 service PaymentService {
-  rpc CreatePayment(CreatePaymentRequest) returns (CreatePaymentResponse);
+  // Main payment operations
+  rpc ProcessPayment(ProcessPaymentRequest) returns (ProcessPaymentResponse);
+  rpc ConfirmPayment(ConfirmPaymentRequest) returns (ConfirmPaymentResponse);
+  rpc RefundPayment(RefundPaymentRequest) returns (RefundPaymentResponse);
+  
+  // Query operations
   rpc GetPayment(GetPaymentRequest) returns (GetPaymentResponse);
+  rpc GetPaymentByOrder(GetPaymentByOrderRequest) returns (GetPaymentByOrderResponse);
+  rpc GetPaymentHistory(GetPaymentHistoryRequest) returns (GetPaymentHistoryResponse);
+  
+  // Payment methods
+  rpc SavePaymentMethod(SavePaymentMethodRequest) returns (SavePaymentMethodResponse);
+  rpc GetPaymentMethods(GetPaymentMethodsRequest) returns (GetPaymentMethodsResponse);
+  
+  // Webhooks
+  rpc HandleWebhook(WebhookEventRequest) returns (WebhookEventResponse);
 }

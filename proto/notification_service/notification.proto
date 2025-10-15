@@ -4,43 +4,86 @@ package notification_service;
 
 option go_package = "github.com/datngth03/ecommerce-go-app/proto/notification_service";
 
-// Enum để định nghĩa loại thông báo
-enum NotificationType {
-  NOTIFICATION_TYPE_UNSPECIFIED = 0;
-  NOTIFICATION_TYPE_EMAIL = 1;
-  NOTIFICATION_TYPE_SMS = 2;
-  NOTIFICATION_TYPE_PUSH = 3; // Thêm nếu bạn có ứng dụng di động
+message Notification {
+  string id = 1;
+  string user_id = 2;
+  string type = 3;
+  string channel = 4;
+  string recipient = 5;
+  string subject = 6;
+  string content = 7;
+  string status = 8;
+  string error_message = 9;
+  string template_id = 10;
+  string metadata = 11;
+  string created_at = 12;
+  string sent_at = 13;
 }
 
-// Thông điệp để gửi email
-message EmailNotification {
-  string recipient_email = 1;
-  string subject = 2;
-  string body = 3;
+message Template {
+  string id = 1;
+  string name = 2;
+  string type = 3;
+  string subject = 4;
+  string body = 5;
+  map<string, string> variables = 6;
+  bool is_active = 7;
+  string created_at = 8;
+  string updated_at = 9;
 }
 
-// Thông điệp để gửi SMS
-message SmsNotification {
-  string recipient_phone_number = 1;
-  string message = 2;
+message SendEmailRequest {
+  string user_id = 1;
+  string recipient = 2;
+  string subject = 3;
+  string body = 4;
+  string template_id = 5;
+  map<string, string> variables = 6;
 }
 
-// Thông điệp chung cho yêu cầu gửi thông báo
-message SendNotificationRequest {
-  NotificationType notification_type = 1;
-  oneof notification_data {
-    EmailNotification email_data = 2;
-    SmsNotification sms_data = 3;
-  }
+message SendEmailResponse {
+  Notification notification = 1;
+  bool success = 2;
+  string message = 3;
 }
 
-// Thông điệp phản hồi sau khi gửi
-message SendNotificationResponse {
-  bool success = 1;
-  string message = 2;
+message SendSMSRequest {
+  string user_id = 1;
+  string recipient = 2;
+  string message = 3;
+  string template_id = 4;
+  map<string, string> variables = 5;
 }
 
-// Dịch vụ gRPC cho Notification Service
+message SendSMSResponse {
+  Notification notification = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message GetNotificationRequest {
+  string notification_id = 1;
+}
+
+message GetNotificationResponse {
+  Notification notification = 1;
+}
+
+message GetNotificationHistoryRequest {
+  string user_id = 1;
+  string type = 2;
+  int32 limit = 3;
+  int32 offset = 4;
+}
+
+message GetNotificationHistoryResponse {
+  repeated Notification notifications = 1;
+  int32 total = 2;
+}
+
 service NotificationService {
-  rpc SendNotification(SendNotificationRequest) returns (SendNotificationResponse);
+  rpc SendEmail(SendEmailRequest) returns (SendEmailResponse);
+  rpc SendSMS(SendSMSRequest) returns (SendSMSResponse);
+  rpc GetNotification(GetNotificationRequest) returns (GetNotificationResponse);
+  rpc GetNotificationHistory(GetNotificationHistoryRequest) returns (GetNotificationHistoryResponse);
 }

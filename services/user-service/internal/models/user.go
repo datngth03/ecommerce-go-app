@@ -7,14 +7,19 @@ import (
 
 // User represents the user domain model
 type User struct {
-	ID        int64     `json:"id" db:"id"`
-	Email     string    `json:"email" db:"email"`
-	Name      string    `json:"name" db:"name"`
-	Phone     string    `json:"phone" db:"phone"`
-	Password  string    `json:"-" db:"password_hash"` // Never expose password in JSON
-	IsActive  bool      `json:"is_active" db:"is_active"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	ID        int64     `json:"id" gorm:"primaryKey;autoIncrement"`
+	Email     string    `json:"email" gorm:"type:varchar(255);uniqueIndex;not null"`
+	Name      string    `json:"name" gorm:"type:varchar(100);not null"`
+	Phone     string    `json:"phone" gorm:"type:varchar(20)"`
+	Password  string    `json:"-" gorm:"column:password_hash;type:varchar(255);not null"` // Never expose password in JSON
+	IsActive  bool      `json:"is_active" gorm:"default:true;not null"`
+	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+// TableName specifies the table name for User model
+func (User) TableName() string {
+	return "users"
 }
 
 // UserUpdateData represents data for updating a user

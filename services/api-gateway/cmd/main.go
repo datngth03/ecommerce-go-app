@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
@@ -8,104 +9,167 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gorilla/mux"
-	"github.com/rs/cors"
+	"github.com/gin-gonic/gin"
 
-	"github.com/ecommerce/services/api-gateway/internal/config"
-	"github.com/ecommerce/services/api-gateway/internal/handler"
-	"github.com/ecommerce/services/api-gateway/internal/middleware"
-	"github.com/ecommerce/services/api-gateway/internal/proxy"
+	"github.com/datngth03/ecommerce-go-app/services/api-gateway/internal/clients"
+	"github.com/datngth03/ecommerce-go-app/services/api-gateway/internal/config"
+	"github.com/datngth03/ecommerce-go-app/services/api-gateway/internal/handler"
+	"github.com/datngth03/ecommerce-go-app/services/api-gateway/internal/middleware"
+	"github.com/datngth03/ecommerce-go-app/services/api-gateway/internal/proxy"
 )
 
 func main() {
+	log.Println("🚀 Starting API Gateway...")
+
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		log.Fatalf("❌ Failed to load config: %v", err)
+	}
+	log.Println("✅ Configuration loaded")
+
+	// Print config in development mode
+	if cfg.IsDevelopment() {
+		cfg.PrintConfig()
 	}
 
-	// Initialize service proxy
-	serviceProxy := proxy.NewServiceProxy(cfg)
+	// Initialize gRPC clients
+	grpcClients, err := clients.NewClients(cfg)
+	if err != nil {
+		log.Fatalf("❌ Failed to initialize gRPC clients: %v", err)
+	}
+	defer grpcClients.Close()
+
+	// Initialize proxies
+	userProxy := proxy.NewUserProxy(grpcClients.User)
+	productProxy := proxy.NewProductProxy(grpcClients.Product)
+	log.Println("✅ Proxies initialized")
 
 	// Initialize handlers
-	proxyHandler := handler.NewProxyHandler(serviceProxy)
+	userHandler := handler.NewUserHandler(userProxy)
+	productHandler := handler.NewProductHandler(productProxy)
+	log.Println("✅ Handlers initialized")
 
-	// Setup router
-	router := mux.NewRouter()
+	// Setup HTTP server
+	router := setupRouter(cfg, userHandler, productHandler, userProxy)
 
-	// Setup middleware
-	router.Use(middleware.LoggingMiddleware)
-	router.Use(middleware.RateLimitMiddleware)
-
-	// Setup CORS
-	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"*"}, // Configure properly in production
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"*"},
-		AllowCredentials: true,
-	})
-	router.Use(c.Handler)
-
-	// API Routes
-	api := router.PathPrefix("/api/v1").Subrouter()
-
-	// User Service Routes
-	userRoutes := api.PathPrefix("/users").Subrouter()
-	userRoutes.HandleFunc("/register", proxyHandler.ProxyToUserService).Methods("POST")
-	userRoutes.HandleFunc("/login", proxyHandler.ProxyToUserService).Methods("POST")
-	userRoutes.HandleFunc("/profile", proxyHandler.ProxyToUserServiceWithAuth).Methods("GET")
-	userRoutes.HandleFunc("/refresh", proxyHandler.ProxyToUserService).Methods("POST")
-	userRoutes.HandleFunc("/logout", proxyHandler.ProxyToUserService).Methods("POST")
-	userRoutes.HandleFunc("", proxyHandler.ProxyToUserServiceWithAuth).Methods("GET") // List users
-	userRoutes.HandleFunc("", proxyHandler.ProxyToUserService).Methods("POST")        // Create user
-	userRoutes.HandleFunc("/{id:[0-9]+}", proxyHandler.ProxyToUserService).Methods("GET", "PUT", "DELETE")
-
-	// Auth Routes (separate from users)
-	authRoutes := api.PathPrefix("/auth").Subrouter()
-	authRoutes.HandleFunc("/login", proxyHandler.ProxyToUserService).Methods("POST")
-	authRoutes.HandleFunc("/register", proxyHandler.ProxyToUserService).Methods("POST")
-	authRoutes.HandleFunc("/refresh", proxyHandler.ProxyToUserService).Methods("POST")
-	authRoutes.HandleFunc("/validate", proxyHandler.ProxyToUserService).Methods("POST")
-	authRoutes.HandleFunc("/logout", proxyHandler.ProxyToUserServiceWithAuth).Methods("POST")
-
-	// Product Service Routes (example)
-	productRoutes := api.PathPrefix("/products").Subrouter()
-	productRoutes.HandleFunc("", proxyHandler.ProxyToProductService).Methods("GET", "POST")
-	productRoutes.HandleFunc("/{id:[0-9]+}", proxyHandler.ProxyToProductService).Methods("GET", "PUT", "DELETE")
-
-	// Order Service Routes (example)
-	orderRoutes := api.PathPrefix("/orders").Subrouter()
-	orderRoutes.Use(middleware.AuthMiddleware(serviceProxy)) // All order routes require auth
-	orderRoutes.HandleFunc("", proxyHandler.ProxyToOrderService).Methods("GET", "POST")
-	orderRoutes.HandleFunc("/{id:[0-9]+}", proxyHandler.ProxyToOrderService).Methods("GET", "PUT", "DELETE")
-
-	// Health check
-	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status": "ok"}`))
-	}).Methods("GET")
-
-	// Start server
-	server := &http.Server{
-		Addr:         ":" + cfg.Server.Port,
+	// Create HTTP server
+	srv := &http.Server{
+		Addr:         cfg.GetServerAddress(),
 		Handler:      router,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		ReadTimeout:  cfg.Server.ReadTimeout,
+		WriteTimeout: cfg.Server.WriteTimeout,
+		IdleTimeout:  120 * time.Second,
 	}
 
-	// Graceful shutdown
+	// Start server in goroutine
 	go func() {
-		log.Printf("API Gateway starting on port %s", cfg.Server.Port)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server failed to start: %v", err)
+		log.Printf("🚀 API Gateway listening on %s", cfg.GetServerAddress())
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("❌ Server error: %v", err)
 		}
 	}()
 
-	// Wait for interrupt signal to gracefully shutdown
+	log.Println("✅ API Gateway is ready to handle requests")
+
+	// Wait for interrupt signal for graceful shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("API Gateway shutting down...")
+	log.Println("🛑 Shutting down API Gateway...")
+
+	// Graceful shutdown
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.Server.ShutdownTimeout)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Printf("❌ Server forced to shutdown: %v", err)
+	}
+
+	log.Println("✅ API Gateway stopped gracefully")
+}
+
+// setupRouter configures all routes and middleware
+func setupRouter(cfg *config.Config, userHandler *handler.UserHandler, productHandler *handler.ProductHandler, userProxy *proxy.UserProxy) *gin.Engine {
+	// Set Gin mode
+	if cfg.IsProduction() {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	router := gin.New()
+
+	// Global middleware
+	router.Use(gin.Recovery())
+	router.Use(gin.Logger())
+	router.Use(middleware.CORSMiddleware())
+
+	// Health endpoints
+	router.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"status":  "healthy",
+			"service": "api-gateway",
+		})
+	})
+
+	router.GET("/ready", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ready"})
+	})
+
+	// API v1 routes
+	v1 := router.Group("/api/v1")
+	{
+		// Auth routes (public)
+		auth := v1.Group("/auth")
+		{
+			auth.POST("/register", userHandler.Register)
+			auth.POST("/login", userHandler.Login)
+			auth.POST("/refresh", userHandler.RefreshToken)
+		}
+
+		// User routes
+		users := v1.Group("/users")
+		{
+			// Public routes
+			users.GET("/:id", userHandler.GetUser)
+
+			// Protected routes (require authentication)
+			// users.Use(middleware.AuthMiddleware(userProxy))
+			users.GET("/me", userHandler.GetProfile)
+			users.PUT("/:id", userHandler.UpdateUser)
+			users.DELETE("/:id", userHandler.DeleteUser)
+		}
+
+		// Product routes
+		products := v1.Group("/products")
+		{
+			// Public routes - anyone can browse products
+			products.GET("", productHandler.ListProducts)
+			products.GET("/:id", productHandler.GetProduct)
+
+			// Protected routes - require authentication
+			// products.Use(middleware.AuthMiddleware(userProxy))
+			products.POST("", productHandler.CreateProduct)
+			products.PUT("/:id", productHandler.UpdateProduct)
+			products.DELETE("/:id", productHandler.DeleteProduct)
+		}
+
+		// Category routes
+		categories := v1.Group("/categories")
+		{
+			// Public routes
+			categories.GET("", productHandler.ListCategories)
+			categories.GET("/:id", productHandler.GetCategory)
+
+			// Protected routes
+			// categories.Use(middleware.AuthMiddleware(userProxy))
+			categories.POST("", productHandler.CreateCategory)
+			categories.PUT("/:id", productHandler.UpdateCategory)
+			categories.DELETE("/:id", productHandler.DeleteCategory)
+		}
+
+		// TODO: Add order, payment, inventory routes when ready
+	}
+
+	return router
 }

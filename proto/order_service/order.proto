@@ -4,30 +4,58 @@ package order_service;
 
 option go_package = "github.com/datngth03/ecommerce-go-app/proto/order_service";
 
-// OrderItem message mirrors the 'order_items' table.
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+service OrderService {
+  rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse);
+  rpc GetOrder(GetOrderRequest) returns (GetOrderResponse);
+  rpc ListOrders(ListOrdersRequest) returns (ListOrdersResponse);
+  rpc UpdateOrderStatus(UpdateOrderStatusRequest) returns (UpdateOrderStatusResponse);
+  rpc CancelOrder(CancelOrderRequest) returns (google.protobuf.Empty);
+  
+  // Cart operations
+  rpc AddToCart(AddToCartRequest) returns (CartResponse);
+  rpc GetCart(GetCartRequest) returns (CartResponse);
+  rpc UpdateCartItem(UpdateCartItemRequest) returns (CartResponse);
+  rpc RemoveFromCart(RemoveFromCartRequest) returns (CartResponse);
+  rpc ClearCart(ClearCartRequest) returns (google.protobuf.Empty);
+}
+
+// Order Messages
+message Order {
+  string id = 1;
+  int64 user_id = 2;
+  string status = 3; // pending, confirmed, processing, shipped, delivered, cancelled
+  double total_amount = 4;
+  string shipping_address = 5;
+  string payment_method = 6;
+  repeated OrderItem items = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
 message OrderItem {
   string id = 1;
   string order_id = 2;
   string product_id = 3;
-  int32 quantity = 4;
-  double price = 5;
-}
-
-// Order message mirrors the 'orders' table.
-message Order {
-  string id = 1;
-  string user_id = 2;
-  string status = 3;
-  double total_amount = 4;
-  string created_at = 5;
-  repeated OrderItem items = 6; // A list of order items
+  string product_name = 4;
+  int32 quantity = 5;
+  double price = 6;
+  double subtotal = 7;
 }
 
 message CreateOrderRequest {
-  string user_id = 1;
-  // This is a simplified request. In a real scenario, you'd pass a list of product IDs and quantities.
-  repeated string product_ids = 2; 
-  repeated int32 quantities = 3;
+  int64 user_id = 1;
+  string shipping_address = 2;
+  string payment_method = 3;
+  repeated CreateOrderItem items = 4;
+}
+
+message CreateOrderItem {
+  string product_id = 1;
+  int32 quantity = 2;
+  double price = 3;
 }
 
 message CreateOrderResponse {
@@ -42,8 +70,73 @@ message GetOrderResponse {
   Order order = 1;
 }
 
-// Service for order-related gRPC calls.
-service OrderService {
-  rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse);
-  rpc GetOrder(GetOrderRequest) returns (GetOrderResponse);
+message ListOrdersRequest {
+  int64 user_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  string status = 4;
+}
+
+message ListOrdersResponse {
+  repeated Order orders = 1;
+  int64 total_count = 2;
+}
+
+message UpdateOrderStatusRequest {
+  string id = 1;
+  string status = 2;
+}
+
+message UpdateOrderStatusResponse {
+  Order order = 1;
+}
+
+message CancelOrderRequest {
+  string id = 1;
+  int64 user_id = 2;
+}
+
+// Cart Messages
+message CartItem {
+  string product_id = 1;
+  string product_name = 2;
+  int32 quantity = 3;
+  double price = 4;
+  double subtotal = 5;
+}
+
+message Cart {
+  int64 user_id = 1;
+  repeated CartItem items = 2;
+  double total_amount = 3;
+  google.protobuf.Timestamp updated_at = 4;
+}
+
+message AddToCartRequest {
+  int64 user_id = 1;
+  string product_id = 2;
+  int32 quantity = 3;
+}
+
+message GetCartRequest {
+  int64 user_id = 1;
+}
+
+message UpdateCartItemRequest {
+  int64 user_id = 1;
+  string product_id = 2;
+  int32 quantity = 3;
+}
+
+message RemoveFromCartRequest {
+  int64 user_id = 1;
+  string product_id = 2;
+}
+
+message ClearCartRequest {
+  int64 user_id = 1;
+}
+
+message CartResponse {
+  Cart cart = 1;
 }

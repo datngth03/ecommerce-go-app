@@ -1,118 +1,115 @@
 package config
 
 import (
-	"os"
-	"strconv"
-	"time"
+	sharedConfig "github.com/ecommerce-go-app/shared/pkg/config"
 )
 
+// Config holds API Gateway specific configuration
 type Config struct {
-	Server   ServerConfig
-	Services ServiceConfig
-	Auth     AuthConfig
+	Service   sharedConfig.ServiceInfo
+	Server    sharedConfig.ServerConfig
+	Services  sharedConfig.ExternalServices
+	Auth      sharedConfig.AuthConfig
+	RateLimit RateLimitConfig
+	Logging   sharedConfig.LoggingConfig
+	External  ExternalConfig
 }
 
-type ServerConfig struct {
-	Port         string
-	Host         string
-	ReadTimeout  time.Duration
-	WriteTimeout time.Duration
+// RateLimitConfig contains rate limiting settings
+type RateLimitConfig struct {
+	Enabled        bool
+	RequestsPerMin int
+	BurstSize      int
 }
 
-type ServiceConfig struct {
-	UserService         ServiceEndpoint
-	ProductService      ServiceEndpoint
-	OrderService        ServiceEndpoint
-	PaymentService      ServiceEndpoint
-	InventoryService    ServiceEndpoint
-	NotificationService ServiceEndpoint
+// ExternalConfig contains external API configurations
+type ExternalConfig struct {
+	Stripe StripeConfig
+	SMTP   SMTPConfig
+	Twilio TwilioConfig
 }
 
-type ServiceEndpoint struct {
-	HTTPHost string
-	HTTPPort string
-	GRPCHost string
-	GRPCPort string
-	Timeout  time.Duration
+// StripeConfig contains Stripe API settings
+type StripeConfig struct {
+	SecretKey     string
+	WebhookSecret string
 }
 
-type AuthConfig struct {
-	JWTSecret string
+// SMTPConfig contains email SMTP settings
+type SMTPConfig struct {
+	Host     string
+	Port     string
+	User     string
+	Password string
 }
 
+// TwilioConfig contains Twilio SMS settings
+type TwilioConfig struct {
+	AccountSID string
+	AuthToken  string
+}
+
+// Load loads configuration from environment variables
 func Load() (*Config, error) {
-	readTimeout, _ := strconv.Atoi(getEnv("READ_TIMEOUT", "15"))
-	writeTimeout, _ := strconv.Atoi(getEnv("WRITE_TIMEOUT", "15"))
-	serviceTimeout, _ := strconv.Atoi(getEnv("SERVICE_TIMEOUT", "10"))
-
-	return &Config{
-		Server: ServerConfig{
-			Port:         getEnv("GATEWAY_PORT", "8080"),
-			Host:         getEnv("GATEWAY_HOST", "0.0.0.0"),
-			ReadTimeout:  time.Duration(readTimeout) * time.Second,
-			WriteTimeout: time.Duration(writeTimeout) * time.Second,
+	cfg := &Config{
+		Service: sharedConfig.ServiceInfo{
+			Name:        sharedConfig.GetEnv("SERVICE_NAME", "api-gateway"),
+			Version:     sharedConfig.GetEnv("SERVICE_VERSION", "1.0.0"),
+			Environment: sharedConfig.GetEnv("ENVIRONMENT", "development"),
 		},
-		Services: ServiceConfig{
-			UserService: ServiceEndpoint{
-				HTTPHost: getEnv("USER_SERVICE_HTTP_HOST", "localhost"),
-				HTTPPort: getEnv("USER_SERVICE_HTTP_PORT", "8001"),
-				GRPCHost: getEnv("USER_SERVICE_GRPC_HOST", "localhost"),
-				GRPCPort: getEnv("USER_SERVICE_GRPC_PORT", "9001"),
-				Timeout:  time.Duration(serviceTimeout) * time.Second,
+		Server:   sharedConfig.LoadServerConfig("api-gateway", "8000", ""),
+		Services: sharedConfig.LoadExternalServices(),
+		Auth:     sharedConfig.LoadAuthConfig(),
+		Logging:  sharedConfig.LoadLoggingConfig(),
+		RateLimit: RateLimitConfig{
+			Enabled:        sharedConfig.GetEnvAsBool("RATE_LIMIT_ENABLED", true),
+			RequestsPerMin: sharedConfig.GetEnvAsInt("RATE_LIMIT_REQUESTS_PER_MIN", 100),
+			BurstSize:      sharedConfig.GetEnvAsInt("RATE_LIMIT_BURST_SIZE", 20),
+		},
+		External: ExternalConfig{
+			Stripe: StripeConfig{
+				SecretKey:     sharedConfig.GetEnv("STRIPE_SECRET_KEY", ""),
+				WebhookSecret: sharedConfig.GetEnv("STRIPE_WEBHOOK_SECRET", ""),
 			},
-			ProductService: ServiceEndpoint{
-				HTTPHost: getEnv("PRODUCT_SERVICE_HTTP_HOST", "localhost"),
-				HTTPPort: getEnv("PRODUCT_SERVICE_HTTP_PORT", "8002"),
-				GRPCHost: getEnv("PRODUCT_SERVICE_GRPC_HOST", "localhost"),
-				GRPCPort: getEnv("PRODUCT_SERVICE_GRPC_PORT", "9002"),
-				Timeout:  time.Duration(serviceTimeout) * time.Second,
+			SMTP: SMTPConfig{
+				Host:     sharedConfig.GetEnv("SMTP_HOST", "smtp.gmail.com"),
+				Port:     sharedConfig.GetEnv("SMTP_PORT", "587"),
+				User:     sharedConfig.GetEnv("SMTP_USER", ""),
+				Password: sharedConfig.GetEnv("SMTP_PASSWORD", ""),
 			},
-			OrderService: ServiceEndpoint{
-				HTTPHost: getEnv("ORDER_SERVICE_HTTP_HOST", "localhost"),
-				HTTPPort: getEnv("ORDER_SERVICE_HTTP_PORT", "8003"),
-				GRPCHost: getEnv("ORDER_SERVICE_GRPC_HOST", "localhost"),
-				GRPCPort: getEnv("ORDER_SERVICE_GRPC_PORT", "9003"),
-				Timeout:  time.Duration(serviceTimeout) * time.Second,
-			},
-			PaymentService: ServiceEndpoint{
-				HTTPHost: getEnv("PAYMENT_SERVICE_HTTP_HOST", "localhost"),
-				HTTPPort: getEnv("PAYMENT_SERVICE_HTTP_PORT", "8004"),
-				GRPCHost: getEnv("PAYMENT_SERVICE_GRPC_HOST", "localhost"),
-				GRPCPort: getEnv("PAYMENT_SERVICE_GRPC_PORT", "9004"),
-				Timeout:  time.Duration(serviceTimeout) * time.Second,
-			},
-			InventoryService: ServiceEndpoint{
-				HTTPHost: getEnv("INVENTORY_SERVICE_HTTP_HOST", "localhost"),
-				HTTPPort: getEnv("INVENTORY_SERVICE_HTTP_PORT", "8005"),
-				GRPCHost: getEnv("INVENTORY_SERVICE_GRPC_HOST", "localhost"),
-				GRPCPort: getEnv("INVENTORY_SERVICE_GRPC_PORT", "9005"),
-				Timeout:  time.Duration(serviceTimeout) * time.Second,
-			},
-			NotificationService: ServiceEndpoint{
-				HTTPHost: getEnv("NOTIFICATION_SERVICE_HTTP_HOST", "localhost"),
-				HTTPPort: getEnv("NOTIFICATION_SERVICE_HTTP_PORT", "8006"),
-				GRPCHost: getEnv("NOTIFICATION_SERVICE_GRPC_HOST", "localhost"),
-				GRPCPort: getEnv("NOTIFICATION_SERVICE_GRPC_PORT", "9006"),
-				Timeout:  time.Duration(serviceTimeout) * time.Second,
+			Twilio: TwilioConfig{
+				AccountSID: sharedConfig.GetEnv("TWILIO_ACCOUNT_SID", ""),
+				AuthToken:  sharedConfig.GetEnv("TWILIO_AUTH_TOKEN", ""),
 			},
 		},
-		Auth: AuthConfig{
-			JWTSecret: getEnv("JWT_SECRET", "your-secret-key"),
-		},
-	}, nil
-}
-
-func (s ServiceEndpoint) GetHTTPURL() string {
-	return "http://" + s.HTTPHost + ":" + s.HTTPPort
-}
-
-func (s ServiceEndpoint) GetGRPCAddr() string {
-	return s.GRPCHost + ":" + s.GRPCPort
-}
-
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
 	}
-	return defaultValue
+
+	return cfg, nil
+}
+
+// IsProduction returns true if running in production mode
+func (c *Config) IsProduction() bool {
+	return c.Service.Environment == "production"
+}
+
+// IsDevelopment returns true if running in development mode
+func (c *Config) IsDevelopment() bool {
+	return c.Service.Environment == "development"
+}
+
+// GetServerAddress returns the full server address
+func (c *Config) GetServerAddress() string {
+	return c.Server.Host + ":" + c.Server.HTTPPort
+}
+
+// PrintConfig prints the configuration
+func (c *Config) PrintConfig() {
+	baseConfig := sharedConfig.Config{
+		Service:  c.Service,
+		Server:   c.Server,
+		Services: c.Services,
+		Auth:     c.Auth,
+		Logging:  c.Logging,
+	}
+	baseConfig.PrintConfig()
 }

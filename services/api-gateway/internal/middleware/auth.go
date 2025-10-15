@@ -1,117 +1,169 @@
 package middleware
 
 import (
-	"context"
+	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"strings"
+	"time"
 
-	"github.com/ecommerce/services/api-gateway/internal/proxy"
-	"github.com/ecommerce/shared/pkg/response"
+	"github.com/gin-gonic/gin"
 )
 
-type contextKey string
+// UserInfo represents validated user information
+type UserInfo struct {
+	ID       string `json:"id"`
+	Email    string `json:"email"`
+	Username string `json:"username"`
+	Role     string `json:"role"`
+	IsActive bool   `json:"is_active"`
+}
 
-const UserContextKey contextKey = "user"
+// AuthMiddleware validates JWT token by calling User Service
+func AuthMiddleware(userServiceAddr string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Extract token from header
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": "Authorization header required",
+			})
+			c.Abort()
+			return
+		}
 
-// AuthMiddleware creates authentication middleware for API Gateway
-func AuthMiddleware(serviceProxy *proxy.ServiceProxy) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Get token from Authorization header
-			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" {
-				response.Unauthorized(w, "Authorization header required")
-				return
-			}
+		// Parse Bearer token
+		parts := strings.Split(authHeader, " ")
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": "Invalid authorization header format. Expected: Bearer <token>",
+			})
+			c.Abort()
+			return
+		}
 
-			// Check Bearer prefix
-			tokenParts := strings.Split(authHeader, " ")
-			if len(tokenParts) != 2 || tokenParts[0] != "Bearer" {
-				response.Unauthorized(w, "Invalid authorization header format")
-				return
-			}
+		token := parts[1]
 
-			token := tokenParts[1]
+		// Validate token with User Service
+		userInfo, err := validateTokenWithUserService(userServiceAddr, token)
+		if err != nil {
+			ErrorLogger(c, err)
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": "Invalid or expired token",
+			})
+			c.Abort()
+			return
+		}
 
-			// Validate token via User Service gRPC
-			user, err := serviceProxy.ValidateTokenViaGRPC(r.Context(), token)
-			if err != nil {
-				response.Unauthorized(w, "Invalid or expired token")
-				return
-			}
+		// Store user info in context
+		c.Set("user", userInfo)
+		c.Set("user_id", userInfo.ID)
+		c.Set("user_role", userInfo.Role)
 
-			// Add user to context
-			ctx := context.WithValue(r.Context(), UserContextKey, user)
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
+		c.Next()
 	}
 }
 
-// RequireRole middleware to check user role at gateway level
-func RequireRole(serviceProxy *proxy.ServiceProxy, roles ...string) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Get user from context (should be set by AuthMiddleware)
-			userInterface := r.Context().Value(UserContextKey)
-			if userInterface == nil {
-				response.Unauthorized(w, "User not authenticated")
-				return
-			}
+// RequireAdmin checks if user has admin role
+func RequireAdmin() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		role, exists := c.Get("user_role")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": "Authentication required",
+			})
+			c.Abort()
+			return
+		}
 
-			// Type assertion to get user data
-			// Note: This depends on the structure returned by ValidateTokenViaGRPC
-			// You might need to adjust based on your actual user structure
+		if role != "admin" {
+			c.JSON(http.StatusForbidden, gin.H{
+				"error": "Admin access required",
+			})
+			c.Abort()
+			return
+		}
 
-			// For now, let's extract from token again (alternative approach)
-			authHeader := r.Header.Get("Authorization")
-			if authHeader != "" {
-				tokenParts := strings.Split(authHeader, " ")
-				if len(tokenParts) == 2 {
-					token := tokenParts[1]
-					user, err := serviceProxy.ValidateTokenViaGRPC(r.Context(), token)
-					if err != nil {
-						response.Unauthorized(w, "Invalid token")
-						return
-					}
-
-					// Check if user has required role
-					hasRole := false
-					for _, role := range roles {
-						if user.Role == role {
-							hasRole = true
-							break
-						}
-					}
-
-					if !hasRole {
-						response.Forbidden(w, "Insufficient permissions")
-						return
-					}
-				}
-			}
-
-			next.ServeHTTP(w, r)
-		})
+		c.Next()
 	}
 }
 
-// OptionalAuth middleware for endpoints that don't require auth but can use it
-func OptionalAuth(serviceProxy *proxy.ServiceProxy) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			authHeader := r.Header.Get("Authorization")
-			if authHeader != "" {
-				tokenParts := strings.Split(authHeader, " ")
-				if len(tokenParts) == 2 && tokenParts[0] == "Bearer" {
-					token := tokenParts[1]
-					user, err := serviceProxy.ValidateTokenViaGRPC(r.Context(), token)
-					if err == nil && user != nil {
-						ctx := context.WithValue(r.Context(), UserContextKey, user)
-						r = r.WithContext(ctx)
-					}
-				}
+// OptionalAuth tries to validate token but doesn't fail if missing
+func OptionalAuth(userServiceAddr string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.Next()
+			return
+		}
+
+		parts := strings.Split(authHeader, " ")
+		if len(parts) == 2 && parts[0] == "Bearer" {
+			token := parts[1]
+			userInfo, err := validateTokenWithUserService(userServiceAddr, token)
+			if err == nil {
+				c.Set("user", userInfo)
+				c.Set("user_id", userInfo.ID)
+				c.Set("user_role", userInfo.Role)
 			}
-			next.ServeHTTP(w, r)
-		})
+		}
+
+		c.Next()
 	}
+}
+
+// validateTokenWithUserService calls User Service HTTP API to validate token
+func validateTokenWithUserService(userServiceAddr, token string) (*UserInfo, error) {
+	// Create HTTP client with timeout
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+	}
+
+	// Build request URL
+	url := fmt.Sprintf("http://%s/api/v1/auth/validate", userServiceAddr)
+
+	// Create request
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Add token to header
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	// Send request
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to call user service: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Check status code
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("user service returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	// Parse response
+	var result struct {
+		User UserInfo `json:"user"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return &result.User, nil
+}
+
+// GetUserFromContext retrieves user info from context
+func GetUserFromContext(c *gin.Context) (*UserInfo, bool) {
+	user, exists := c.Get("user")
+	if !exists {
+		return nil, false
+	}
+
+	userInfo, ok := user.(*UserInfo)
+	return userInfo, ok
 }

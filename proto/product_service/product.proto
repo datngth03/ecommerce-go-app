@@ -4,15 +4,23 @@ package product_service;
 
 option go_package = "github.com/datngth03/ecommerce-go-app/proto/product_service";
 
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
 
-// Category message mirrors the 'categories' table.
+// =================================
+//      MESSAGES (DTOs)
+// =================================
+
+// Category message: Đại diện cho một danh mục sản phẩm.
 message Category {
   string id = 1;
   string name = 2;
   string slug = 3;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp updated_at = 5;
 }
 
-// Product message mirrors the 'products' table.
+// Product message: Đại diện cho một sản phẩm.
 message Product {
   string id = 1;
   string name = 2;
@@ -22,9 +30,16 @@ message Product {
   string category_id = 6;
   string image_url = 7;
   bool is_active = 8;
-  string created_at = 9;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
 }
 
+
+// =================================
+//  PRODUCT SERVICE MESSAGES
+// =================================
+
+// --- Create ---
 message CreateProductRequest {
   string name = 1;
   string description = 2;
@@ -37,6 +52,7 @@ message CreateProductResponse {
   Product product = 1;
 }
 
+// --- Get ---
 message GetProductRequest {
   string id = 1;
 }
@@ -45,8 +61,100 @@ message GetProductResponse {
   Product product = 1;
 }
 
-// Service for product-related gRPC calls.
+// --- Update ---
+message UpdateProductRequest {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  double price = 4;
+  string category_id = 5;
+  string image_url = 6;
+  bool is_active = 7;
+}
+
+message UpdateProductResponse {
+  Product product = 1;
+}
+
+// --- Delete ---
+message DeleteProductRequest {
+  string id = 1;
+}
+
+// --- List ---
+message ListProductsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string category_id = 3; // Lọc sản phẩm theo danh mục (tùy chọn)
+}
+
+message ListProductsResponse {
+  repeated Product products = 1;
+  int64 total_count = 2;
+}
+
+// =================================
+//  CATEGORY SERVICE MESSAGES
+// =================================
+
+// --- Create ---
+message CreateCategoryRequest {
+  string name = 1;
+}
+
+message CreateCategoryResponse {
+  Category category = 1;
+}
+
+// --- Get ---
+message GetCategoryRequest {
+  string id = 1;
+}
+
+message GetCategoryResponse {
+  Category category = 1;
+}
+
+// --- Update ---
+message UpdateCategoryRequest {
+  string id = 1;
+  string name = 2;
+}
+
+message UpdateCategoryResponse {
+  Category category = 1;
+}
+
+// --- Delete ---
+message DeleteCategoryRequest {
+  string id = 1;
+}
+
+// --- List ---
+message ListCategoriesRequest {}
+
+message ListCategoriesResponse {
+  repeated Category categories = 1;
+}
+
+// =================================
+//      SERVICES
+// =================================
+
+// Dịch vụ quản lý các hoạt động liên quan đến Sản phẩm.
 service ProductService {
   rpc CreateProduct(CreateProductRequest) returns (CreateProductResponse);
   rpc GetProduct(GetProductRequest) returns (GetProductResponse);
+  rpc UpdateProduct(UpdateProductRequest) returns (UpdateProductResponse);
+  rpc DeleteProduct(DeleteProductRequest) returns (google.protobuf.Empty);
+  rpc ListProducts(ListProductsRequest) returns (ListProductsResponse);
+}
+
+// Dịch vụ quản lý các hoạt động liên quan đến Danh mục.
+service CategoryService {
+  rpc CreateCategory(CreateCategoryRequest) returns (CreateCategoryResponse);
+  rpc GetCategory(GetCategoryRequest) returns (GetCategoryResponse);
+  rpc UpdateCategory(UpdateCategoryRequest) returns (UpdateCategoryResponse);
+  rpc DeleteCategory(DeleteCategoryRequest) returns (google.protobuf.Empty);
+  rpc ListCategories(ListCategoriesRequest) returns (ListCategoriesResponse);
 }

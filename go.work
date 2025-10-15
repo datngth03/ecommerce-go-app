@@ -1,10 +1,14 @@
-go 1.24
+go 1.24.0
 
 use (
 	./proto
+	./services/api-gateway
+	./services/inventory-service
+	./services/notification-service
+	./services/order-service
+	./services/payment-service
+	./services/product-service
 	./services/user-service
-// ./services/api-gateway
-// ./services/product-service
 // ./services/order-service
 // ./services/payment-service
 // ./services/inventory-service

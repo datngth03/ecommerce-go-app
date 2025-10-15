@@ -4,34 +4,145 @@ package inventory_service;
 
 option go_package = "github.com/datngth03/ecommerce-go-app/proto/inventory_service";
 
-// Inventory message mirrors the 'inventory' table.
-message Inventory {
+// InventoryService manages product stock levels and reservations
+service InventoryService {
+  // GetStock retrieves current stock for a product
+  rpc GetStock(GetStockRequest) returns (GetStockResponse);
+  
+  // UpdateStock updates stock quantity for a product
+  rpc UpdateStock(UpdateStockRequest) returns (UpdateStockResponse);
+  
+  // ReserveStock reserves stock for an order (pending payment)
+  rpc ReserveStock(ReserveStockRequest) returns (ReserveStockResponse);
+  
+  // ReleaseStock releases reserved stock (order cancelled/failed)
+  rpc ReleaseStock(ReleaseStockRequest) returns (ReleaseStockResponse);
+  
+  // CommitStock commits reserved stock (payment completed)
+  rpc CommitStock(CommitStockRequest) returns (CommitStockResponse);
+  
+  // CheckAvailability checks if products are available
+  rpc CheckAvailability(CheckAvailabilityRequest) returns (CheckAvailabilityResponse);
+  
+  // GetStockHistory retrieves stock movement history
+  rpc GetStockHistory(GetStockHistoryRequest) returns (GetStockHistoryResponse);
+}
+
+// Stock represents product inventory
+message Stock {
+  string product_id = 1;
+  int32 available = 2;      // Available for sale
+  int32 reserved = 3;       // Reserved for pending orders
+  int32 total = 4;          // Total physical stock
+  string warehouse_id = 5;
+  string updated_at = 6;
+}
+
+// StockMovement represents a stock transaction
+message StockMovement {
   string id = 1;
   string product_id = 2;
-  int32 quantity = 3;
-  int32 reserved = 4;
-  string updated_at = 5;
+  string movement_type = 3; // INBOUND, OUTBOUND, RESERVED, RELEASED, COMMITTED, ADJUSTMENT
+  int32 quantity = 4;
+  int32 before_quantity = 5;
+  int32 after_quantity = 6;
+  string reference_type = 7; // ORDER, PURCHASE, ADJUSTMENT
+  string reference_id = 8;
+  string reason = 9;
+  string created_at = 10;
 }
 
-message UpdateInventoryRequest {
+// GetStock
+message GetStockRequest {
   string product_id = 1;
-  int32 quantity_change = 2; // Can be positive for restock or negative for purchase
+  string warehouse_id = 2; // Optional
 }
 
-message UpdateInventoryResponse {
-  Inventory inventory = 1;
+message GetStockResponse {
+  Stock stock = 1;
 }
 
-message GetInventoryRequest {
+// UpdateStock
+message UpdateStockRequest {
   string product_id = 1;
+  int32 quantity = 2;       // Can be positive (add) or negative (remove)
+  string warehouse_id = 3;
+  string reason = 4;
 }
 
-message GetInventoryResponse {
-  Inventory inventory = 1;
+message UpdateStockResponse {
+  Stock stock = 1;
+  StockMovement movement = 2;
 }
 
-// Service for inventory-related gRPC calls.
-service InventoryService {
-  rpc UpdateInventory(UpdateInventoryRequest) returns (UpdateInventoryResponse);
-  rpc GetInventory(GetInventoryRequest) returns (GetInventoryResponse);
+// ReserveStock
+message ReserveStockRequest {
+  string order_id = 1;
+  repeated StockItem items = 2;
+  string warehouse_id = 3;
+}
+
+message StockItem {
+  string product_id = 1;
+  int32 quantity = 2;
+}
+
+message ReserveStockResponse {
+  string reservation_id = 1;
+  bool success = 2;
+  string message = 3;
+  repeated Stock stocks = 4;
+}
+
+// ReleaseStock
+message ReleaseStockRequest {
+  string reservation_id = 1;
+  string order_id = 2;
+  string reason = 3;
+}
+
+message ReleaseStockResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// CommitStock
+message CommitStockRequest {
+  string reservation_id = 1;
+  string order_id = 2;
+}
+
+message CommitStockResponse {
+  bool success = 1;
+  string message = 2;
+  repeated StockMovement movements = 3;
+}
+
+// CheckAvailability
+message CheckAvailabilityRequest {
+  repeated StockItem items = 1;
+  string warehouse_id = 2;
+}
+
+message CheckAvailabilityResponse {
+  bool available = 1;
+  repeated UnavailableItem unavailable_items = 2;
+}
+
+message UnavailableItem {
+  string product_id = 1;
+  int32 requested = 2;
+  int32 available = 3;
+}
+
+// GetStockHistory
+message GetStockHistoryRequest {
+  string product_id = 1;
+  int32 limit = 2;
+  int32 offset = 3;
+}
+
+message GetStockHistoryResponse {
+  repeated StockMovement movements = 1;
+  int32 total = 2;
 }
