@@ -164,7 +164,7 @@ make help
 
 ## 🔧 Environment Variables
 
-### ✅ Đã Chuẩn Hóa (Tất Cả Services)
+### Đã Chuẩn Hóa (Tất Cả Services)
 
 Tất cả services sử dụng **cùng convention** cho environment variables:
 
@@ -217,7 +217,7 @@ LOG_LEVEL=info
 LOG_FORMAT=json
 ```
 
-### 🔐 Service-Specific Config
+### Service-Specific Config
 
 #### API Gateway
 ```bash
@@ -262,42 +262,6 @@ PRODUCT_SERVICE_GRPC_ADDR=product-service:9002
 INVENTORY_SERVICE_GRPC_ADDR=inventory-service:9005
 PAYMENT_SERVICE_GRPC_ADDR=payment-service:9006
 ```
-
----
-
-## 📝 Key Changes Summary
-
-### ✅ Đã Sửa
-
-1. **Port Mapping**
-   - ❌ Cũ: Ports bị lộn xộn (8081, 8082, 8084, 8085, 8086)
-   - ✅ Mới: Ports theo thứ tự logic (8001-8006) + gRPC ports (9001-9006)
-
-2. **Environment Variables**
-   - ❌ Cũ: Mỗi service dùng tên biến khác nhau (`PORT`, `SERVER_PORT`, v.v.)
-   - ✅ Mới: Tất cả dùng `HTTP_PORT` và `GRPC_PORT`
-
-3. **Redis DB Numbers**
-   - ✅ Mỗi service dùng Redis DB number riêng (0-4) để tránh conflict
-
-4. **Health Checks**
-   - ❌ Cũ: Dùng `curl` (không có trong alpine images)
-   - ✅ Mới: Dùng `wget` (có sẵn trong alpine)
-   - ✅ Thêm `start_period=40s` để service có thời gian khởi động
-
-5. **Database Init**
-   - ✅ Tạo file `init.sql` để tự động tạo 6 databases + extensions
-
-6. **Makefile**
-   - ✅ Thêm commands: `build-all`, `dev-logs`, `migrate-force`, `db-reset`
-   - ✅ Fix proto generation path
-   - ✅ Tách biệt `SERVICES` và `GATEWAY`
-
-7. **Docker Dependencies**
-   - ✅ API Gateway depends on tất cả services (không chỉ user + product)
-   - ✅ Health checks với `condition: service_healthy`
-
----
 
 ## 🎯 Quick Start
 

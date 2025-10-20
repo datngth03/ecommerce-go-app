@@ -207,10 +207,36 @@ graph TB
 - PostgreSQL 14+
 - Redis 6+
 
+### ⚡ Phase 2: One-Command Start (Recommended)
+```powershell
+# Start all services and run tests
+.\scripts\quick-start-phase2.ps1 -RunTests
+
+# Just start services (no tests)
+.\scripts\quick-start-phase2.ps1
+
+# Stop all services
+.\scripts\quick-start-phase2.ps1 -StopAll
+```
+
+This will:
+1. ✅ Check Docker is running
+2. ✅ Start infrastructure (PostgreSQL, Redis, RabbitMQ)
+3. ✅ Run database migrations
+4. ✅ Start all 7 microservices
+5. ✅ Verify health of all services
+6. ✅ Run automated tests (with `-RunTests` flag)
+
+**See:** `docs/PHASE2_SUMMARY.md` for complete Phase 2 documentation
+
+---
+
+### Manual Setup (Alternative)
+
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/your-username/ecommerce-microservices.git
-cd ecommerce-microservices
+git clone https://github.com/datngth03/ecommerce-go-app.git
+cd ecommerce-go-app
 ```
 
 ### 2. Environment Setup
@@ -222,7 +248,7 @@ cp .env.example .env
 ### 3. Start Infrastructure
 ```bash
 # Start databases, message queue, and monitoring
-docker-compose up -d postgres redis rabbitmq prometheus grafana
+docker-compose up -d postgres redis rabbitmq
 ```
 
 ### 4. Database Migration
@@ -234,32 +260,91 @@ make migrate-up
 ### 5. Start Services
 ```bash
 # Option 1: Using Docker (Recommended)
-docker-compose up
+docker-compose up -d
 
 # Option 2: Local development
-make run-all
+cd services/api-gateway && go run cmd/main.go
 ```
 
 ### 6. Verify Installation
 ```bash
 # Check API Gateway health
-curl http://localhost:8080/health
+curl http://localhost:8000/health
 
 # Check individual services
-curl http://localhost:8081/health  # User Service
-curl http://localhost:8082/health  # Product Service
+curl http://localhost:8001/health  # User Service
+curl http://localhost:8002/health  # Product Service
+curl http://localhost:8003/health  # Order Service
+curl http://localhost:8004/health  # Notification Service
+curl http://localhost:8005/health  # Inventory Service
+curl http://localhost:8006/health  # Payment Service
 ```
 
 ## 📚 API Documentation
 
+### 🎯 Phase 2: Complete Testing Suite
+
+**Quick Start:**
+```powershell
+# Run automated tests
+.\tests\e2e\test-api.ps1
+
+# Or use quick start with tests
+.\scripts\quick-start-phase2.ps1 -RunTests
+```
+
+**Documentation:**
+- **Complete Test Guide**: `docs/PHASE2_TESTING.md` - All test scenarios with curl examples
+- **Phase 2 Summary**: `docs/PHASE2_SUMMARY.md` - Overview of testing infrastructure
+- **Postman Collection**: `docs/api/postman/ecommerce-phase2.postman_collection.json` - 40+ endpoints
+
+**Test Coverage:**
+- ✅ User Service (Register, Login, Profile)
+- ✅ Product Service (CRUD operations)
+- ✅ Inventory Service (Stock management)
+- ✅ Order Service (Cart, Orders)
+- ✅ Payment Service (Process, Confirm, Refund)
+- ✅ End-to-End E-Commerce Flow
+
+---
+
 ### Swagger UI
-- **API Gateway**: http://localhost:8080/swagger/
-- **Individual Services**: http://localhost:808X/swagger/
+- **API Gateway**: http://localhost:8000/swagger/ (Coming soon)
+- **Individual Services**: http://localhost:800X/swagger/ (Coming soon)
 
 ### Postman Collection
-Import `docs/api/postman/ecommerce.postman_collection.json` for testing APIs.
+Import `docs/api/postman/ecommerce-phase2.postman_collection.json` for testing all APIs.
+
+**How to use:**
+1. Import collection into Postman
+2. Run "Register User" → Auto-saves user_id
+3. Run "Login" → Auto-saves access_token
+4. All subsequent requests use the token automatically
+5. Follow the numbered folders (1. User Service → 5. Payment Service)
 
 ## 🧪 Testing
+
+### ⚡ Automated Testing (Phase 2)
+```powershell
+# Run complete automated test suite (20+ tests)
+.\tests\e2e\test-api.ps1
+
+# Expected output:
+# ✅ User Service (3 tests)
+# ✅ Product Service (3 tests)
+# ✅ Inventory Service (2 tests)
+# ✅ Order Service (5 tests)
+# ✅ Payment Service (6 tests)
+# ✅ Inventory Verification (1 test)
+# 
+# 📊 Test Summary
+# Total Tests: 20
+# Passed: 20
+# Failed: 0
+# Pass Rate: 100%
+```
+
+**See:** `docs/PHASE2_TESTING.md` for detailed test scenarios
 
 ### Unit Tests
 ```bash
@@ -340,13 +425,49 @@ The backend provides RESTful APIs that can be consumed by:
 - **Third-party Integrations**
 
 ### Example API Calls
-```bash
-# User Registration
-curl -X POST http://localhost:8080/api/v1/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com","password":"password123"}'
 
-# Get Products
+**See complete examples in:** `docs/PHASE2_TESTING.md`
+
+```powershell
+# User Registration
+curl -X POST http://localhost:8000/api/v1/auth/register `
+  -H "Content-Type: application/json" `
+  -d '{"email":"user@example.com","password":"SecurePass123!","username":"user","full_name":"User Name"}'
+
+# Login
+curl -X POST http://localhost:8000/api/v1/auth/login `
+  -H "Content-Type: application/json" `
+  -d '{"email":"user@example.com","password":"SecurePass123!"}'
+
+# Get Products (Public)
+curl http://localhost:8000/api/v1/products?page=1&page_size=10
+
+# Get Profile (Authenticated)
+curl http://localhost:8000/api/v1/users/me `
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Add to Cart
+curl -X POST http://localhost:8000/api/v1/cart `
+  -H "Content-Type: application/json" `
+  -H "Authorization: Bearer YOUR_TOKEN" `
+  -d '{"product_id":1,"quantity":2,"price":99.99}'
+
+# Create Order
+curl -X POST http://localhost:8000/api/v1/orders `
+  -H "Content-Type: application/json" `
+  -H "Authorization: Bearer YOUR_TOKEN" `
+  -d '{"shipping_address":"123 Main St","payment_method":"stripe"}'
+
+# Process Payment
+curl -X POST http://localhost:8000/api/v1/payments `
+  -H "Content-Type: application/json" `
+  -H "Authorization: Bearer YOUR_TOKEN" `
+  -d '{"order_id":"1","amount":199.98,"method":"stripe","currency":"USD"}'
+```
+
+**For complete API reference with 40+ endpoints, see:**
+- `docs/PHASE2_TESTING.md` - Complete curl examples
+- `docs/api/postman/ecommerce-phase2.postman_collection.json` - Postman collection
 curl -X GET http://localhost:8080/api/v1/products?page=1&limit=10
 
 # Create Order

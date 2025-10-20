@@ -9,14 +9,18 @@ RUN apk add --no-cache git ca-certificates tzdata
 # Set working directory
 WORKDIR /build
 
-# Copy go mod files
-COPY go.mod go.sum ./
+# Copy proto and shared modules
+COPY proto/ /build/proto/
+COPY shared/ /build/shared/
+
+# Copy service directory
+COPY services/api-gateway/ /build/services/api-gateway/
+
+# Set working directory to service
+WORKDIR /build/services/api-gateway
 
 # Download dependencies
 RUN go mod download
-
-# Copy source code
-COPY . .
 
 # Build the application
 # CGO_ENABLED=0: Build static binary without C dependencies
@@ -42,7 +46,7 @@ RUN addgroup -g 1000 appuser && \
 WORKDIR /app
 
 # Copy binary from builder
-COPY --from=builder /build/api-gateway .
+COPY --from=builder /build/services/api-gateway/api-gateway .
 
 # Copy timezone data
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo

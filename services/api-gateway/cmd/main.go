@@ -48,10 +48,13 @@ func main() {
 	// Initialize handlers
 	userHandler := handler.NewUserHandler(userProxy)
 	productHandler := handler.NewProductHandler(productProxy)
+	orderHandler := handler.NewOrderHandler(grpcClients.Order)
+	paymentHandler := handler.NewPaymentHandler(grpcClients.Payment)
+	inventoryHandler := handler.NewInventoryHandler(grpcClients.Inventory)
 	log.Println("✅ Handlers initialized")
 
 	// Setup HTTP server
-	router := setupRouter(cfg, userHandler, productHandler, userProxy)
+	router := setupRouter(cfg, userHandler, productHandler, orderHandler, paymentHandler, inventoryHandler, userProxy)
 
 	// Create HTTP server
 	srv := &http.Server{
@@ -91,7 +94,15 @@ func main() {
 }
 
 // setupRouter configures all routes and middleware
-func setupRouter(cfg *config.Config, userHandler *handler.UserHandler, productHandler *handler.ProductHandler, userProxy *proxy.UserProxy) *gin.Engine {
+func setupRouter(
+	cfg *config.Config,
+	userHandler *handler.UserHandler,
+	productHandler *handler.ProductHandler,
+	orderHandler *handler.OrderHandler,
+	paymentHandler *handler.PaymentHandler,
+	inventoryHandler *handler.InventoryHandler,
+	userProxy *proxy.UserProxy,
+) *gin.Engine {
 	// Set Gin mode
 	if cfg.IsProduction() {
 		gin.SetMode(gin.ReleaseMode)
@@ -168,7 +179,60 @@ func setupRouter(cfg *config.Config, userHandler *handler.UserHandler, productHa
 			categories.DELETE("/:id", productHandler.DeleteCategory)
 		}
 
-		// TODO: Add order, payment, inventory routes when ready
+		// Order routes
+		orders := v1.Group("/orders")
+		// orders.Use(middleware.AuthMiddleware(userProxy)) // Uncomment when auth is ready
+		{
+			orders.POST("", orderHandler.CreateOrder)
+			orders.GET("/:id", orderHandler.GetOrder)
+			orders.GET("", orderHandler.ListOrders)
+			orders.DELETE("/:id", orderHandler.CancelOrder)
+		}
+
+		// Cart routes
+		cart := v1.Group("/cart")
+		// cart.Use(middleware.AuthMiddleware(userProxy)) // Uncomment when auth is ready
+		{
+			cart.POST("", orderHandler.AddToCart)
+			cart.GET("", orderHandler.GetCart)
+			cart.PUT("/:product_id", orderHandler.UpdateCartItem)
+			cart.DELETE("/:product_id", orderHandler.RemoveFromCart)
+			cart.DELETE("", orderHandler.ClearCart)
+		}
+
+		// Payment routes
+		payments := v1.Group("/payments")
+		// payments.Use(middleware.AuthMiddleware(userProxy)) // Uncomment when auth is ready
+		{
+			payments.POST("", paymentHandler.ProcessPayment)
+			payments.GET("/:id", paymentHandler.GetPayment)
+			payments.GET("/order/:order_id", paymentHandler.GetPaymentByOrder)
+			payments.GET("", paymentHandler.GetPaymentHistory)
+			payments.POST("/:id/confirm", paymentHandler.ConfirmPayment)
+			payments.POST("/:id/refund", paymentHandler.RefundPayment)
+		}
+
+		// Payment Methods routes
+		paymentMethods := v1.Group("/payment-methods")
+		// paymentMethods.Use(middleware.AuthMiddleware(userProxy)) // Uncomment when auth is ready
+		{
+			paymentMethods.POST("", paymentHandler.SavePaymentMethod)
+			paymentMethods.GET("", paymentHandler.GetPaymentMethods)
+		}
+
+		// Inventory routes (public for checking stock)
+		inventory := v1.Group("/inventory")
+		{
+			inventory.GET("/:product_id", inventoryHandler.GetStock)
+			inventory.POST("/check-availability", inventoryHandler.CheckAvailability)
+
+			// Admin routes
+			// inventory.Use(middleware.AuthMiddleware(userProxy))
+			inventory.PUT("/:product_id", inventoryHandler.UpdateStock)
+			inventory.GET("/:product_id/history", inventoryHandler.GetStockHistory)
+		}
+
+		// TODO: Add notification routes when ready
 	}
 
 	return router

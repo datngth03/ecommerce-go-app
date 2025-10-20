@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 # Set working directory
 WORKDIR /app
@@ -7,12 +7,18 @@ WORKDIR /app
 # Install dependencies
 RUN apk add --no-cache git ca-certificates
 
-# Copy go mod files
-COPY go.mod go.sum ./
-RUN go mod download
+# Copy proto and shared modules first (for dependency resolution)
+COPY proto/ /app/proto/
+COPY shared/ /app/shared/
 
-# Copy source code
-COPY . .
+# Copy service directory
+COPY services/payment-service/ /app/services/payment-service/
+
+# Set working directory to service
+WORKDIR /app/services/payment-service
+
+# Download dependencies
+RUN go mod download
 
 # Build the application
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/main.go
@@ -30,10 +36,10 @@ ENV TZ=UTC
 WORKDIR /root/
 
 # Copy binary from builder stage
-COPY --from=builder /app/main .
+COPY --from=builder /app/services/payment-service/main .
 
 # Copy migration files
-COPY --from=builder /app/migrations ./migrations/
+COPY --from=builder /app/services/payment-service/migrations ./migrations/
 
 # Expose ports (HTTP and gRPC)
 EXPOSE 8006 9006

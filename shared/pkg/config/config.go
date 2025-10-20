@@ -306,7 +306,7 @@ func LoadDatabaseConfig(defaultDBName string) DatabaseConfig {
 		Host:            GetEnv("DB_HOST", "localhost"),
 		Port:            GetEnv("DB_PORT", "5432"),
 		User:            GetEnv("DB_USER", "postgres"),
-		Password:        GetEnv("DB_PASSWORD", "postgres"),
+		Password:        GetEnv("DB_PASSWORD", "postgres123"),
 		DBName:          GetEnv("DB_NAME", defaultDBName),
 		SSLMode:         GetEnv("DB_SSL_MODE", "disable"),
 		MaxOpenConns:    GetEnvAsInt("DB_MAX_OPEN_CONNS", 25),

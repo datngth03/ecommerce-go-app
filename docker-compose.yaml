@@ -1,4 +1,4 @@
-version: "3.8"
+# version: "3.8"
 
 services:
    # ================================
@@ -74,8 +74,8 @@ services:
    # API Gateway
    api-gateway:
       build:
-         context: ./services/api-gateway
-         dockerfile: Dockerfile
+         context: .
+         dockerfile: services/api-gateway/Dockerfile
       container_name: ecommerce-api-gateway
       restart: unless-stopped
       ports:
@@ -83,7 +83,7 @@ services:
       environment:
          # Service Info
          - SERVICE_NAME=api-gateway
-         - SERVICE_VERSION=1.0.0
+         # - SERVICE_VERSION=1.0.0
          - ENVIRONMENT=production
 
          # Server
@@ -160,7 +160,7 @@ services:
       environment:
          # Service Info
          - SERVICE_NAME=user-service
-         - SERVICE_VERSION=1.0.0
+         # - SERVICE_VERSION=1.0.0
          - ENVIRONMENT=production
 
          # Server Config
@@ -226,7 +226,7 @@ services:
       environment:
          # Service Info
          - SERVICE_NAME=product-service
-         - SERVICE_VERSION=1.0.0
+         # - SERVICE_VERSION=1.0.0
          - ENVIRONMENT=production
 
          # Server Config
@@ -277,8 +277,8 @@ services:
    # Order Service
    order-service:
       build:
-         context: .
-         dockerfile: services/order-service/Dockerfile
+         context: ./services/order-service
+         dockerfile: Dockerfile
       container_name: ecommerce-order-service
       restart: unless-stopped
       ports:
@@ -287,7 +287,7 @@ services:
       environment:
          # Service Info
          - SERVICE_NAME=order-service
-         - SERVICE_VERSION=1.0.0
+         # - SERVICE_VERSION=1.0.0
          - ENVIRONMENT=production
 
          # Server Config
@@ -353,8 +353,8 @@ services:
    # Payment Service
    payment-service:
       build:
-         context: .
-         dockerfile: services/payment-service/Dockerfile
+         context: ./services/payment-service
+         dockerfile: Dockerfile
       container_name: ecommerce-payment-service
       restart: unless-stopped
       ports:
@@ -363,7 +363,7 @@ services:
       environment:
          # Service Info
          - SERVICE_NAME=payment-service
-         - SERVICE_VERSION=1.0.0
+         # - SERVICE_VERSION=1.0.0
          - ENVIRONMENT=production
 
          # Server Config
@@ -429,8 +429,8 @@ services:
    # Inventory Service
    inventory-service:
       build:
-         context: .
-         dockerfile: services/inventory-service/Dockerfile
+         context: ./services/inventory-service
+         dockerfile: Dockerfile
       container_name: ecommerce-inventory-service
       restart: unless-stopped
       ports:
@@ -439,7 +439,7 @@ services:
       environment:
          # Service Info
          - SERVICE_NAME=inventory-service
-         - SERVICE_VERSION=1.0.0
+         # - SERVICE_VERSION=1.0.0
          - ENVIRONMENT=production
 
          # Server Config
@@ -500,8 +500,8 @@ services:
    # Notification Service
    notification-service:
       build:
-         context: .
-         dockerfile: services/notification-service/Dockerfile
+         context: ./services/notification-service
+         dockerfile: Dockerfile
       container_name: ecommerce-notification-service
       restart: unless-stopped
       ports:
@@ -510,7 +510,7 @@ services:
       environment:
          # Service Info
          - SERVICE_NAME=notification-service
-         - SERVICE_VERSION=1.0.0
+         # - SERVICE_VERSION=1.0.0
          - ENVIRONMENT=production
 
          # Server Config

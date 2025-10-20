@@ -10,7 +10,6 @@ require (
 	github.com/gin-gonic/gin v1.11.0
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/google/uuid v1.6.0
-	github.com/redis/go-redis/v9 v9.7.0
 	github.com/streadway/amqp v1.1.0
 	google.golang.org/grpc v1.76.0
 	google.golang.org/protobuf v1.36.9

@@ -3,12 +3,18 @@ FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
 
-# Copy go mod files
-COPY go.mod go.sum ./
-RUN go mod download
+# Copy proto and shared modules
+COPY proto/ /app/proto/
+COPY shared/ /app/shared/
 
-# Copy source code
-COPY . .
+# Copy service directory
+COPY services/product-service/ /app/services/product-service/
+
+# Set working directory to service
+WORKDIR /app/services/product-service
+
+# Download dependencies
+RUN go mod download
 
 # Build binary
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o product-service ./cmd/main.go
@@ -21,10 +27,10 @@ RUN apk --no-cache add ca-certificates
 WORKDIR /root/
 
 # Copy binary from builder
-COPY --from=builder /app/product-service .
+COPY --from=builder /app/services/product-service/product-service .
 
 # Copy migrations
-COPY --from=builder /app/migrations ./migrations
+COPY --from=builder /app/services/product-service/migrations ./migrations
 
 EXPOSE 8081 9091
 

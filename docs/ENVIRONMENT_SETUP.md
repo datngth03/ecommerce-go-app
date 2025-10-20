@@ -212,7 +212,7 @@ docker ps | grep postgres
 
 # Check credentials in .env
 DB_USER=postgres
-DB_PASSWORD=postgres
+DB_PASSWORD=postgres1213
 DB_HOST=localhost  # or 'postgres' if using docker-compose network
 ```
 

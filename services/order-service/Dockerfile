@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 # Set working directory
 WORKDIR /app
@@ -7,12 +7,20 @@ WORKDIR /app
 # Install dependencies
 RUN apk add --no-cache git ca-certificates
 
-# Copy go mod files
-COPY go.mod go.sum ./
+# Copy proto and shared modules
+COPY proto/ /app/proto/
+COPY shared/ /app/shared/
+
+# Copy service directory
+COPY services/order-service/ /app/services/order-service/
+
+# Set working directory to service
+WORKDIR /app/services/order-service
+
+# Download dependencies
 RUN go mod download
 
-# Copy source code
-COPY . .
+# Copy source code is already done above
 
 # Build the application
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/main.go
@@ -30,10 +38,10 @@ ENV TZ=UTC
 WORKDIR /root/
 
 # Copy binary from builder stage
-COPY --from=builder /app/main .
+COPY --from=builder /app/services/order-service/main .
 
 # Copy migration files
-COPY --from=builder /app/migrations ./migrations/
+COPY --from=builder /app/services/order-service/migrations ./migrations/
 
 # Expose ports (HTTP and gRPC)
 EXPOSE 8003 9003

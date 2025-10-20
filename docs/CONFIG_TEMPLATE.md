@@ -292,10 +292,4 @@ func main() {
 }
 ```
 
-## Notes
 
-1. **Mỗi service chỉ cần include các config section cần thiết**
-2. **Environment variables should follow 12-factor app principles**
-3. **Sensitive data (passwords, secrets) phải được mask khi log**
-4. **Defaults should be sensible cho development environment**
-5. **Production config phải được set qua environment variables**
