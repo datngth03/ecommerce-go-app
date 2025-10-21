@@ -13,6 +13,10 @@ info:
     ## Base URL
     Development: `http://localhost:8000/api/v1`
     
+    ## Validation
+    Validate this spec: `npx @stoplight/spectral-cli lint docs/api/swagger.yaml`
+    Generate client: `openapi-generator-cli generate -i docs/api/swagger.yaml -g <language>`
+    
   version: 2.0.0
   contact:
     name: API Support
@@ -23,7 +27,7 @@ info:
 
 servers:
   - url: http://localhost:8000/api/v1
-    description: Local development server
+    description: Local development server (docker-compose)
   - url: https://api.staging.ecommerce.com/api/v1
     description: Staging environment
   - url: https://api.ecommerce.com/api/v1

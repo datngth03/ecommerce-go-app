@@ -10,7 +10,7 @@ This Postman collection provides a complete set of API endpoints for testing the
 1. **Import Collection**
    - Open Postman
    - Click "Import" button
-   - Select `ecommerce-phase2.postman_collection.json`
+   - Select `ecommerce.postman_collection.json`
 
 2. **Import Environment**
    - Import `ecommerce-local.postman_environment.json`
@@ -19,6 +19,13 @@ This Postman collection provides a complete set of API endpoints for testing the
 3. **Start Services**
    ```bash
    docker-compose up -d
+   ```
+
+4. **Validate Files** (Optional)
+   ```powershell
+   # Validate JSON syntax
+   Get-Content docs/api/postman/ecommerce.postman_collection.json | ConvertFrom-Json | Out-Null
+   Get-Content docs/api/postman/ecommerce-local.postman_environment.json | ConvertFrom-Json | Out-Null
    ```
 
 ### Quick Start Test Flow

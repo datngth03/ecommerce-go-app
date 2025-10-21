@@ -13,29 +13,34 @@ This document describes the system architecture of a scalable e-commerce platfor
           │                      │                      │
           └──────────────────────┼──────────────────────┘
                                  │
-                    ┌─────────────▼──────────────┐
-                    │      API Gateway           │
+                    ┌────────────▼───────────────┐
+                    │      API Gateway :8000     │
                     │  - Authentication          │
                     │  - Rate Limiting           │
                     │  - Load Balancing          │
-                    └─────────────┬──────────────┘
-                                  │
-        ┌─────────────────────────┼─────────────────────────┐
-        │                         │                         │
-   ┌────▼────┐  ┌────▼────┐  ┌───▼────┐  ┌────▼────┐  ┌───▼────┐
-   │  User   │  │Product  │  │ Order  │  │Payment  │  │Inventory│
-   │Service  │  │Service  │  │Service │  │Service  │  │Service  │
-   └────┬────┘  └────┬────┘  └───┬────┘  └────┬────┘  └───┬────┘
-        │            │           │           │            │
-   ┌────▼────┐  ┌───▼────┐  ┌───▼────┐  ┌───▼────┐   ┌──▼────┐
-   │users_db │  │products│  │orders  │  │payments│   │inventory│
-   │         │  │_db     │  │_db     │  │_db     │   │_db    │
-   └─────────┘  └────────┘  └────────┘  └────────┘   └───────┘
+                    └────────────┬───────────────┘
+                                 │
+        ┌────────────────────────┼────────────────────────┬───────────────┐
+        │                        │                        │               │
+   ┌────▼────┐  ┌────▼────┐  ┌──▼─────┐  ┌────▼────┐  ┌─▼─────┐  ┌────▼─────┐
+   │  User   │  │Product  │  │ Order  │  │Payment  │  │Inventory│ │Notification│
+   │:8001    │  │:8002    │  │ :8003  │  │:8004    │  │:8005   │ │  :8006    │
+   └────┬────┘  └────┬────┘  └───┬────┘  └────┬────┘  └───┬────┘ └────┬─────┘
+        │            │           │            │            │           │
+   ┌────▼────┐  ┌───▼────┐  ┌───▼────┐  ┌───▼─────┐  ┌──▼────┐  ┌───▼─────┐
+   │users_db │  │products│  │orders  │  │payments │  │inventory│ │notifications│
+   │         │  │_db     │  │_db     │  │_db      │  │_db     │ │_db         │
+   └─────────┘  └────────┘  └────────┘  └─────────┘  └────────┘ └────────────┘
+                                 │
+                          ┌──────▼──────┐
+                          │  RabbitMQ   │
+                          │  (Events)   │
+                          └─────────────┘
 ```
 
 ## 3. Service Architecture
 
-### 3.1 API Gateway (Port 8080)
+### 3.1 API Gateway (Port 8000)
 **Responsibilities:**
 - Single entry point for all client requests
 - JWT token validation
@@ -45,73 +50,83 @@ This document describes the system architecture of a scalable e-commerce platfor
 
 **Technology:** Go + Gin
 
-### 3.2 User Service (Port 8081)
+### 3.2 User Service (Port 8001)
 **Responsibilities:**
 - User registration and authentication
 - Profile management
 - JWT token generation
 - Password reset
 
-**Database:** users_db
-- users table
-- user_profiles table
+**Database:** users_db (PostgreSQL)
+**Tables:**
+- `users` - User accounts with credentials
 
-### 3.3 Product Service (Port 8082)
+### 3.3 Product Service (Port 8002)
 **Responsibilities:**
 - Product catalog management
 - Category management
 - Product search and filtering
 - Product recommendations
 
-**Database:** products_db
-- products table
-- categories table
-- product_images table
+**Database:** products_db (PostgreSQL)
+**Tables:**
+- `products` - Product details with pricing
+- `categories` - Product categories
 
-### 3.4 Order Service (Port 8083)
+### 3.4 Order Service (Port 8003)
 **Responsibilities:**
 - Shopping cart management
 - Order creation and processing
 - Order status tracking
 - Order history
 
-**Database:** orders_db
-- orders table
-- order_items table
-- carts table
+**Database:** orders_db (PostgreSQL)
+**Tables:**
+- `orders` - Customer orders
+- `order_items` - Items in each order
+- `carts` - Shopping carts
+- `cart_items` - Items in carts
 
-### 3.5 Payment Service (Port 8084)
+### 3.5 Payment Service (Port 8004)
 **Responsibilities:**
 - Payment processing (Stripe integration)
 - Transaction recording
 - Refund handling
 - Payment webhooks
+- Saved payment methods
 
-**Database:** payments_db
-- payments table
-- transactions table
+**Database:** payments_db (PostgreSQL)
+**Tables:**
+- `payments` - Payment records
+- `transactions` - Transaction history
+- `refunds` - Refund records
+- `payment_methods` - Saved payment methods
 
-### 3.6 Inventory Service (Port 8085)
+### 3.6 Inventory Service (Port 8005)
 **Responsibilities:**
 - Stock level management
-- Stock reservation
+- Stock reservation for orders
 - Low stock alerts
-- Stock updates
+- Stock movement tracking
 
-**Database:** inventory_db
-- inventory table
-- stock_movements table
+**Database:** inventory_db (PostgreSQL)
+**Tables:**
+- `stocks` - Current stock levels
+- `stock_movements` - Audit trail
+- `reservations` - Temporary stock holds
 
-### 3.7 Notification Service (Port 8086)
+### 3.7 Notification Service (Port 8006)
 **Responsibilities:**
 - Email notifications
-- SMS notifications
-- Push notifications
+- SMS notifications (planned)
+- Push notifications (planned)
 - Notification templates
+- Event-driven notifications
 
-**Database:** notifications_db
-- notifications table
-- notification_templates table
+**Database:** notifications_db (PostgreSQL)
+**Tables:**
+- `notifications` - Notification queue & history
+- `templates` - Reusable notification templates
 
 ## 4. Data Flow Examples
 
