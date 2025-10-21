@@ -138,9 +138,15 @@ func (r *paymentRepository) UpdateRefund(ctx context.Context, refund *models.Ref
 func (r *paymentRepository) SavePaymentMethod(ctx context.Context, method *models.PaymentMethod) error {
 	// If this is set as default, unset other defaults
 	if method.IsDefault {
-		if err := r.db.WithContext(ctx).Model(&models.PaymentMethod{}).
-			Where("user_id = ? AND id != ?", method.UserID, method.ID).
-			Update("is_default", false).Error; err != nil {
+		query := r.db.WithContext(ctx).Model(&models.PaymentMethod{}).
+			Where("user_id = ?", method.UserID)
+
+		// Only exclude current ID if it's not empty (updating existing method)
+		if method.ID != "" {
+			query = query.Where("id != ?", method.ID)
+		}
+
+		if err := query.Update("is_default", false).Error; err != nil {
 			return fmt.Errorf("failed to unset other defaults: %w", err)
 		}
 	}

@@ -67,24 +67,6 @@ services:
          timeout: 30s
          retries: 3
 
-   # Database Migrations Runner
-   migrations:
-      build:
-         context: .
-         dockerfile: infrastructure/docker/migrations/Dockerfile
-      container_name: ecommerce-migrations
-      environment:
-         - DB_USER=postgres
-         - DB_PASSWORD=postgres123
-         - DB_HOST=postgres
-         - DB_PORT=5432
-      depends_on:
-         postgres:
-            condition: service_healthy
-      networks:
-         - ecommerce-network
-      restart: "no"
-
    # ================================
    # Microservices
    # ================================
@@ -110,18 +92,12 @@ services:
          - GIN_MODE=release
 
          # Services - gRPC Addresses (Internal Communication)
-         - USER_SERVICE_GRPC=user-service:9001
-         - USER_SERVICE_HTTP=http://user-service:8001
-         - PRODUCT_SERVICE_GRPC=product-service:9002
-         - PRODUCT_SERVICE_HTTP=http://product-service:8002
-         - ORDER_SERVICE_GRPC=order-service:9003
-         - ORDER_SERVICE_HTTP=http://order-service:8003
-         - NOTIFICATION_SERVICE_GRPC=notification-service:9004
-         - NOTIFICATION_SERVICE_HTTP=http://notification-service:8004
-         - INVENTORY_SERVICE_GRPC=inventory-service:9005
-         - INVENTORY_SERVICE_HTTP=http://inventory-service:8005
-         - PAYMENT_SERVICE_GRPC=payment-service:9006
-         - PAYMENT_SERVICE_HTTP=http://payment-service:8006
+         - USER_SERVICE_GRPC_ADDR=user-service:9001
+         - PRODUCT_SERVICE_GRPC_ADDR=product-service:9002
+         - ORDER_SERVICE_GRPC_ADDR=order-service:9003
+         - NOTIFICATION_SERVICE_GRPC_ADDR=notification-service:9004
+         - INVENTORY_SERVICE_GRPC_ADDR=inventory-service:9005
+         - PAYMENT_SERVICE_GRPC_ADDR=payment-service:9006
 
          # Timeouts
          - SERVICE_TIMEOUT=30s
@@ -220,8 +196,6 @@ services:
             condition: service_healthy
          redis:
             condition: service_healthy
-         migrations:
-            condition: service_completed_successfully
       networks:
          - ecommerce-network
       healthcheck:
@@ -283,8 +257,6 @@ services:
             condition: service_healthy
          redis:
             condition: service_healthy
-         migrations:
-            condition: service_completed_successfully
       networks:
          - ecommerce-network
       healthcheck:
@@ -306,7 +278,7 @@ services:
    order-service:
       build:
          context: .
-         dockerfile: services/order-service/Dockerfile
+         dockerfile: services/$1/Dockerfile
       container_name: ecommerce-order-service
       restart: unless-stopped
       ports:
@@ -346,10 +318,10 @@ services:
          - RABBITMQ_VHOST=/
 
          # External Services (gRPC)
-         - USER_SERVICE_GRPC=user-service:9001
-         - PRODUCT_SERVICE_GRPC=product-service:9002
-         - INVENTORY_SERVICE_GRPC=inventory-service:9005
-         - PAYMENT_SERVICE_GRPC=payment-service:9006
+         - USER_SERVICE_GRPC_ADDR=user-service:9001
+         - PRODUCT_SERVICE_GRPC_ADDR=product-service:9002
+         - INVENTORY_SERVICE_GRPC_ADDR=inventory-service:9005
+         - PAYMENT_SERVICE_GRPC_ADDR=payment-service:9006
 
          # Logging
          - LOG_LEVEL=info
@@ -382,7 +354,7 @@ services:
    payment-service:
       build:
          context: .
-         dockerfile: services/payment-service/Dockerfile
+         dockerfile: services/$1/Dockerfile
       container_name: ecommerce-payment-service
       restart: unless-stopped
       ports:
@@ -458,7 +430,7 @@ services:
    inventory-service:
       build:
          context: .
-         dockerfile: services/inventory-service/Dockerfile
+         dockerfile: services/$1/Dockerfile
       container_name: ecommerce-inventory-service
       restart: unless-stopped
       ports:
@@ -529,7 +501,7 @@ services:
    notification-service:
       build:
          context: .
-         dockerfile: services/notification-service/Dockerfile
+         dockerfile: services/$1/Dockerfile
       container_name: ecommerce-notification-service
       restart: unless-stopped
       ports:

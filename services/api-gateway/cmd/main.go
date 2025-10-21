@@ -145,7 +145,7 @@ func setupRouter(
 			users.GET("/:id", userHandler.GetUser)
 
 			// Protected routes (require authentication)
-			// users.Use(middleware.AuthMiddleware(userProxy))
+			users.Use(middleware.AuthMiddleware(userProxy))
 			users.GET("/me", userHandler.GetProfile)
 			users.PUT("/:id", userHandler.UpdateUser)
 			users.DELETE("/:id", userHandler.DeleteUser)
@@ -159,7 +159,7 @@ func setupRouter(
 			products.GET("/:id", productHandler.GetProduct)
 
 			// Protected routes - require authentication
-			// products.Use(middleware.AuthMiddleware(userProxy))
+			products.Use(middleware.AuthMiddleware(userProxy))
 			products.POST("", productHandler.CreateProduct)
 			products.PUT("/:id", productHandler.UpdateProduct)
 			products.DELETE("/:id", productHandler.DeleteProduct)
@@ -173,7 +173,7 @@ func setupRouter(
 			categories.GET("/:id", productHandler.GetCategory)
 
 			// Protected routes
-			// categories.Use(middleware.AuthMiddleware(userProxy))
+			categories.Use(middleware.AuthMiddleware(userProxy))
 			categories.POST("", productHandler.CreateCategory)
 			categories.PUT("/:id", productHandler.UpdateCategory)
 			categories.DELETE("/:id", productHandler.DeleteCategory)
@@ -181,7 +181,7 @@ func setupRouter(
 
 		// Order routes
 		orders := v1.Group("/orders")
-		// orders.Use(middleware.AuthMiddleware(userProxy)) // Uncomment when auth is ready
+		orders.Use(middleware.AuthMiddleware(userProxy))
 		{
 			orders.POST("", orderHandler.CreateOrder)
 			orders.GET("/:id", orderHandler.GetOrder)
@@ -191,7 +191,7 @@ func setupRouter(
 
 		// Cart routes
 		cart := v1.Group("/cart")
-		// cart.Use(middleware.AuthMiddleware(userProxy)) // Uncomment when auth is ready
+		cart.Use(middleware.AuthMiddleware(userProxy))
 		{
 			cart.POST("", orderHandler.AddToCart)
 			cart.GET("", orderHandler.GetCart)
@@ -202,7 +202,7 @@ func setupRouter(
 
 		// Payment routes
 		payments := v1.Group("/payments")
-		// payments.Use(middleware.AuthMiddleware(userProxy)) // Uncomment when auth is ready
+		payments.Use(middleware.AuthMiddleware(userProxy))
 		{
 			payments.POST("", paymentHandler.ProcessPayment)
 			payments.GET("/:id", paymentHandler.GetPayment)
@@ -214,7 +214,7 @@ func setupRouter(
 
 		// Payment Methods routes
 		paymentMethods := v1.Group("/payment-methods")
-		// paymentMethods.Use(middleware.AuthMiddleware(userProxy)) // Uncomment when auth is ready
+		paymentMethods.Use(middleware.AuthMiddleware(userProxy))
 		{
 			paymentMethods.POST("", paymentHandler.SavePaymentMethod)
 			paymentMethods.GET("", paymentHandler.GetPaymentMethods)
@@ -227,7 +227,7 @@ func setupRouter(
 			inventory.POST("/check-availability", inventoryHandler.CheckAvailability)
 
 			// Admin routes
-			// inventory.Use(middleware.AuthMiddleware(userProxy))
+			inventory.Use(middleware.AuthMiddleware(userProxy))
 			inventory.PUT("/:product_id", inventoryHandler.UpdateStock)
 			inventory.GET("/:product_id/history", inventoryHandler.GetStockHistory)
 		}

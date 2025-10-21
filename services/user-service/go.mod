@@ -1,9 +1,5 @@
 module github.com/datngth03/ecommerce-go-app/services/user-service
-
-go 1.24.0
-
-toolchain go1.24.3
-
+go 1.23
 require (
 	github.com/datngth03/ecommerce-go-app/proto v0.0.0
 	github.com/datngth03/ecommerce-go-app/shared v0.0.0
@@ -12,12 +8,11 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/redis/go-redis/v9 v9.7.0
 	golang.org/x/crypto v0.41.0
-	google.golang.org/grpc v1.76.0
-	google.golang.org/protobuf v1.36.9
+	google.golang.org/grpc v1.67.1
+	google.golang.org/protobuf v1.35.1
 	gorm.io/driver/postgres v1.5.4
 	gorm.io/gorm v1.25.5
 )
-
 require (
 	github.com/bytedance/sonic v1.14.0 // indirect
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
@@ -56,7 +51,5 @@ require (
 	golang.org/x/tools v0.35.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250804133106-a7a43d27e69b // indirect
 )
-
 replace github.com/datngth03/ecommerce-go-app/proto => ../../proto
-
 replace github.com/datngth03/ecommerce-go-app/shared => ../../shared

@@ -1,16 +1,12 @@
 module github.com/datngth03/ecommerce-go-app/services/api-gateway
-
-go 1.24.0
-
+go 1.23
 require (
 	github.com/datngth03/ecommerce-go-app/proto v0.0.0-20250917093817-272b79378ff4
 	github.com/ecommerce-go-app/shared v0.0.0
 	github.com/gin-gonic/gin v1.11.0
-	google.golang.org/grpc v1.76.0
+	google.golang.org/grpc v1.67.1
 )
-
 replace github.com/ecommerce-go-app/shared => ../../shared
-
 require (
 	github.com/bytedance/sonic v1.14.0 // indirect
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
@@ -45,7 +41,6 @@ require (
 	golang.org/x/text v0.28.0 // indirect
 	golang.org/x/tools v0.35.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250804133106-a7a43d27e69b // indirect
-	google.golang.org/protobuf v1.36.9 // indirect
+	google.golang.org/protobuf v1.35.1 // indirect
 )
-
 replace github.com/datngth03/ecommerce-go-app/proto => ../../proto

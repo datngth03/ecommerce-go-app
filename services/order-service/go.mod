@@ -1,8 +1,6 @@
 module github.com/datngth03/ecommerce-go-app/services/order-service
 
-go 1.24.0
-
-toolchain go1.24.3
+go 1.23
 
 require (
 	github.com/datngth03/ecommerce-go-app/proto v0.0.0
@@ -10,9 +8,10 @@ require (
 	github.com/gin-gonic/gin v1.11.0
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/google/uuid v1.6.0
+	github.com/lib/pq v1.10.9
 	github.com/streadway/amqp v1.1.0
-	google.golang.org/grpc v1.76.0
-	google.golang.org/protobuf v1.36.9
+	google.golang.org/grpc v1.67.1
+	google.golang.org/protobuf v1.35.1
 )
 
 require (

@@ -1,7 +1,10 @@
 # Build stage
-FROM golang:1.24-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 WORKDIR /app
+
+# Install build dependencies
+RUN apk add --no-cache git ca-certificates
 
 # Copy proto and shared modules
 COPY proto/ /app/proto/
@@ -15,6 +18,7 @@ WORKDIR /app/services/product-service
 
 # Download dependencies
 RUN go mod download
+RUN go mod tidy
 
 # Build binary
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o product-service ./cmd/main.go

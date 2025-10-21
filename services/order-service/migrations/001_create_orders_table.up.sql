@@ -1,6 +1,9 @@
+-- Enable UUID extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 -- Create orders table
 CREATE TABLE IF NOT EXISTS orders (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id BIGINT NOT NULL,
     status VARCHAR(50) NOT NULL DEFAULT 'pending',
     total_amount DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
@@ -12,7 +15,7 @@ CREATE TABLE IF NOT EXISTS orders (
 
 -- Create order_items table
 CREATE TABLE IF NOT EXISTS order_items (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
     product_id VARCHAR(255) NOT NULL,
     product_name VARCHAR(255) NOT NULL,
@@ -24,7 +27,7 @@ CREATE TABLE IF NOT EXISTS order_items (
 
 -- Create carts table
 CREATE TABLE IF NOT EXISTS carts (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id BIGINT NOT NULL UNIQUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -32,7 +35,7 @@ CREATE TABLE IF NOT EXISTS carts (
 
 -- Create cart_items table
 CREATE TABLE IF NOT EXISTS cart_items (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     cart_id UUID NOT NULL REFERENCES carts(id) ON DELETE CASCADE,
     product_id VARCHAR(255) NOT NULL,
     product_name VARCHAR(255) NOT NULL,

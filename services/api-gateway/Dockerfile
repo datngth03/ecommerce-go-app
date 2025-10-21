@@ -1,7 +1,7 @@
 # =============================================================================
 # Stage 1: Build Stage
 # =============================================================================
-FROM golang:1.24-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache git ca-certificates tzdata
@@ -21,6 +21,7 @@ WORKDIR /build/services/api-gateway
 
 # Download dependencies
 RUN go mod download
+RUN go mod tidy
 
 # Build the application
 # CGO_ENABLED=0: Build static binary without C dependencies

@@ -34,4 +34,27 @@ CREATE INDEX IF NOT EXISTS idx_products_is_active ON products(is_active);
 CREATE INDEX IF NOT EXISTS idx_products_created_at ON products(created_at);
 CREATE INDEX IF NOT EXISTS idx_categories_slug ON categories(slug);
 
--- Create function
+-- Create function to update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- Create triggers for automatic updated_at
+CREATE TRIGGER update_products_updated_at BEFORE UPDATE ON products
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_categories_updated_at BEFORE UPDATE ON categories
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Insert default categories
+INSERT INTO categories (name, slug) VALUES 
+    ('Electronics', 'electronics'),
+    ('Clothing', 'clothing'),
+    ('Books', 'books'),
+    ('Home & Garden', 'home-garden'),
+    ('Sports', 'sports')
+ON CONFLICT (name) DO NOTHING;

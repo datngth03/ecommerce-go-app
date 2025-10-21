@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.24-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 # Set working directory
 WORKDIR /app
@@ -19,6 +19,7 @@ WORKDIR /app/services/order-service
 
 # Download dependencies
 RUN go mod download
+RUN go mod tidy
 
 # Copy source code is already done above
 

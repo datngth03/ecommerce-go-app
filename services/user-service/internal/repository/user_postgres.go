@@ -43,7 +43,7 @@ func (r *sqlUserRepository) GetByID(ctx context.Context, id int64) (*models.User
 	query := `
 		SELECT id, email, password_hash, name, phone, is_active, created_at, updated_at
 		FROM users
-		WHERE id = $1 AND deleted_at IS NULL`
+		WHERE id = $1`
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&user.ID, &user.Email, &user.Password, &user.Name,
@@ -64,7 +64,7 @@ func (r *sqlUserRepository) GetByEmail(ctx context.Context, email string) (*mode
 	query := `
 		SELECT id, email, password_hash, name, phone, is_active, created_at, updated_at
 		FROM users
-		WHERE email = $1 AND deleted_at IS NULL`
+		WHERE email = $1`
 
 	err := r.db.QueryRowContext(ctx, query, email).Scan(
 		&user.ID, &user.Email, &user.Password, &user.Name,
@@ -84,7 +84,7 @@ func (r *sqlUserRepository) Update(ctx context.Context, updateData *models.UserU
 	query := `
 		UPDATE users
 		SET name = $1, phone = $2, updated_at = NOW()
-		WHERE id = $3 AND deleted_at IS NULL
+		WHERE id = $3
 		RETURNING id, email, password_hash, name, phone, is_active, created_at, updated_at`
 
 	var user models.User
@@ -107,7 +107,7 @@ func (r *sqlUserRepository) Update(ctx context.Context, updateData *models.UserU
 // ... (giữ nguyên các hàm còn lại)
 
 func (r *sqlUserRepository) Delete(ctx context.Context, id int64) error {
-	query := "UPDATE users SET deleted_at = NOW() WHERE id = $1"
+	query := "UPDATE users SET is_active = FALSE, updated_at = NOW() WHERE id = $1"
 	result, err := r.db.ExecContext(ctx, query, id)
 	if err != nil {
 		return err
@@ -140,7 +140,7 @@ func (r *sqlUserRepository) UpdatePassword(ctx context.Context, userID int64, ha
 
 func (r *sqlUserRepository) ExistsByEmail(ctx context.Context, email string) (bool, error) {
 	var exists bool
-	query := "SELECT EXISTS(SELECT 1 FROM users WHERE email = $1 AND deleted_at IS NULL)"
+	query := "SELECT EXISTS(SELECT 1 FROM users WHERE email = $1 AND is_active = TRUE)"
 	err := r.db.QueryRowContext(ctx, query, email).Scan(&exists)
 	if err != nil {
 		return false, err

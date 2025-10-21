@@ -13,7 +13,6 @@ import (
 
 	pb "github.com/datngth03/ecommerce-go-app/proto/user_service"
 	"github.com/datngth03/ecommerce-go-app/services/user-service/internal/config"
-	"github.com/datngth03/ecommerce-go-app/services/user-service/internal/models"
 	"github.com/datngth03/ecommerce-go-app/services/user-service/internal/repository"
 	"github.com/datngth03/ecommerce-go-app/services/user-service/internal/rpc"
 	"github.com/datngth03/ecommerce-go-app/services/user-service/internal/service"
@@ -61,12 +60,12 @@ func main() {
 		}
 	}()
 
-	// 3. Run Database Migrations
-	log.Println("Running database migrations...")
-	if err := db.AutoMigrate(&models.User{}); err != nil {
-		log.Fatalf("Failed to migrate database: %v", err)
+	// 3. Check Database Connection (migrations should be run externally via 'make migrate-up')
+	log.Println("Verifying database connection...")
+	if err := sqlDB.Ping(); err != nil {
+		log.Fatalf("Failed to ping database: %v", err)
 	}
-	log.Println("✓ Database migration completed")
+	log.Println("✓ Database connection verified")
 
 	// 4. Initialize Redis Connection
 	redisClient := redis.NewClient(&redis.Options{

@@ -20,6 +20,7 @@ import (
 	"github.com/datngth03/ecommerce-go-app/services/order-service/internal/service"
 
 	"github.com/go-redis/redis/v8"
+	_ "github.com/lib/pq" // PostgreSQL driver
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
