@@ -9,6 +9,7 @@ use (
 	./services/payment-service
 	./services/product-service
 	./services/user-service
+	./tests/integration
 // ./services/order-service
 // ./services/payment-service
 // ./services/inventory-service
