@@ -3,6 +3,8 @@ package grpcpool
 import (
 	"fmt"
 	"sync"
+
+	"google.golang.org/grpc/credentials"
 )
 
 // Manager manages multiple connection pools for different services
@@ -101,14 +103,21 @@ func (m *Manager) List() []string {
 
 // ServicePoolConfig contains configuration for common service pools
 type ServicePoolConfig struct {
-	UserServiceTarget         string
-	ProductServiceTarget      string
-	OrderServiceTarget        string
-	PaymentServiceTarget      string
-	InventoryServiceTarget    string
-	NotificationServiceTarget string
+	UserServiceTarget           string
+	UserServiceTLSCreds         credentials.TransportCredentials
+	ProductServiceTarget        string
+	ProductServiceTLSCreds      credentials.TransportCredentials
+	OrderServiceTarget          string
+	OrderServiceTLSCreds        credentials.TransportCredentials
+	PaymentServiceTarget        string
+	PaymentServiceTLSCreds      credentials.TransportCredentials
+	InventoryServiceTarget      string
+	InventoryServiceTLSCreds    credentials.TransportCredentials
+	NotificationServiceTarget   string
+	NotificationServiceTLSCreds credentials.TransportCredentials
 
 	DefaultPoolSize int
+	TLSEnabled      bool
 }
 
 // CreateCommonPools creates connection pools for all common services
@@ -117,22 +126,28 @@ func (m *Manager) CreateCommonPools(config *ServicePoolConfig) error {
 		config.DefaultPoolSize = 5
 	}
 
-	services := map[string]string{
-		"user-service":         config.UserServiceTarget,
-		"product-service":      config.ProductServiceTarget,
-		"order-service":        config.OrderServiceTarget,
-		"payment-service":      config.PaymentServiceTarget,
-		"inventory-service":    config.InventoryServiceTarget,
-		"notification-service": config.NotificationServiceTarget,
+	// Map of service name -> (target, tlsCreds)
+	services := map[string]struct {
+		target   string
+		tlsCreds credentials.TransportCredentials
+	}{
+		"user-service":         {config.UserServiceTarget, config.UserServiceTLSCreds},
+		"product-service":      {config.ProductServiceTarget, config.ProductServiceTLSCreds},
+		"order-service":        {config.OrderServiceTarget, config.OrderServiceTLSCreds},
+		"payment-service":      {config.PaymentServiceTarget, config.PaymentServiceTLSCreds},
+		"inventory-service":    {config.InventoryServiceTarget, config.InventoryServiceTLSCreds},
+		"notification-service": {config.NotificationServiceTarget, config.NotificationServiceTLSCreds},
 	}
 
-	for name, target := range services {
-		if target == "" {
+	for name, svc := range services {
+		if svc.target == "" {
 			continue // Skip if target not configured
 		}
 
-		poolConfig := DefaultPoolConfig(target)
+		poolConfig := DefaultPoolConfig(svc.target)
 		poolConfig.PoolSize = config.DefaultPoolSize
+		poolConfig.TLSEnabled = config.TLSEnabled
+		poolConfig.TLSCreds = svc.tlsCreds // Mỗi service có TLS credentials riêng
 
 		if _, err := m.GetOrCreate(name, poolConfig); err != nil {
 			return fmt.Errorf("failed to create pool for %s: %w", name, err)

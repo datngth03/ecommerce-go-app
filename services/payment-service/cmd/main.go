@@ -21,6 +21,7 @@ import (
 	"github.com/datngth03/ecommerce-go-app/services/payment-service/internal/rpc"
 	"github.com/datngth03/ecommerce-go-app/services/payment-service/internal/service"
 	sharedMiddleware "github.com/datngth03/ecommerce-go-app/shared/pkg/middleware"
+	sharedTLS "github.com/datngth03/ecommerce-go-app/shared/pkg/tlsutil"
 	sharedTracing "github.com/datngth03/ecommerce-go-app/shared/pkg/tracing"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -86,10 +87,23 @@ func main() {
 	// Initialize service
 	svc := service.NewPaymentService(repo)
 
-	// Initialize gRPC server with tracing interceptor
-	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(sharedTracing.UnaryServerInterceptor()),
-	)
+	// Initialize gRPC server with tracing interceptor and TLS
+	var grpcServerOpts []grpc.ServerOption
+	grpcServerOpts = append(grpcServerOpts, grpc.UnaryInterceptor(sharedTracing.UnaryServerInterceptor()))
+
+	// Enable TLS if configured
+	if cfg.Server.TLS.Enabled {
+		tlsCreds, err := sharedTLS.ServerTLSConfig(cfg.Server.TLS.CertFile, cfg.Server.TLS.KeyFile)
+		if err != nil {
+			log.Fatalf("Failed to load TLS credentials: %v", err)
+		}
+		grpcServerOpts = append(grpcServerOpts, grpc.Creds(tlsCreds))
+		log.Printf("✓ TLS enabled for gRPC server (cert: %s)", cfg.Server.TLS.CertFile)
+	} else {
+		log.Println("⚠️  TLS disabled - using insecure connection")
+	}
+
+	grpcServer := grpc.NewServer(grpcServerOpts...)
 	paymentServer := rpc.NewPaymentServer(svc)
 	payment_service.RegisterPaymentServiceServer(grpcServer, paymentServer)
 

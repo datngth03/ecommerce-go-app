@@ -64,10 +64,10 @@ func (s *ProductGRPCServer) CreateProduct(ctx context.Context, req *pb.CreatePro
 		metricStatus = "error"
 		metrics.RecordGRPCRequest("CreateProduct", metricStatus, time.Since(start))
 		if strings.Contains(err.Error(), "already exists") {
-			return nil, status.Errorf(codes.AlreadyExists, err.Error())
+			return nil, status.Errorf(codes.AlreadyExists, "%s", err.Error())
 		}
 		if strings.Contains(err.Error(), "not found") {
-			return nil, status.Errorf(codes.NotFound, err.Error())
+			return nil, status.Errorf(codes.NotFound, "%s", err.Error())
 		}
 		return nil, status.Errorf(codes.Internal, "failed to create product: %v", err)
 	}
@@ -110,10 +110,10 @@ func (s *ProductGRPCServer) UpdateProduct(ctx context.Context, req *pb.UpdatePro
 	product, err := s.productService.UpdateProduct(ctx, req.Id, updateReq)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			return nil, status.Errorf(codes.NotFound, err.Error())
+			return nil, status.Errorf(codes.NotFound, "%s", err.Error())
 		}
 		if strings.Contains(err.Error(), "already exists") {
-			return nil, status.Errorf(codes.AlreadyExists, err.Error())
+			return nil, status.Errorf(codes.AlreadyExists, "%s", err.Error())
 		}
 		return nil, status.Errorf(codes.Internal, "failed to update product: %v", err)
 	}
@@ -126,7 +126,7 @@ func (s *ProductGRPCServer) UpdateProduct(ctx context.Context, req *pb.UpdatePro
 func (s *ProductGRPCServer) DeleteProduct(ctx context.Context, req *pb.DeleteProductRequest) (*emptypb.Empty, error) {
 	if err := s.productService.DeleteProduct(ctx, req.Id); err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			return nil, status.Errorf(codes.NotFound, err.Error())
+			return nil, status.Errorf(codes.NotFound, "%s", err.Error())
 		}
 		return nil, status.Errorf(codes.Internal, "failed to delete product: %v", err)
 	}
@@ -159,7 +159,7 @@ func (s *CategoryGRPCServer) CreateCategory(ctx context.Context, req *pb.CreateC
 	category, err := s.categoryService.CreateCategory(ctx, createReq)
 	if err != nil {
 		if strings.Contains(err.Error(), "already exists") {
-			return nil, status.Errorf(codes.AlreadyExists, err.Error())
+			return nil, status.Errorf(codes.AlreadyExists, "%s", err.Error())
 		}
 		return nil, status.Errorf(codes.Internal, "failed to create category: %v", err)
 	}
@@ -188,10 +188,10 @@ func (s *CategoryGRPCServer) UpdateCategory(ctx context.Context, req *pb.UpdateC
 	category, err := s.categoryService.UpdateCategory(ctx, req.Id, updateReq)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			return nil, status.Errorf(codes.NotFound, err.Error())
+			return nil, status.Errorf(codes.NotFound, "%s", err.Error())
 		}
 		if strings.Contains(err.Error(), "already exists") {
-			return nil, status.Errorf(codes.AlreadyExists, err.Error())
+			return nil, status.Errorf(codes.AlreadyExists, "%s", err.Error())
 		}
 		return nil, status.Errorf(codes.Internal, "failed to update category: %v", err)
 	}
@@ -204,10 +204,10 @@ func (s *CategoryGRPCServer) UpdateCategory(ctx context.Context, req *pb.UpdateC
 func (s *CategoryGRPCServer) DeleteCategory(ctx context.Context, req *pb.DeleteCategoryRequest) (*emptypb.Empty, error) {
 	if err := s.categoryService.DeleteCategory(ctx, req.Id); err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			return nil, status.Errorf(codes.NotFound, err.Error())
+			return nil, status.Errorf(codes.NotFound, "%s", err.Error())
 		}
 		if strings.Contains(err.Error(), "contains") {
-			return nil, status.Errorf(codes.FailedPrecondition, err.Error())
+			return nil, status.Errorf(codes.FailedPrecondition, "%s", err.Error())
 		}
 		return nil, status.Errorf(codes.Internal, "failed to delete category: %v", err)
 	}

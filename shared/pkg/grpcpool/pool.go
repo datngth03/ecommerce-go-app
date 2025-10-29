@@ -8,6 +8,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
 )
@@ -26,6 +27,10 @@ type ConnectionPool struct {
 type PoolConfig struct {
 	Target   string // Target address (e.g., "localhost:50051")
 	PoolSize int    // Number of connections in the pool (default: 5)
+
+	// TLS settings
+	TLSEnabled bool                             // Enable TLS (default: false)
+	TLSCreds   credentials.TransportCredentials // TLS credentials (if TLSEnabled)
 
 	// Keepalive settings
 	KeepaliveTime    time.Duration // Time after which keepalive ping is sent (default: 30s)
@@ -61,7 +66,6 @@ func NewConnectionPool(config *PoolConfig) (*ConnectionPool, error) {
 
 	// Build dial options
 	dialOpts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithKeepaliveParams(keepalive.ClientParameters{
 			Time:                config.KeepaliveTime,
 			Timeout:             config.KeepaliveTimeout,
@@ -71,6 +75,13 @@ func NewConnectionPool(config *PoolConfig) (*ConnectionPool, error) {
 			grpc.MaxCallRecvMsgSize(10*1024*1024), // 10MB
 			grpc.MaxCallSendMsgSize(10*1024*1024), // 10MB
 		),
+	}
+
+	// Add TLS or insecure credentials
+	if config.TLSEnabled && config.TLSCreds != nil {
+		dialOpts = append(dialOpts, grpc.WithTransportCredentials(config.TLSCreds))
+	} else {
+		dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 
 	// Add custom dial options

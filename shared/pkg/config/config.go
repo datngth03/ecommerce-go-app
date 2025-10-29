@@ -34,6 +34,15 @@ type ServerConfig struct {
 	ReadTimeout     time.Duration
 	WriteTimeout    time.Duration
 	ShutdownTimeout time.Duration
+	TLS             TLSConfig
+}
+
+// TLSConfig contains TLS/SSL certificate settings
+type TLSConfig struct {
+	Enabled  bool
+	CertFile string // Path to server certificate (.pem)
+	KeyFile  string // Path to server private key (.pem)
+	CAFile   string // Path to CA certificate for client verification (.pem)
 }
 
 // DatabaseConfig contains PostgreSQL connection settings
@@ -297,6 +306,24 @@ func LoadServerConfig(serviceName, defaultHTTPPort, defaultGRPCPort string) Serv
 		ReadTimeout:     GetEnvAsDuration("READ_TIMEOUT", 30*time.Second),
 		WriteTimeout:    GetEnvAsDuration("WRITE_TIMEOUT", 30*time.Second),
 		ShutdownTimeout: GetEnvAsDuration("SHUTDOWN_TIMEOUT", 15*time.Second),
+		TLS:             LoadTLSConfig(serviceName),
+	}
+}
+
+// LoadTLSConfig loads TLS configuration from environment variables
+func LoadTLSConfig(serviceName string) TLSConfig {
+	enabled := GetEnvAsBool("TLS_ENABLED", false)
+
+	// Default certificate paths (relative to project root)
+	defaultCertPath := fmt.Sprintf("infrastructure/certs/%s/server-cert.pem", serviceName)
+	defaultKeyPath := fmt.Sprintf("infrastructure/certs/%s/server-key.pem", serviceName)
+	defaultCAPath := "infrastructure/certs/ca/ca-cert.pem"
+
+	return TLSConfig{
+		Enabled:  enabled,
+		CertFile: GetEnv("TLS_CERT_FILE", defaultCertPath),
+		KeyFile:  GetEnv("TLS_KEY_FILE", defaultKeyPath),
+		CAFile:   GetEnv("TLS_CA_FILE", defaultCAPath),
 	}
 }
 

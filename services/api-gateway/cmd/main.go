@@ -21,6 +21,7 @@ import (
 	"github.com/datngth03/ecommerce-go-app/services/api-gateway/internal/proxy"
 
 	sharedMiddleware "github.com/datngth03/ecommerce-go-app/shared/pkg/middleware"
+	sharedTLS "github.com/datngth03/ecommerce-go-app/shared/pkg/tlsutil"
 	sharedTracing "github.com/datngth03/ecommerce-go-app/shared/pkg/tracing"
 )
 
@@ -82,7 +83,7 @@ func main() {
 	// Setup HTTP server
 	router := setupRouter(cfg, userHandler, productHandler, orderHandler, paymentHandler, inventoryHandler, healthHandler, userProxy)
 
-	// Create HTTP server
+	// Create HTTP server with TLS support
 	srv := &http.Server{
 		Addr:         cfg.GetServerAddress(),
 		Handler:      router,
@@ -91,11 +92,27 @@ func main() {
 		IdleTimeout:  120 * time.Second,
 	}
 
+	// Enable TLS if configured
+	if cfg.Server.TLS.Enabled {
+		srv.TLSConfig = sharedTLS.HTTPServerTLSConfig()
+		log.Printf("✓ TLS enabled for HTTP server (cert: %s)", cfg.Server.TLS.CertFile)
+	}
+
 	// Start server in goroutine
 	go func() {
 		log.Printf("🚀 API Gateway listening on %s", cfg.GetServerAddress())
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("❌ Server error: %v", err)
+
+		if cfg.Server.TLS.Enabled {
+			// Start HTTPS server
+			if err := srv.ListenAndServeTLS(cfg.Server.TLS.CertFile, cfg.Server.TLS.KeyFile); err != nil && err != http.ErrServerClosed {
+				log.Fatalf("❌ HTTPS server error: %v", err)
+			}
+		} else {
+			// Start HTTP server (insecure)
+			log.Println("⚠️  TLS disabled - using insecure HTTP connection")
+			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				log.Fatalf("❌ HTTP server error: %v", err)
+			}
 		}
 	}()
 

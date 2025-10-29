@@ -22,6 +22,7 @@ import (
 	"github.com/datngth03/ecommerce-go-app/services/product-service/internal/service"
 	sharedCache "github.com/datngth03/ecommerce-go-app/shared/pkg/cache"
 	sharedMiddleware "github.com/datngth03/ecommerce-go-app/shared/pkg/middleware"
+	sharedTLS "github.com/datngth03/ecommerce-go-app/shared/pkg/tlsutil"
 	sharedTracing "github.com/datngth03/ecommerce-go-app/shared/pkg/tracing"
 
 	"github.com/gin-gonic/gin"
@@ -128,10 +129,23 @@ func main() {
 	categoryService := service.NewCategoryService(repos)
 	log.Println("✓ Services initialized")
 
-	// 5. Initialize gRPC Server with Tracing Interceptor
-	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(sharedTracing.UnaryServerInterceptor()),
-	)
+	// 5. Initialize gRPC Server with Tracing Interceptor and TLS
+	var grpcServerOpts []grpc.ServerOption
+	grpcServerOpts = append(grpcServerOpts, grpc.UnaryInterceptor(sharedTracing.UnaryServerInterceptor()))
+
+	// Enable TLS if configured
+	if cfg.Server.TLS.Enabled {
+		tlsCreds, err := sharedTLS.ServerTLSConfig(cfg.Server.TLS.CertFile, cfg.Server.TLS.KeyFile)
+		if err != nil {
+			log.Fatalf("Failed to load TLS credentials: %v", err)
+		}
+		grpcServerOpts = append(grpcServerOpts, grpc.Creds(tlsCreds))
+		log.Printf("✓ TLS enabled for gRPC server (cert: %s)", cfg.Server.TLS.CertFile)
+	} else {
+		log.Println("⚠️  TLS disabled - using insecure connection")
+	}
+
+	grpcServer := grpc.NewServer(grpcServerOpts...)
 
 	// Register Product Service
 	productGRPCServer := rpc.NewProductGRPCServer(productService, categoryService)

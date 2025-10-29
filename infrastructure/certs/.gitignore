@@ -1,0 +1,10 @@
+# Ignore all certificate files (security)
+*.pem
+*.key
+*.crt
+*.csr
+
+# Keep only the generation script
+!generate-certs.sh
+!generate-certs.ps1
+!README.md
