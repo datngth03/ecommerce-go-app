@@ -20,7 +20,7 @@ User Service          Product Service
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Go 1.24.3+
+- Go 1.24.0+
 - Docker (optional)
 
 ### Local Development

@@ -1,0 +1,468 @@
+{
+   "annotations": {
+      "list": []
+   },
+   "editable": true,
+   "gnetId": null,
+   "graphTooltip": 0,
+   "id": null,
+   "links": [],
+   "panels": [
+      {
+         "datasource": "Prometheus",
+         "fieldConfig": {
+            "defaults": {
+               "color": {
+                  "mode": "palette-classic"
+               },
+               "custom": {
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "drawStyle": "line",
+                  "fillOpacity": 10,
+                  "gradientMode": "none",
+                  "lineInterpolation": "linear",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "showPoints": "never",
+                  "spanNulls": true
+               },
+               "mappings": [],
+               "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                     {
+                        "color": "green",
+                        "value": null
+                     }
+                  ]
+               },
+               "unit": "short"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 0
+         },
+         "id": 1,
+         "options": {
+            "legend": {
+               "calcs": ["last", "max"],
+               "displayMode": "table",
+               "placement": "bottom"
+            },
+            "tooltip": {
+               "mode": "single"
+            }
+         },
+         "targets": [
+            {
+               "expr": "order_service_orders_total{status=\"pending\"}",
+               "legendFormat": "Pending",
+               "refId": "A"
+            },
+            {
+               "expr": "order_service_orders_total{status=\"processing\"}",
+               "legendFormat": "Processing",
+               "refId": "B"
+            },
+            {
+               "expr": "order_service_orders_total{status=\"completed\"}",
+               "legendFormat": "Completed",
+               "refId": "C"
+            },
+            {
+               "expr": "order_service_orders_total{status=\"cancelled\"}",
+               "legendFormat": "Cancelled",
+               "refId": "D"
+            },
+            {
+               "expr": "order_service_orders_total{status=\"failed\"}",
+               "legendFormat": "Failed",
+               "refId": "E"
+            }
+         ],
+         "title": "Orders by Status",
+         "type": "timeseries"
+      },
+      {
+         "datasource": "Prometheus",
+         "fieldConfig": {
+            "defaults": {
+               "color": {
+                  "mode": "palette-classic"
+               },
+               "custom": {
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "drawStyle": "line",
+                  "fillOpacity": 10,
+                  "gradientMode": "none",
+                  "lineInterpolation": "linear",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "showPoints": "never",
+                  "spanNulls": true
+               },
+               "mappings": [],
+               "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                     {
+                        "color": "green",
+                        "value": null
+                     }
+                  ]
+               },
+               "unit": "reqps"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 0
+         },
+         "id": 2,
+         "options": {
+            "legend": {
+               "calcs": ["mean", "max"],
+               "displayMode": "table",
+               "placement": "bottom"
+            },
+            "tooltip": {
+               "mode": "single"
+            }
+         },
+         "targets": [
+            {
+               "expr": "rate(order_service_grpc_requests_total{method=\"CreateOrder\"}[5m])",
+               "legendFormat": "CreateOrder",
+               "refId": "A"
+            },
+            {
+               "expr": "rate(order_service_grpc_requests_total{method=\"GetOrder\"}[5m])",
+               "legendFormat": "GetOrder",
+               "refId": "B"
+            },
+            {
+               "expr": "rate(order_service_grpc_requests_total{method=\"ListOrders\"}[5m])",
+               "legendFormat": "ListOrders",
+               "refId": "C"
+            },
+            {
+               "expr": "rate(order_service_grpc_requests_total{method=\"UpdateOrderStatus\"}[5m])",
+               "legendFormat": "UpdateOrderStatus",
+               "refId": "D"
+            },
+            {
+               "expr": "rate(order_service_grpc_requests_total{method=\"CancelOrder\"}[5m])",
+               "legendFormat": "CancelOrder",
+               "refId": "E"
+            }
+         ],
+         "title": "gRPC Method Call Rate",
+         "type": "timeseries"
+      },
+      {
+         "datasource": "Prometheus",
+         "fieldConfig": {
+            "defaults": {
+               "color": {
+                  "mode": "palette-classic"
+               },
+               "custom": {
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "drawStyle": "line",
+                  "fillOpacity": 10,
+                  "gradientMode": "none",
+                  "lineInterpolation": "linear",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "showPoints": "never",
+                  "spanNulls": true
+               },
+               "mappings": [],
+               "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                     {
+                        "color": "green",
+                        "value": null
+                     }
+                  ]
+               },
+               "unit": "s"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 8
+         },
+         "id": 3,
+         "options": {
+            "legend": {
+               "calcs": ["mean", "max"],
+               "displayMode": "table",
+               "placement": "bottom"
+            },
+            "tooltip": {
+               "mode": "single"
+            }
+         },
+         "targets": [
+            {
+               "expr": "histogram_quantile(0.95, rate(order_service_grpc_request_duration_seconds_bucket{method=\"CreateOrder\"}[5m]))",
+               "legendFormat": "CreateOrder P95",
+               "refId": "A"
+            },
+            {
+               "expr": "histogram_quantile(0.99, rate(order_service_grpc_request_duration_seconds_bucket{method=\"CreateOrder\"}[5m]))",
+               "legendFormat": "CreateOrder P99",
+               "refId": "B"
+            },
+            {
+               "expr": "histogram_quantile(0.95, rate(order_service_grpc_request_duration_seconds_bucket{method=\"GetOrder\"}[5m]))",
+               "legendFormat": "GetOrder P95",
+               "refId": "C"
+            },
+            {
+               "expr": "histogram_quantile(0.99, rate(order_service_grpc_request_duration_seconds_bucket{method=\"GetOrder\"}[5m]))",
+               "legendFormat": "GetOrder P99",
+               "refId": "D"
+            }
+         ],
+         "title": "gRPC Method Latency",
+         "type": "timeseries"
+      },
+      {
+         "datasource": "Prometheus",
+         "fieldConfig": {
+            "defaults": {
+               "color": {
+                  "mode": "palette-classic"
+               },
+               "custom": {
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "drawStyle": "line",
+                  "fillOpacity": 10,
+                  "gradientMode": "none",
+                  "lineInterpolation": "linear",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "showPoints": "never",
+                  "spanNulls": true
+               },
+               "mappings": [],
+               "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                     {
+                        "color": "green",
+                        "value": null
+                     }
+                  ]
+               },
+               "unit": "short"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 8
+         },
+         "id": 4,
+         "options": {
+            "legend": {
+               "calcs": ["last", "max"],
+               "displayMode": "table",
+               "placement": "bottom"
+            },
+            "tooltip": {
+               "mode": "single"
+            }
+         },
+         "targets": [
+            {
+               "expr": "rate(order_service_cart_operations_total{operation=\"add_item\"}[5m])",
+               "legendFormat": "Add Item",
+               "refId": "A"
+            },
+            {
+               "expr": "rate(order_service_cart_operations_total{operation=\"remove_item\"}[5m])",
+               "legendFormat": "Remove Item",
+               "refId": "B"
+            },
+            {
+               "expr": "rate(order_service_cart_operations_total{operation=\"update_item\"}[5m])",
+               "legendFormat": "Update Item",
+               "refId": "C"
+            },
+            {
+               "expr": "rate(order_service_cart_operations_total{operation=\"clear_cart\"}[5m])",
+               "legendFormat": "Clear Cart",
+               "refId": "D"
+            }
+         ],
+         "title": "Cart Operations Rate",
+         "type": "timeseries"
+      },
+      {
+         "datasource": "Prometheus",
+         "fieldConfig": {
+            "defaults": {
+               "color": {
+                  "mode": "thresholds"
+               },
+               "mappings": [],
+               "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                     {
+                        "color": "green",
+                        "value": null
+                     },
+                     {
+                        "color": "yellow",
+                        "value": 0.95
+                     },
+                     {
+                        "color": "red",
+                        "value": 0.99
+                     }
+                  ]
+               },
+               "unit": "percentunit"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 16
+         },
+         "id": 5,
+         "options": {
+            "orientation": "auto",
+            "reduceOptions": {
+               "values": false,
+               "calcs": ["lastNotNull"],
+               "fields": ""
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+         },
+         "targets": [
+            {
+               "expr": "sum(rate(order_service_grpc_requests_total{status=\"success\"}[5m])) / sum(rate(order_service_grpc_requests_total[5m]))",
+               "legendFormat": "Success Rate",
+               "refId": "A"
+            }
+         ],
+         "title": "Overall Success Rate",
+         "type": "gauge"
+      },
+      {
+         "datasource": "Prometheus",
+         "fieldConfig": {
+            "defaults": {
+               "color": {
+                  "mode": "palette-classic"
+               },
+               "custom": {
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "drawStyle": "line",
+                  "fillOpacity": 10,
+                  "gradientMode": "none",
+                  "lineInterpolation": "linear",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "showPoints": "never",
+                  "spanNulls": true
+               },
+               "mappings": [],
+               "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                     {
+                        "color": "green",
+                        "value": null
+                     }
+                  ]
+               },
+               "unit": "s"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 16
+         },
+         "id": 6,
+         "options": {
+            "legend": {
+               "calcs": ["mean", "max"],
+               "displayMode": "table",
+               "placement": "bottom"
+            },
+            "tooltip": {
+               "mode": "single"
+            }
+         },
+         "targets": [
+            {
+               "expr": "rate(order_service_db_query_duration_seconds_sum{operation=\"select\"}[5m]) / rate(order_service_db_query_duration_seconds_count{operation=\"select\"}[5m])",
+               "legendFormat": "SELECT",
+               "refId": "A"
+            },
+            {
+               "expr": "rate(order_service_db_query_duration_seconds_sum{operation=\"insert\"}[5m]) / rate(order_service_db_query_duration_seconds_count{operation=\"insert\"}[5m])",
+               "legendFormat": "INSERT",
+               "refId": "B"
+            },
+            {
+               "expr": "rate(order_service_db_query_duration_seconds_sum{operation=\"update\"}[5m]) / rate(order_service_db_query_duration_seconds_count{operation=\"update\"}[5m])",
+               "legendFormat": "UPDATE",
+               "refId": "C"
+            },
+            {
+               "expr": "rate(order_service_db_query_duration_seconds_sum{operation=\"delete\"}[5m]) / rate(order_service_db_query_duration_seconds_count{operation=\"delete\"}[5m])",
+               "legendFormat": "DELETE",
+               "refId": "D"
+            }
+         ],
+         "title": "Database Query Duration by Operation",
+         "type": "timeseries"
+      }
+   ],
+   "refresh": "10s",
+   "schemaVersion": 27,
+   "style": "dark",
+   "tags": ["ecommerce", "order-service"],
+   "templating": {
+      "list": []
+   },
+   "time": {
+      "from": "now-6h",
+      "to": "now"
+   },
+   "timepicker": {},
+   "timezone": "",
+   "title": "E-Commerce - Order Service",
+   "uid": "ecommerce-order-service",
+   "version": 1
+}

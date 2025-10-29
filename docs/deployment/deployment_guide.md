@@ -4,7 +4,7 @@
 
 - Docker & Docker Compose
 - Git
-- Go 1.21+ (for local development)
+- Go 1.24+ (for local development)
 - 2GB+ RAM, 20GB+ storage
 
 ## Quick Start (Local Development)

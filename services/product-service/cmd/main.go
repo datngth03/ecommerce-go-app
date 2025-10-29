@@ -8,15 +8,24 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
+	"golang.org/x/time/rate"
+
 	pb "github.com/datngth03/ecommerce-go-app/proto/product_service"
 	"github.com/datngth03/ecommerce-go-app/services/product-service/internal/config"
+	"github.com/datngth03/ecommerce-go-app/services/product-service/internal/metrics"
 	"github.com/datngth03/ecommerce-go-app/services/product-service/internal/repository"
 	"github.com/datngth03/ecommerce-go-app/services/product-service/internal/rpc"
 	"github.com/datngth03/ecommerce-go-app/services/product-service/internal/service"
+	sharedCache "github.com/datngth03/ecommerce-go-app/shared/pkg/cache"
+	sharedMiddleware "github.com/datngth03/ecommerce-go-app/shared/pkg/middleware"
+	sharedTracing "github.com/datngth03/ecommerce-go-app/shared/pkg/tracing"
 
+	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -31,37 +40,98 @@ func main() {
 	}
 	log.Printf("Product Service v%s starting in %s mode...", cfg.Service.Version, cfg.Service.Environment)
 
-	// 2. Initialize Database Connection
+	// 2. Initialize Distributed Tracing
+	tracerCleanup, err := sharedTracing.InitTracer(sharedTracing.TracerConfig{
+		ServiceName:    cfg.Service.Name,
+		ServiceVersion: cfg.Service.Version,
+		Environment:    cfg.Service.Environment,
+		JaegerEndpoint: os.Getenv("JAEGER_ENDPOINT"),
+		Enabled:        os.Getenv("TRACING_ENABLED") == "true",
+	})
+	if err != nil {
+		log.Fatalf("Failed to initialize tracer: %v", err)
+	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := tracerCleanup(ctx); err != nil {
+			log.Printf("Error shutting down tracer: %v", err)
+		}
+	}()
+
+	// 3. Initialize Database Connection
 	db, err := repository.ConnectPostgres(cfg.GetDatabaseDSN())
 	if err != nil {
 		log.Fatalf("Failed to connect to PostgreSQL: %v", err)
 	}
-	log.Println(" PostgreSQL connection established")
+	log.Println("✓ PostgreSQL connection established")
 
 	defer func() {
 		if err := db.Close(); err != nil {
 			log.Printf("Error closing database: %v", err)
 		} else {
-			log.Println(" Database connection closed")
+			log.Println("✓ Database connection closed")
 		}
 	}()
 
-	// 3. Initialize Repository
+	// 3.5. Initialize Redis Cache
+	redisHost := os.Getenv("REDIS_HOST")
+	if redisHost == "" {
+		redisHost = "localhost"
+	}
+	redisPort, _ := strconv.Atoi(os.Getenv("REDIS_PORT"))
+	if redisPort == 0 {
+		redisPort = 6379
+	}
+	redisDB, _ := strconv.Atoi(os.Getenv("REDIS_DB"))
+
+	redisCache, err := sharedCache.NewRedisCache(sharedCache.CacheConfig{
+		Host:     redisHost,
+		Port:     redisPort,
+		Password: os.Getenv("REDIS_PASSWORD"),
+		DB:       redisDB,
+		Prefix:   "products", // Service-specific prefix
+	})
+	if err != nil {
+		log.Printf("Warning: Failed to connect to Redis: %v (continuing without cache)", err)
+		redisCache = nil
+	} else {
+		log.Println("✓ Redis cache connection established")
+		defer func() {
+			if err := redisCache.Close(); err != nil {
+				log.Printf("Error closing Redis: %v", err)
+			} else {
+				log.Println("✓ Redis connection closed")
+			}
+		}()
+	}
+
+	// 4. Initialize Repository (with caching if available)
 	repos, err := repository.NewPostgresRepository(&repository.RepositoryOptions{
 		Database: db,
 	})
 	if err != nil {
 		log.Fatalf("Failed to initialize repositories: %v", err)
 	}
-	log.Println(" Repositories initialized")
 
-	// 4. Initialize Services
+	// Wrap repositories with caching layer if Redis is available
+	if redisCache != nil {
+		repos.Product = repository.NewCachedProductRepository(repos.Product, redisCache)
+		repos.Category = repository.NewCachedCategoryRepository(repos.Category, redisCache)
+		log.Println("✓ Repositories initialized with caching")
+	} else {
+		log.Println("✓ Repositories initialized (without caching)")
+	}
+
+	// 5. Initialize Services
 	productService := service.NewProductService(repos)
 	categoryService := service.NewCategoryService(repos)
-	log.Println(" Services initialized")
+	log.Println("✓ Services initialized")
 
-	// 5. Initialize gRPC Server
-	grpcServer := grpc.NewServer()
+	// 5. Initialize gRPC Server with Tracing Interceptor
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(sharedTracing.UnaryServerInterceptor()),
+	)
 
 	// Register Product Service
 	productGRPCServer := rpc.NewProductGRPCServer(productService, categoryService)
@@ -88,17 +158,63 @@ func main() {
 		}
 	}()
 
-	// 7. Start HTTP Health Check Server
+	// 7. Setup Gin HTTP Server with Prometheus metrics
+	gin.SetMode(gin.ReleaseMode)
+	router := gin.New()
+
+	// Add tracing middleware FIRST (to capture all requests)
+	router.Use(sharedTracing.GinMiddleware(cfg.Service.Name))
+
+	// Enhanced input validation middlewares (5MB max request size)
+	for _, mw := range sharedMiddleware.EnhancedValidationMiddlewares(5 * 1024 * 1024) {
+		router.Use(mw)
+	}
+
+	// Response compression middleware
+	router.Use(sharedMiddleware.CompressionMiddleware())
+
+	router.Use(gin.Recovery())
+
+	// Security middleware
+	var securityMiddleware []gin.HandlerFunc
+	if cfg.Security.RateLimit.Enabled {
+		rateLimiter := sharedMiddleware.NewIPRateLimiter(
+			rate.Limit(cfg.Security.RateLimit.RequestsPerSecond),
+			cfg.Security.RateLimit.BurstSize,
+		)
+		securityMiddleware = append(securityMiddleware, sharedMiddleware.RateLimitMiddleware(rateLimiter))
+		log.Printf("✓ Rate limiting enabled: %.1f req/s, burst: %d",
+			cfg.Security.RateLimit.RequestsPerSecond, cfg.Security.RateLimit.BurstSize)
+	}
+
+	securityMiddleware = append(securityMiddleware, sharedMiddleware.SecurityHeadersMiddleware())
+
+	if cfg.Security.CORS.Enabled {
+		securityMiddleware = append(securityMiddleware,
+			sharedMiddleware.CORSMiddleware(cfg.Security.CORS.AllowedOrigins))
+		log.Printf("✓ CORS enabled for origins: %v", cfg.Security.CORS.AllowedOrigins)
+	}
+
+	securityMiddleware = append(securityMiddleware,
+		sharedMiddleware.TimeoutMiddleware(cfg.Security.RequestTimeout))
+
+	router.Use(securityMiddleware...)
+	router.Use(metrics.PrometheusGinMiddleware())
+
+	// Health check endpoint
+	router.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"status":  "healthy",
+			"service": "product-service",
+		})
+	})
+
+	// Prometheus metrics endpoint
+	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
+
 	httpServer := &http.Server{
-		Addr: fmt.Sprintf(":%s", cfg.Server.HTTPPort),
-		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path == "/health" {
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(`{"status":"healthy","service":"product-service"}`))
-				return
-			}
-			w.WriteHeader(http.StatusNotFound)
-		}),
+		Addr:    fmt.Sprintf(":%s", cfg.Server.HTTPPort),
+		Handler: router,
 	}
 
 	go func() {

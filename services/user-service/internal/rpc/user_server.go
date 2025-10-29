@@ -4,12 +4,14 @@ package rpc
 import (
 	"context"
 	"log"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pb "github.com/datngth03/ecommerce-go-app/proto/user_service"
+	"github.com/datngth03/ecommerce-go-app/services/user-service/internal/metrics"
 	"github.com/datngth03/ecommerce-go-app/services/user-service/internal/models"
 	"github.com/datngth03/ecommerce-go-app/services/user-service/internal/service"
 )
@@ -33,10 +35,17 @@ func NewUserServer(userService service.UserServiceInterface) *UserServer {
 
 // CreateUser creates a new user
 func (s *UserServer) CreateUser(ctx context.Context, req *pb.CreateUserRequest) (*pb.UserResponse, error) {
+	start := time.Now()
+	var statusCode string
+	defer func() {
+		metrics.RecordGRPCRequest("CreateUser", statusCode, time.Since(start))
+	}()
+
 	log.Printf("CreateUser RPC called with email: %s", req.Email)
 
 	// Validate request
 	if err := s.validateCreateUserRequest(req); err != nil {
+		statusCode = "validation_error"
 		return &pb.UserResponse{
 			Success: false,
 			Message: err.Error(),
@@ -55,6 +64,7 @@ func (s *UserServer) CreateUser(ctx context.Context, req *pb.CreateUserRequest) 
 	createdUser, err := s.userService.CreateUser(ctx, user)
 	if err != nil {
 		log.Printf("CreateUser service error: %v", err)
+		statusCode = "error"
 
 		// Handle business logic errors
 		if err.Error() == "user already exists" {
@@ -67,6 +77,7 @@ func (s *UserServer) CreateUser(ctx context.Context, req *pb.CreateUserRequest) 
 		return nil, status.Errorf(codes.Internal, "Failed to create user: %v", err)
 	}
 
+	statusCode = "success"
 	// Convert domain model to proto response
 	pbUser := s.modelToProtoUser(createdUser)
 

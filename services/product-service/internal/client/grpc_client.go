@@ -6,9 +6,13 @@ import (
 	"log"
 	"time"
 
+	pb "github.com/datngth03/ecommerce-go-app/proto/user_service"
+	sharedTracing "github.com/datngth03/ecommerce-go-app/shared/pkg/tracing"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
+	"google.golang.org/grpc/status"
 )
 
 // GRPCClients holds all gRPC client connections
@@ -20,7 +24,6 @@ type GRPCClients struct {
 type UserServiceClient interface {
 	ValidateToken(ctx context.Context, token string) (*UserInfo, error)
 	GetUserByID(ctx context.Context, userID string) (*UserInfo, error)
-	CheckPermission(ctx context.Context, userID, permission string) (bool, error)
 	Close() error
 }
 
@@ -35,8 +38,8 @@ type UserInfo struct {
 
 // userServiceClientImpl implements UserServiceClient
 type userServiceClientImpl struct {
-	conn *grpc.ClientConn
-	// client pb.UserServiceClient // Uncomment when proto files are ready
+	conn   *grpc.ClientConn
+	client pb.UserServiceClient
 }
 
 // NewGRPCClients initializes all gRPC clients
@@ -62,6 +65,7 @@ func newUserServiceClient(addr string) (UserServiceClient, error) {
 
 	// gRPC connection options
 	opts := []grpc.DialOption{
+		grpc.WithUnaryInterceptor(sharedTracing.UnaryClientInterceptor()),
 		grpc.WithTransportCredentials(insecure.NewCredentials()), // TODO: Use TLS in production
 		grpc.WithBlock(),
 		grpc.WithKeepaliveParams(keepalive.ClientParameters{
@@ -80,107 +84,99 @@ func newUserServiceClient(addr string) (UserServiceClient, error) {
 	log.Printf("✅ Successfully connected to user service at %s", addr)
 
 	return &userServiceClientImpl{
-		conn: conn,
-		// client: pb.NewUserServiceClient(conn), // Uncomment when proto files are ready
+		conn:   conn,
+		client: pb.NewUserServiceClient(conn),
 	}, nil
 }
 
 // ValidateToken validates a JWT token with user service
 func (c *userServiceClientImpl) ValidateToken(ctx context.Context, token string) (*UserInfo, error) {
-	// TODO: Implement actual gRPC call when proto files are ready
-	//
-	// Example implementation:
-	// req := &pb.ValidateTokenRequest{Token: token}
-	// resp, err := c.client.ValidateToken(ctx, req)
-	// if err != nil {
-	//     return nil, fmt.Errorf("failed to validate token: %w", err)
-	// }
-	//
-	// return &UserInfo{
-	//     ID:       resp.UserId,
-	//     Email:    resp.Email,
-	//     Username: resp.Username,
-	//     Role:     resp.Role,
-	//     IsActive: resp.IsActive,
-	// }, nil
+	if token == "" {
+		return nil, fmt.Errorf("token is required")
+	}
 
-	// Mock implementation for development
-	log.Printf("ValidateToken called with token: %s...", truncateString(token, 20))
+	req := &pb.ValidateTokenRequest{
+		Token: token,
+	}
 
-	// Simulate validation delay
-	time.Sleep(50 * time.Millisecond)
+	resp, err := c.client.ValidateToken(ctx, req)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			switch st.Code() {
+			case codes.Unauthenticated:
+				return nil, fmt.Errorf("invalid or expired token")
+			case codes.NotFound:
+				return nil, fmt.Errorf("user not found")
+			default:
+				return nil, fmt.Errorf("failed to validate token: %w", err)
+			}
+		}
+		return nil, fmt.Errorf("failed to validate token: %w", err)
+	}
+
+	if !resp.Valid {
+		return nil, fmt.Errorf("token validation failed: %s", resp.Message)
+	}
 
 	return &UserInfo{
-		ID:       "user-123",
-		Email:    "admin@example.com",
-		Username: "admin",
-		Role:     "admin",
+		ID:       fmt.Sprintf("%d", resp.UserId),
+		Email:    resp.Email,
+		Username: resp.Email, // Use email as username if not provided
+		Role:     "user",     // Default role, can be enhanced
 		IsActive: true,
 	}, nil
 }
 
 // GetUserByID retrieves user information by ID from user service
 func (c *userServiceClientImpl) GetUserByID(ctx context.Context, userID string) (*UserInfo, error) {
-	// TODO: Implement actual gRPC call when proto files are ready
-	//
-	// Example implementation:
-	// req := &pb.GetUserRequest{UserId: userID}
-	// resp, err := c.client.GetUser(ctx, req)
-	// if err != nil {
-	//     if status.Code(err) == codes.NotFound {
-	//         return nil, fmt.Errorf("user not found")
-	//     }
-	//     return nil, fmt.Errorf("failed to get user: %w", err)
-	// }
-	//
-	// return &UserInfo{
-	//     ID:       resp.UserId,
-	//     Email:    resp.Email,
-	//     Username: resp.Username,
-	//     Role:     resp.Role,
-	//     IsActive: resp.IsActive,
-	// }, nil
+	if userID == "" {
+		return nil, fmt.Errorf("user ID is required")
+	}
 
-	// Mock implementation for development
-	log.Printf("GetUserByID called with userID: %s", userID)
+	// Convert string ID to int64
+	var id int64
+	_, err := fmt.Sscanf(userID, "%d", &id)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID format: %w", err)
+	}
 
-	// Simulate lookup delay
-	time.Sleep(30 * time.Millisecond)
+	req := &pb.GetUserRequest{
+		Identifier: &pb.GetUserRequest_Id{Id: id},
+	}
+
+	resp, err := c.client.GetUser(ctx, req)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			switch st.Code() {
+			case codes.NotFound:
+				return nil, fmt.Errorf("user not found")
+			default:
+				return nil, fmt.Errorf("failed to get user: %w", err)
+			}
+		}
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+
+	if !resp.Success {
+		return nil, fmt.Errorf("failed to get user: %s", resp.Message)
+	}
+
+	if resp.User == nil {
+		return nil, fmt.Errorf("user not found")
+	}
 
 	return &UserInfo{
-		ID:       userID,
-		Email:    "user@example.com",
-		Username: "user",
-		Role:     "user",
-		IsActive: true,
+		ID:       fmt.Sprintf("%d", resp.User.Id),
+		Email:    resp.User.Email,
+		Username: resp.User.Name,
+		Role:     "user", // Can be enhanced with role from database
+		IsActive: resp.User.IsActive,
 	}, nil
 }
 
 // CheckPermission checks if a user has a specific permission
-func (c *userServiceClientImpl) CheckPermission(ctx context.Context, userID, permission string) (bool, error) {
-	// TODO: Implement actual gRPC call when proto files are ready
-	//
-	// Example implementation:
-	// req := &pb.CheckPermissionRequest{
-	//     UserId:     userID,
-	//     Permission: permission,
-	// }
-	// resp, err := c.client.CheckPermission(ctx, req)
-	// if err != nil {
-	//     return false, fmt.Errorf("failed to check permission: %w", err)
-	// }
-	//
-	// return resp.HasPermission, nil
-
-	// Mock implementation for development
-	log.Printf("CheckPermission called - userID: %s, permission: %s", userID, permission)
-
-	// Simulate permission check
-	time.Sleep(20 * time.Millisecond)
-
-	// Mock: admins have all permissions
-	return true, nil
-}
+// Note: This is a mock implementation as CheckPermission RPC is not defined in user_service.proto
+// You may need to add this RPC to the proto file or implement permission checking differently
 
 // Close closes the gRPC connection
 func (c *userServiceClientImpl) Close() error {

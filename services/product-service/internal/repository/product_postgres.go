@@ -12,8 +12,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 
+	"github.com/datngth03/ecommerce-go-app/services/product-service/internal/metrics"
 	"github.com/datngth03/ecommerce-go-app/services/product-service/internal/models"
-	// "github.com/datngth03/ecommerce-go-app/services/product-service/internal/repository"
 )
 
 // ProductPostgresRepository implements ProductRepository for PostgreSQL
@@ -40,6 +40,11 @@ func NewCategoryRepository(db *sql.DB) CategoryRepository {
 
 // Create creates a new product in the database
 func (r *ProductPostgresRepository) Create(ctx context.Context, product *models.Product) error {
+	start := time.Now()
+	defer func() {
+		metrics.RecordDBQuery("INSERT", "products", "success", time.Since(start))
+	}()
+
 	product.ID = uuid.New().String()
 	product.GenerateSlug()
 	now := time.Now()
@@ -59,6 +64,7 @@ func (r *ProductPostgresRepository) Create(ctx context.Context, product *models.
 	)
 
 	if err != nil {
+		metrics.RecordDBQuery("INSERT", "products", "error", time.Since(start))
 		if pqErr, ok := err.(*pq.Error); ok {
 			switch pqErr.Code {
 			case "23505": // unique violation
@@ -78,6 +84,11 @@ func (r *ProductPostgresRepository) Create(ctx context.Context, product *models.
 
 // GetByID retrieves a product by ID
 func (r *ProductPostgresRepository) GetByID(ctx context.Context, id string) (*models.Product, error) {
+	start := time.Now()
+	defer func() {
+		metrics.RecordDBQuery("SELECT", "products", "success", time.Since(start))
+	}()
+
 	query := `
 		SELECT p.id, p.name, p.slug, p.description, p.price, p.category_id, 
 		       p.image_url, p.is_active, p.created_at, p.updated_at,
@@ -100,6 +111,7 @@ func (r *ProductPostgresRepository) GetByID(ctx context.Context, id string) (*mo
 	)
 
 	if err != nil {
+		metrics.RecordDBQuery("SELECT", "products", "error", time.Since(start))
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("product not found")
 		}

@@ -1,0 +1,34 @@
+-- Rollback performance indexes for Inventory Service
+
+DROP INDEX IF EXISTS idx_reservations_confirmed;
+DROP INDEX IF EXISTS idx_reservations_fulfillment;
+DROP INDEX IF EXISTS idx_stocks_summary;
+DROP INDEX IF EXISTS idx_stocks_warehouse_total;
+DROP INDEX IF EXISTS idx_stock_movements_daily_report;
+DROP INDEX IF EXISTS idx_stock_movements_ref_type_id;
+DROP INDEX IF EXISTS idx_stocks_product_available_reserved;
+DROP INDEX IF EXISTS idx_stocks_warehouse_product_available;
+DROP INDEX IF EXISTS idx_reservations_cancelled;
+DROP INDEX IF EXISTS idx_reservations_confirmed;
+DROP INDEX IF EXISTS idx_reservations_order_created;
+DROP INDEX IF EXISTS idx_reservations_product_created;
+DROP INDEX IF EXISTS idx_reservations_quantity;
+DROP INDEX IF EXISTS idx_reservations_expires_status;
+DROP INDEX IF EXISTS idx_reservations_expired;
+DROP INDEX IF EXISTS idx_reservations_active;
+DROP INDEX IF EXISTS idx_reservations_product_status;
+DROP INDEX IF EXISTS idx_reservations_order_status;
+DROP INDEX IF EXISTS idx_stock_movements_before_after;
+DROP INDEX IF EXISTS idx_stock_movements_date;
+DROP INDEX IF EXISTS idx_stock_movements_product_type;
+DROP INDEX IF EXISTS idx_stock_movements_quantity;
+DROP INDEX IF EXISTS idx_stock_movements_reference;
+DROP INDEX IF EXISTS idx_stock_movements_type;
+DROP INDEX IF EXISTS idx_stock_movements_product_created;
+DROP INDEX IF EXISTS idx_stocks_out_of_stock;
+DROP INDEX IF EXISTS idx_stocks_updated_at;
+DROP INDEX IF EXISTS idx_stocks_product_status;
+DROP INDEX IF EXISTS idx_stocks_reserved;
+DROP INDEX IF EXISTS idx_stocks_warehouse_available;
+DROP INDEX IF EXISTS idx_stocks_low_stock;
+DROP INDEX IF EXISTS idx_stocks_available;

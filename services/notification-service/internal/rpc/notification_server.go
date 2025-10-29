@@ -2,8 +2,10 @@ package rpc
 
 import (
 	"context"
+	"time"
 
 	pb "github.com/datngth03/ecommerce-go-app/proto/notification_service"
+	"github.com/datngth03/ecommerce-go-app/services/notification-service/internal/metrics"
 	"github.com/datngth03/ecommerce-go-app/services/notification-service/internal/service"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -24,6 +26,8 @@ func NewNotificationServer(svc *service.NotificationService) *NotificationServer
 
 // SendEmail sends an email notification
 func (s *NotificationServer) SendEmail(ctx context.Context, req *pb.SendEmailRequest) (*pb.SendEmailResponse, error) {
+	start := time.Now()
+
 	notification, err := s.service.SendEmail(
 		ctx,
 		req.UserId,
@@ -33,12 +37,26 @@ func (s *NotificationServer) SendEmail(ctx context.Context, req *pb.SendEmailReq
 		req.TemplateId,
 		req.Variables,
 	)
+
+	duration := time.Since(start)
+	grpcStatus := "success"
+	notifStatus := "sent"
+
 	if err != nil {
+		grpcStatus = "error"
+		notifStatus = "failed"
+		metrics.RecordGRPCRequest("SendEmail", grpcStatus, duration)
+		metrics.RecordNotificationSent("email", notifStatus, duration)
+		metrics.RecordEmailSent(notifStatus)
 		return &pb.SendEmailResponse{
 			Success: false,
 			Message: err.Error(),
 		}, nil
 	}
+
+	metrics.RecordGRPCRequest("SendEmail", grpcStatus, duration)
+	metrics.RecordNotificationSent("email", notification.Status, duration)
+	metrics.RecordEmailSent(notification.Status)
 
 	return &pb.SendEmailResponse{
 		Notification: &pb.Notification{
@@ -62,6 +80,8 @@ func (s *NotificationServer) SendEmail(ctx context.Context, req *pb.SendEmailReq
 
 // SendSMS sends an SMS notification
 func (s *NotificationServer) SendSMS(ctx context.Context, req *pb.SendSMSRequest) (*pb.SendSMSResponse, error) {
+	start := time.Now()
+
 	notification, err := s.service.SendSMS(
 		ctx,
 		req.UserId,
@@ -70,12 +90,26 @@ func (s *NotificationServer) SendSMS(ctx context.Context, req *pb.SendSMSRequest
 		req.TemplateId,
 		req.Variables,
 	)
+
+	duration := time.Since(start)
+	grpcStatus := "success"
+	notifStatus := "sent"
+
 	if err != nil {
+		grpcStatus = "error"
+		notifStatus = "failed"
+		metrics.RecordGRPCRequest("SendSMS", grpcStatus, duration)
+		metrics.RecordNotificationSent("sms", notifStatus, duration)
+		metrics.RecordSMSSent(notifStatus)
 		return &pb.SendSMSResponse{
 			Success: false,
 			Message: err.Error(),
 		}, nil
 	}
+
+	metrics.RecordGRPCRequest("SendSMS", grpcStatus, duration)
+	metrics.RecordNotificationSent("sms", notification.Status, duration)
+	metrics.RecordSMSSent(notification.Status)
 
 	return &pb.SendSMSResponse{
 		Notification: &pb.Notification{

@@ -1,0 +1,32 @@
+-- Rollback performance indexes for Payment Service
+
+DROP INDEX IF EXISTS idx_payments_failed_analysis;
+DROP INDEX IF EXISTS idx_payments_method_amount_date;
+DROP INDEX IF EXISTS idx_payments_summary;
+DROP INDEX IF EXISTS idx_payment_methods_brand;
+DROP INDEX IF EXISTS idx_payment_methods_gateway;
+DROP INDEX IF EXISTS idx_payment_methods_default;
+DROP INDEX IF EXISTS idx_payment_methods_user_type;
+DROP INDEX IF EXISTS idx_refunds_date_status;
+DROP INDEX IF EXISTS idx_refunds_pending;
+DROP INDEX IF EXISTS idx_refunds_gateway_id;
+DROP INDEX IF EXISTS idx_refunds_amount;
+DROP INDEX IF EXISTS idx_refunds_status_created;
+DROP INDEX IF EXISTS idx_refunds_payment_created;
+DROP INDEX IF EXISTS idx_transactions_gateway_response;
+DROP INDEX IF EXISTS idx_transactions_payment_created;
+DROP INDEX IF EXISTS idx_transactions_amount;
+DROP INDEX IF EXISTS idx_transactions_status;
+DROP INDEX IF EXISTS idx_transactions_payment_type;
+DROP INDEX IF EXISTS idx_payments_metadata;
+DROP INDEX IF EXISTS idx_payments_gateway_customer;
+DROP INDEX IF EXISTS idx_payments_date_status;
+DROP INDEX IF EXISTS idx_payments_pending;
+DROP INDEX IF EXISTS idx_payments_failed;
+DROP INDEX IF EXISTS idx_payments_success;
+DROP INDEX IF EXISTS idx_payments_currency;
+DROP INDEX IF EXISTS idx_payments_method;
+DROP INDEX IF EXISTS idx_payments_amount;
+DROP INDEX IF EXISTS idx_payments_order_status;
+DROP INDEX IF EXISTS idx_payments_user_status;
+DROP INDEX IF EXISTS idx_payments_user_created_desc;

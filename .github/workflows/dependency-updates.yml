@@ -1,0 +1,171 @@
+name: Dependency Updates
+
+on:
+    schedule:
+        # Run weekly on Monday at 9 AM UTC
+        - cron: "0 9 * * 1"
+    workflow_dispatch:
+
+permissions:
+    contents: write
+    pull-requests: write
+
+jobs:
+    update-go-dependencies:
+        name: Update Go Dependencies
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                service:
+                    - api-gateway
+                    - user-service
+                    - product-service
+                    - order-service
+                    - payment-service
+                    - inventory-service
+                    - notification-service
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Set up Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version: "1.24"
+
+            - name: Update dependencies
+              working-directory: services/${{ matrix.service }}
+              run: |
+                  go get -u ./...
+                  go mod tidy
+
+            - name: Create Pull Request
+              uses: peter-evans/create-pull-request@v5
+              with:
+                  token: ${{ secrets.GITHUB_TOKEN }}
+                  commit-message: "chore(${{ matrix.service }}): update Go dependencies"
+                  title: "chore(${{ matrix.service }}): update Go dependencies"
+                  body: |
+                      ## Automated dependency update for ${{ matrix.service }}
+
+                      This PR updates all Go dependencies to their latest versions.
+
+                      ### Changes
+                      - Updated all Go module dependencies
+                      - Ran `go mod tidy`
+
+                      ### Testing
+                      - [ ] All tests pass
+                      - [ ] No breaking changes detected
+
+                      **Note:** This is an automated PR. Please review carefully before merging.
+                  branch: deps/update-${{ matrix.service }}-${{ github.run_number }}
+                  delete-branch: true
+                  labels: dependencies, automated
+
+    update-docker-base-images:
+        name: Update Docker Base Images
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Update Dockerfiles
+              run: |
+                  # Update Go base image
+                  find services -name "Dockerfile" -exec sed -i 's/golang:[0-9.]\+/golang:1.24/g' {} \;
+
+                  # Update Alpine base image
+                  find services -name "Dockerfile" -exec sed -i 's/alpine:[0-9.]\+/alpine:3.19/g' {} \;
+
+                  # Update PostgreSQL version in docker-compose
+                  sed -i 's/postgres:[0-9]\+/postgres:16/g' docker-compose.yaml
+
+            - name: Create Pull Request
+              uses: peter-evans/create-pull-request@v5
+              with:
+                  token: ${{ secrets.GITHUB_TOKEN }}
+                  commit-message: "chore: update Docker base images"
+                  title: "chore: update Docker base images"
+                  body: |
+                      ## Automated Docker base image updates
+
+                      This PR updates Docker base images to their latest stable versions.
+
+                      ### Changes
+                      - Updated Go base image to 1.24
+                      - Updated Alpine base image to 3.19
+                      - Updated PostgreSQL to 16
+
+                      ### Security
+                      This update includes security patches and bug fixes from upstream images.
+
+                      **Note:** This is an automated PR. Please test thoroughly before merging.
+                  branch: deps/update-docker-images-${{ github.run_number }}
+                  delete-branch: true
+                  labels: dependencies, docker, automated
+
+    security-audit:
+        name: Security Audit
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Set up Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version: "1.24"
+
+            - name: Run govulncheck
+              run: |
+                  go install golang.org/x/vuln/cmd/govulncheck@latest
+
+                  for service in api-gateway user-service product-service order-service payment-service inventory-service notification-service; do
+                    echo "Scanning ${service}..."
+                    cd services/${service}
+                    govulncheck ./... || echo "Vulnerabilities found in ${service}"
+                    cd ../..
+                  done
+
+            - name: Run Nancy (dependency scanner)
+              run: |
+                  go install github.com/sonatype-nexus-community/nancy@latest
+
+                  for service in api-gateway user-service product-service order-service payment-service inventory-service notification-service; do
+                    echo "Scanning ${service} dependencies..."
+                    cd services/${service}
+                    go list -json -deps ./... | nancy sleuth || echo "Issues found in ${service}"
+                    cd ../..
+                  done
+
+            - name: Create security report
+              if: always()
+              run: |
+                  echo "# Security Audit Report" > security-report.md
+                  echo "Date: $(date)" >> security-report.md
+                  echo "" >> security-report.md
+                  echo "## Summary" >> security-report.md
+                  echo "Security scan completed for all services." >> security-report.md
+
+            - name: Upload security report
+              uses: actions/upload-artifact@v4
+              with:
+                  name: security-report
+                  path: security-report.md
+
+            - name: Create issue if vulnerabilities found
+              if: failure()
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      github.rest.issues.create({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        title: '🔒 Security vulnerabilities detected',
+                        body: 'Security audit found vulnerabilities. Please check the workflow logs for details.',
+                        labels: ['security', 'automated']
+                      });

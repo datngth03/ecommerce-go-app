@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	pb "github.com/datngth03/ecommerce-go-app/proto/payment_service"
 	"github.com/datngth03/ecommerce-go-app/services/api-gateway/internal/clients"
+	"github.com/datngth03/ecommerce-go-app/services/api-gateway/internal/metrics"
 	"github.com/gin-gonic/gin"
 )
 
@@ -45,6 +47,7 @@ func (h *PaymentHandler) ProcessPayment(c *gin.Context) {
 		req.Currency = "USD"
 	}
 
+	start := time.Now()
 	resp, err := h.paymentClient.ProcessPayment(c.Request.Context(), &pb.ProcessPaymentRequest{
 		OrderId:         req.OrderID,
 		UserId:          fmt.Sprintf("%d", userID.(int64)),
@@ -54,10 +57,14 @@ func (h *PaymentHandler) ProcessPayment(c *gin.Context) {
 		PaymentMethodId: req.PaymentMethodID,
 	})
 
+	status := "success"
 	if err != nil {
+		status = "error"
+		metrics.RecordGRPCClientRequest("payment-service", "ProcessPayment", status, time.Since(start))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	metrics.RecordGRPCClientRequest("payment-service", "ProcessPayment", status, time.Since(start))
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "payment processed successfully",

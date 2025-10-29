@@ -1,8 +1,32 @@
 package config
 
 import (
+	"strconv"
+	"strings"
+	"time"
+
 	sharedConfig "github.com/datngth03/ecommerce-go-app/shared/pkg/config"
 )
+
+// SecurityConfig holds security-related configuration
+type SecurityConfig struct {
+	RateLimit      RateLimitConfig
+	CORS           CORSConfig
+	RequestTimeout time.Duration
+}
+
+// RateLimitConfig holds rate limiting configuration
+type RateLimitConfig struct {
+	RequestsPerSecond float64
+	BurstSize         int
+	Enabled           bool
+}
+
+// CORSConfig holds CORS configuration
+type CORSConfig struct {
+	AllowedOrigins []string
+	Enabled        bool
+}
 
 // Config holds payment service specific configuration
 type Config struct {
@@ -13,6 +37,7 @@ type Config struct {
 	Services sharedConfig.ExternalServices
 	Logging  sharedConfig.LoggingConfig
 	Payment  PaymentConfig
+	Security SecurityConfig
 }
 
 // PaymentConfig contains payment-specific settings
@@ -44,9 +69,54 @@ func Load() (*Config, error) {
 			PayPalClientSecret:  sharedConfig.GetEnv("PAYPAL_CLIENT_SECRET", ""),
 			Currency:            sharedConfig.GetEnv("PAYMENT_CURRENCY", "USD"),
 		},
+		Security: LoadSecurityConfig(),
 	}
 
 	return cfg, nil
+}
+
+// LoadSecurityConfig loads security configuration from environment
+func LoadSecurityConfig() SecurityConfig {
+	// Parse rate limit RPS
+	rpsStr := sharedConfig.GetEnv("SECURITY_RATE_LIMIT_RPS", "50.0")
+	rps, err := strconv.ParseFloat(rpsStr, 64)
+	if err != nil {
+		rps = 50.0
+	}
+
+	// Parse rate limit burst
+	burstStr := sharedConfig.GetEnv("SECURITY_RATE_LIMIT_BURST", "100")
+	burst, err := strconv.Atoi(burstStr)
+	if err != nil {
+		burst = 100
+	}
+
+	// Parse CORS origins
+	originsStr := sharedConfig.GetEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000")
+	origins := strings.Split(originsStr, ",")
+	for i := range origins {
+		origins[i] = strings.TrimSpace(origins[i])
+	}
+
+	// Parse timeout
+	timeoutStr := sharedConfig.GetEnv("SECURITY_REQUEST_TIMEOUT", "30s")
+	timeout, err := time.ParseDuration(timeoutStr)
+	if err != nil {
+		timeout = 30 * time.Second
+	}
+
+	return SecurityConfig{
+		RateLimit: RateLimitConfig{
+			RequestsPerSecond: rps,
+			BurstSize:         burst,
+			Enabled:           sharedConfig.GetEnv("SECURITY_RATE_LIMIT_ENABLED", "true") == "true",
+		},
+		CORS: CORSConfig{
+			AllowedOrigins: origins,
+			Enabled:        sharedConfig.GetEnv("SECURITY_CORS_ENABLED", "true") == "true",
+		},
+		RequestTimeout: timeout,
+	}
 }
 
 // GetDatabaseDSN returns PostgreSQL connection string

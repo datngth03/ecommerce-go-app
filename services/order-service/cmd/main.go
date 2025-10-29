@@ -11,16 +11,23 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/time/rate"
+
 	pb "github.com/datngth03/ecommerce-go-app/proto/order_service"
 	"github.com/datngth03/ecommerce-go-app/services/order-service/internal/client"
 	"github.com/datngth03/ecommerce-go-app/services/order-service/internal/config"
 	"github.com/datngth03/ecommerce-go-app/services/order-service/internal/events"
+	"github.com/datngth03/ecommerce-go-app/services/order-service/internal/metrics"
 	"github.com/datngth03/ecommerce-go-app/services/order-service/internal/repository"
 	"github.com/datngth03/ecommerce-go-app/services/order-service/internal/rpc"
 	"github.com/datngth03/ecommerce-go-app/services/order-service/internal/service"
+	sharedMiddleware "github.com/datngth03/ecommerce-go-app/shared/pkg/middleware"
+	sharedTracing "github.com/datngth03/ecommerce-go-app/shared/pkg/tracing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 	_ "github.com/lib/pq" // PostgreSQL driver
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -35,7 +42,26 @@ func main() {
 	}
 	log.Printf("Order Service v%s starting in %s mode...", cfg.Service.Version, cfg.Service.Environment)
 
-	// 2. Initialize Database Connection
+	// 2. Initialize Distributed Tracing
+	tracerCleanup, err := sharedTracing.InitTracer(sharedTracing.TracerConfig{
+		ServiceName:    cfg.Service.Name,
+		ServiceVersion: cfg.Service.Version,
+		Environment:    cfg.Service.Environment,
+		JaegerEndpoint: os.Getenv("JAEGER_ENDPOINT"),
+		Enabled:        os.Getenv("TRACING_ENABLED") == "true",
+	})
+	if err != nil {
+		log.Fatalf("Failed to initialize tracer: %v", err)
+	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := tracerCleanup(ctx); err != nil {
+			log.Printf("Error shutting down tracer: %v", err)
+		}
+	}()
+
+	// 3. Initialize Database Connection
 	db, err := repository.ConnectPostgres(cfg.GetDatabaseDSN())
 	if err != nil {
 		log.Fatalf("Failed to connect to PostgreSQL: %v", err)
@@ -91,42 +117,30 @@ func main() {
 		}
 	}()
 
-	// 6. Initialize gRPC Clients
-	userClient, err := client.NewUserClient(cfg.Services.UserService)
+	// 6. Initialize gRPC Clients with Connection Pooling
+	clients, err := client.NewClients(cfg)
 	if err != nil {
-		log.Fatalf("Failed to create user client: %v", err)
+		log.Fatalf("Failed to create clients: %v", err)
 	}
-	log.Println("✓ User service client initialized")
+	log.Println("✓ gRPC clients with connection pooling initialized")
 
 	defer func() {
-		if err := userClient.Close(); err != nil {
-			log.Printf("Error closing user client: %v", err)
+		if err := clients.Close(); err != nil {
+			log.Printf("Error closing clients: %v", err)
 		} else {
-			log.Println("✓ User service client closed")
-		}
-	}()
-
-	productClient, err := client.NewProductClient(cfg.Services.ProductService)
-	if err != nil {
-		log.Fatalf("Failed to create product client: %v", err)
-	}
-	log.Println("✓ Product service client initialized")
-
-	defer func() {
-		if err := productClient.Close(); err != nil {
-			log.Printf("Error closing product client: %v", err)
-		} else {
-			log.Println("✓ Product service client closed")
+			log.Println("✓ gRPC clients closed")
 		}
 	}()
 
 	// 7. Initialize Services
-	orderService := service.NewOrderService(orderRepo, cartRepo, productClient, userClient, publisher)
-	cartService := service.NewCartService(cartRepo, productClient)
+	orderService := service.NewOrderService(orderRepo, cartRepo, clients.Product, clients.User, publisher)
+	cartService := service.NewCartService(cartRepo, clients.Product)
 	log.Println("✓ Services initialized")
 
-	// 6. Initialize gRPC Server
-	grpcServer := grpc.NewServer()
+	// 6. Initialize gRPC Server with Tracing Interceptor
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(sharedTracing.UnaryServerInterceptor()),
+	)
 
 	// Register Order Service
 	orderGRPCServer := rpc.NewOrderServer(orderService, cartService)
@@ -153,17 +167,63 @@ func main() {
 		}
 	}()
 
-	// 8. Start HTTP Health Check Server
+	// 8. Setup Gin HTTP Server with Prometheus metrics
+	gin.SetMode(gin.ReleaseMode)
+	router := gin.New()
+
+	// Add tracing middleware FIRST (to capture all requests)
+	router.Use(sharedTracing.GinMiddleware(cfg.Service.Name))
+
+	// Enhanced input validation middlewares (5MB max request size)
+	for _, mw := range sharedMiddleware.EnhancedValidationMiddlewares(5 * 1024 * 1024) {
+		router.Use(mw)
+	}
+
+	// Response compression middleware
+	router.Use(sharedMiddleware.CompressionMiddleware())
+
+	router.Use(gin.Recovery())
+
+	// Security middleware
+	var securityMiddleware []gin.HandlerFunc
+	if cfg.Security.RateLimit.Enabled {
+		rateLimiter := sharedMiddleware.NewIPRateLimiter(
+			rate.Limit(cfg.Security.RateLimit.RequestsPerSecond),
+			cfg.Security.RateLimit.BurstSize,
+		)
+		securityMiddleware = append(securityMiddleware, sharedMiddleware.RateLimitMiddleware(rateLimiter))
+		log.Printf("✓ Rate limiting enabled: %.1f req/s, burst: %d",
+			cfg.Security.RateLimit.RequestsPerSecond, cfg.Security.RateLimit.BurstSize)
+	}
+
+	securityMiddleware = append(securityMiddleware, sharedMiddleware.SecurityHeadersMiddleware())
+
+	if cfg.Security.CORS.Enabled {
+		securityMiddleware = append(securityMiddleware,
+			sharedMiddleware.CORSMiddleware(cfg.Security.CORS.AllowedOrigins))
+		log.Printf("✓ CORS enabled for origins: %v", cfg.Security.CORS.AllowedOrigins)
+	}
+
+	securityMiddleware = append(securityMiddleware,
+		sharedMiddleware.TimeoutMiddleware(cfg.Security.RequestTimeout))
+
+	router.Use(securityMiddleware...)
+	router.Use(metrics.PrometheusGinMiddleware())
+
+	// Health check endpoint
+	router.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"status":  "healthy",
+			"service": "order-service",
+		})
+	})
+
+	// Prometheus metrics endpoint
+	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
+
 	httpServer := &http.Server{
-		Addr: fmt.Sprintf(":%s", cfg.Server.HTTPPort),
-		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path == "/health" {
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(`{"status":"healthy","service":"order-service"}`))
-				return
-			}
-			w.WriteHeader(http.StatusNotFound)
-		}),
+		Addr:    fmt.Sprintf(":%s", cfg.Server.HTTPPort),
+		Handler: router,
 	}
 
 	go func() {

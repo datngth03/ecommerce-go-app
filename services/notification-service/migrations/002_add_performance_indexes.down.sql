@@ -1,0 +1,30 @@
+-- Rollback performance indexes for Notification Service
+
+DROP INDEX IF EXISTS idx_notifications_processing_time;
+DROP INDEX IF EXISTS idx_notifications_undelivered;
+DROP INDEX IF EXISTS idx_notifications_sent_at_desc;
+DROP INDEX IF EXISTS idx_notifications_bulk;
+DROP INDEX IF EXISTS idx_notifications_retry;
+DROP INDEX IF EXISTS idx_notifications_errors;
+DROP INDEX IF EXISTS idx_notifications_template_usage;
+DROP INDEX IF EXISTS idx_notifications_summary;
+DROP INDEX IF EXISTS idx_notifications_delivery_rate;
+DROP INDEX IF EXISTS idx_notifications_channel_metrics;
+DROP INDEX IF EXISTS idx_notifications_daily_report;
+DROP INDEX IF EXISTS idx_templates_updated_at;
+DROP INDEX IF EXISTS idx_templates_variables;
+DROP INDEX IF EXISTS idx_templates_name_active;
+DROP INDEX IF EXISTS idx_templates_type_active;
+DROP INDEX IF EXISTS idx_templates_active;
+DROP INDEX IF EXISTS idx_notifications_type_status;
+DROP INDEX IF EXISTS idx_notifications_metadata;
+DROP INDEX IF EXISTS idx_notifications_template_id;
+DROP INDEX IF EXISTS idx_notifications_sent;
+DROP INDEX IF EXISTS idx_notifications_failed;
+DROP INDEX IF EXISTS idx_notifications_pending;
+DROP INDEX IF EXISTS idx_notifications_recipient;
+DROP INDEX IF EXISTS idx_notifications_channel_type;
+DROP INDEX IF EXISTS idx_notifications_channel;
+DROP INDEX IF EXISTS idx_notifications_user_type;
+DROP INDEX IF EXISTS idx_notifications_user_status;
+DROP INDEX IF EXISTS idx_notifications_user_created_desc;

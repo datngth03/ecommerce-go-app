@@ -6,20 +6,23 @@ import (
 	"time"
 
 	pb "github.com/datngth03/ecommerce-go-app/proto/product_service"
+	"github.com/datngth03/ecommerce-go-app/shared/pkg/grpcpool"
+	sharedTracing "github.com/datngth03/ecommerce-go-app/shared/pkg/tracing"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
 )
 
-// ProductClient wraps the gRPC client for product-service
+// ProductClient wraps the gRPC client for product-service with connection pooling
 type ProductClient struct {
-	conn           *grpc.ClientConn
+	conn           *grpc.ClientConn         // Legacy: single connection
+	pool           *grpcpool.ConnectionPool // New: connection pool
 	ProductClient  pb.ProductServiceClient
 	CategoryClient pb.CategoryServiceClient
 	timeout        time.Duration
 }
 
-// NewProductClient creates a new product service gRPC client
+// NewProductClient creates a new product service gRPC client (legacy method)
 func NewProductClient(addr string, timeout time.Duration) (*ProductClient, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -32,6 +35,7 @@ func NewProductClient(addr string, timeout time.Duration) (*ProductClient, error
 			Timeout:             3 * time.Second,
 			PermitWithoutStream: true,
 		}),
+		grpc.WithUnaryInterceptor(sharedTracing.UnaryClientInterceptor()),
 	}
 
 	conn, err := grpc.DialContext(ctx, addr, opts...)
@@ -47,12 +51,55 @@ func NewProductClient(addr string, timeout time.Duration) (*ProductClient, error
 	}, nil
 }
 
-// Close closes the gRPC connection
+// NewProductClientWithPool creates a new product service gRPC client with connection pooling
+func NewProductClientWithPool(pool *grpcpool.ConnectionPool, timeout time.Duration) (*ProductClient, error) {
+	// Get a connection from the pool to create the clients
+	conn := pool.Get()
+
+	return &ProductClient{
+		pool:           pool,
+		ProductClient:  pb.NewProductServiceClient(conn),
+		CategoryClient: pb.NewCategoryServiceClient(conn),
+		timeout:        timeout,
+	}, nil
+}
+
+// Close closes the gRPC connection (no-op for pooled connections)
 func (c *ProductClient) Close() error {
+	// If using connection pool, connections are managed by the pool
+	if c.pool != nil {
+		return nil
+	}
+
+	// Legacy: close single connection
 	if c.conn != nil {
 		return c.conn.Close()
 	}
 	return nil
+}
+
+// getProductClient returns a product client using either pooled or direct connection
+func (c *ProductClient) getProductClient() pb.ProductServiceClient {
+	// If using connection pool, recreate client with a connection from the pool
+	if c.pool != nil {
+		conn := c.pool.Get()
+		return pb.NewProductServiceClient(conn)
+	}
+
+	// Legacy: use direct connection client
+	return c.ProductClient
+}
+
+// getCategoryClient returns a category client using either pooled or direct connection
+func (c *ProductClient) getCategoryClient() pb.CategoryServiceClient {
+	// If using connection pool, recreate client with a connection from the pool
+	if c.pool != nil {
+		conn := c.pool.Get()
+		return pb.NewCategoryServiceClient(conn)
+	}
+
+	// Legacy: use direct connection client
+	return c.CategoryClient
 }
 
 // GetProduct retrieves a product by ID
@@ -60,7 +107,8 @@ func (c *ProductClient) GetProduct(ctx context.Context, id string) (*pb.Product,
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	resp, err := c.ProductClient.GetProduct(ctx, &pb.GetProductRequest{Id: id})
+	client := c.getProductClient()
+	resp, err := client.GetProduct(ctx, &pb.GetProductRequest{Id: id})
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +120,8 @@ func (c *ProductClient) ListProducts(ctx context.Context, page, pageSize int32, 
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	resp, err := c.ProductClient.ListProducts(ctx, &pb.ListProductsRequest{
+	client := c.getProductClient()
+	resp, err := client.ListProducts(ctx, &pb.ListProductsRequest{
 		Page:       page,
 		PageSize:   pageSize,
 		CategoryId: categoryID,
@@ -88,7 +137,8 @@ func (c *ProductClient) CreateProduct(ctx context.Context, req *pb.CreateProduct
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	resp, err := c.ProductClient.CreateProduct(ctx, req)
+	client := c.getProductClient()
+	resp, err := client.CreateProduct(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +150,8 @@ func (c *ProductClient) UpdateProduct(ctx context.Context, req *pb.UpdateProduct
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	resp, err := c.ProductClient.UpdateProduct(ctx, req)
+	client := c.getProductClient()
+	resp, err := client.UpdateProduct(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +163,8 @@ func (c *ProductClient) DeleteProduct(ctx context.Context, id string) error {
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	_, err := c.ProductClient.DeleteProduct(ctx, &pb.DeleteProductRequest{Id: id})
+	client := c.getProductClient()
+	_, err := client.DeleteProduct(ctx, &pb.DeleteProductRequest{Id: id})
 	return err
 }
 
@@ -121,7 +173,8 @@ func (c *ProductClient) ListCategories(ctx context.Context) ([]*pb.Category, err
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	resp, err := c.CategoryClient.ListCategories(ctx, &pb.ListCategoriesRequest{})
+	client := c.getCategoryClient()
+	resp, err := client.ListCategories(ctx, &pb.ListCategoriesRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +186,8 @@ func (c *ProductClient) GetCategory(ctx context.Context, id string) (*pb.Categor
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	resp, err := c.CategoryClient.GetCategory(ctx, &pb.GetCategoryRequest{Id: id})
+	client := c.getCategoryClient()
+	resp, err := client.GetCategory(ctx, &pb.GetCategoryRequest{Id: id})
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +199,8 @@ func (c *ProductClient) CreateCategory(ctx context.Context, req *pb.CreateCatego
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	resp, err := c.CategoryClient.CreateCategory(ctx, req)
+	client := c.getCategoryClient()
+	resp, err := client.CreateCategory(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +212,8 @@ func (c *ProductClient) UpdateCategory(ctx context.Context, req *pb.UpdateCatego
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	resp, err := c.CategoryClient.UpdateCategory(ctx, req)
+	client := c.getCategoryClient()
+	resp, err := client.UpdateCategory(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -169,6 +225,7 @@ func (c *ProductClient) DeleteCategory(ctx context.Context, id string) error {
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	_, err := c.CategoryClient.DeleteCategory(ctx, &pb.DeleteCategoryRequest{Id: id})
+	client := c.getCategoryClient()
+	_, err := client.DeleteCategory(ctx, &pb.DeleteCategoryRequest{Id: id})
 	return err
 }

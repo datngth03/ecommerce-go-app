@@ -1,0 +1,596 @@
+{
+   "annotations": {
+      "list": []
+   },
+   "editable": true,
+   "gnetId": null,
+   "graphTooltip": 0,
+   "id": null,
+   "links": [],
+   "panels": [
+      {
+         "datasource": "Prometheus",
+         "fieldConfig": {
+            "defaults": {
+               "color": {
+                  "mode": "palette-classic"
+               },
+               "custom": {
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "drawStyle": "line",
+                  "fillOpacity": 10,
+                  "gradientMode": "none",
+                  "lineInterpolation": "linear",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "showPoints": "never",
+                  "spanNulls": true
+               },
+               "mappings": [],
+               "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                     {
+                        "color": "green",
+                        "value": null
+                     }
+                  ]
+               },
+               "unit": "short"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 0
+         },
+         "id": 1,
+         "options": {
+            "legend": {
+               "calcs": ["last", "max", "sum"],
+               "displayMode": "table",
+               "placement": "bottom"
+            },
+            "tooltip": {
+               "mode": "single"
+            }
+         },
+         "targets": [
+            {
+               "expr": "rate(notification_service_emails_sent_total{status=\"sent\"}[5m])",
+               "legendFormat": "Emails Sent",
+               "refId": "A"
+            },
+            {
+               "expr": "rate(notification_service_emails_sent_total{status=\"failed\"}[5m])",
+               "legendFormat": "Emails Failed",
+               "refId": "B"
+            },
+            {
+               "expr": "rate(notification_service_sms_sent_total{status=\"sent\"}[5m])",
+               "legendFormat": "SMS Sent",
+               "refId": "C"
+            },
+            {
+               "expr": "rate(notification_service_sms_sent_total{status=\"failed\"}[5m])",
+               "legendFormat": "SMS Failed",
+               "refId": "D"
+            },
+            {
+               "expr": "rate(notification_service_push_notifications_sent_total{status=\"sent\"}[5m])",
+               "legendFormat": "Push Sent",
+               "refId": "E"
+            },
+            {
+               "expr": "rate(notification_service_push_notifications_sent_total{status=\"failed\"}[5m])",
+               "legendFormat": "Push Failed",
+               "refId": "F"
+            }
+         ],
+         "title": "Notifications Sent by Channel",
+         "type": "timeseries"
+      },
+      {
+         "datasource": "Prometheus",
+         "fieldConfig": {
+            "defaults": {
+               "color": {
+                  "mode": "thresholds"
+               },
+               "mappings": [],
+               "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                     {
+                        "color": "green",
+                        "value": null
+                     },
+                     {
+                        "color": "yellow",
+                        "value": 100
+                     },
+                     {
+                        "color": "red",
+                        "value": 500
+                     }
+                  ]
+               },
+               "unit": "short"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 12,
+            "y": 0
+         },
+         "id": 2,
+         "options": {
+            "orientation": "auto",
+            "reduceOptions": {
+               "values": false,
+               "calcs": ["lastNotNull"],
+               "fields": ""
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+         },
+         "targets": [
+            {
+               "expr": "notification_service_queue_size",
+               "legendFormat": "Queue Size",
+               "refId": "A"
+            }
+         ],
+         "title": "Notification Queue Size",
+         "type": "gauge"
+      },
+      {
+         "datasource": "Prometheus",
+         "fieldConfig": {
+            "defaults": {
+               "color": {
+                  "mode": "thresholds"
+               },
+               "mappings": [],
+               "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                     {
+                        "color": "green",
+                        "value": null
+                     },
+                     {
+                        "color": "yellow",
+                        "value": 0.95
+                     },
+                     {
+                        "color": "red",
+                        "value": 0.99
+                     }
+                  ]
+               },
+               "unit": "percentunit"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 18,
+            "y": 0
+         },
+         "id": 3,
+         "options": {
+            "orientation": "auto",
+            "reduceOptions": {
+               "values": false,
+               "calcs": ["lastNotNull"],
+               "fields": ""
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+         },
+         "targets": [
+            {
+               "expr": "sum(rate(notification_service_emails_sent_total{status=\"sent\"}[5m])) / sum(rate(notification_service_emails_sent_total[5m]))",
+               "legendFormat": "Email Success Rate",
+               "refId": "A"
+            }
+         ],
+         "title": "Email Success Rate",
+         "type": "gauge"
+      },
+      {
+         "datasource": "Prometheus",
+         "fieldConfig": {
+            "defaults": {
+               "color": {
+                  "mode": "palette-classic"
+               },
+               "custom": {
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "drawStyle": "line",
+                  "fillOpacity": 10,
+                  "gradientMode": "none",
+                  "lineInterpolation": "linear",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "showPoints": "never",
+                  "spanNulls": true
+               },
+               "mappings": [],
+               "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                     {
+                        "color": "green",
+                        "value": null
+                     }
+                  ]
+               },
+               "unit": "s"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 8
+         },
+         "id": 4,
+         "options": {
+            "legend": {
+               "calcs": ["mean", "max"],
+               "displayMode": "table",
+               "placement": "bottom"
+            },
+            "tooltip": {
+               "mode": "single"
+            }
+         },
+         "targets": [
+            {
+               "expr": "histogram_quantile(0.95, rate(notification_service_notification_duration_seconds_bucket{type=\"email\"}[5m]))",
+               "legendFormat": "Email P95",
+               "refId": "A"
+            },
+            {
+               "expr": "histogram_quantile(0.99, rate(notification_service_notification_duration_seconds_bucket{type=\"email\"}[5m]))",
+               "legendFormat": "Email P99",
+               "refId": "B"
+            },
+            {
+               "expr": "histogram_quantile(0.95, rate(notification_service_notification_duration_seconds_bucket{type=\"sms\"}[5m]))",
+               "legendFormat": "SMS P95",
+               "refId": "C"
+            },
+            {
+               "expr": "histogram_quantile(0.99, rate(notification_service_notification_duration_seconds_bucket{type=\"sms\"}[5m]))",
+               "legendFormat": "SMS P99",
+               "refId": "D"
+            },
+            {
+               "expr": "histogram_quantile(0.95, rate(notification_service_notification_duration_seconds_bucket{type=\"push\"}[5m]))",
+               "legendFormat": "Push P95",
+               "refId": "E"
+            },
+            {
+               "expr": "histogram_quantile(0.99, rate(notification_service_notification_duration_seconds_bucket{type=\"push\"}[5m]))",
+               "legendFormat": "Push P99",
+               "refId": "F"
+            }
+         ],
+         "title": "Notification Delivery Latency",
+         "type": "timeseries"
+      },
+      {
+         "datasource": "Prometheus",
+         "fieldConfig": {
+            "defaults": {
+               "color": {
+                  "mode": "palette-classic"
+               },
+               "custom": {
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "drawStyle": "line",
+                  "fillOpacity": 10,
+                  "gradientMode": "none",
+                  "lineInterpolation": "linear",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "showPoints": "never",
+                  "spanNulls": true
+               },
+               "mappings": [],
+               "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                     {
+                        "color": "green",
+                        "value": null
+                     }
+                  ]
+               },
+               "unit": "reqps"
+            }
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 8
+         },
+         "id": 5,
+         "options": {
+            "legend": {
+               "calcs": ["mean", "max"],
+               "displayMode": "table",
+               "placement": "bottom"
+            },
+            "tooltip": {
+               "mode": "single"
+            }
+         },
+         "targets": [
+            {
+               "expr": "rate(notification_service_grpc_requests_total{method=\"SendEmail\"}[5m])",
+               "legendFormat": "SendEmail",
+               "refId": "A"
+            },
+            {
+               "expr": "rate(notification_service_grpc_requests_total{method=\"SendSMS\"}[5m])",
+               "legendFormat": "SendSMS",
+               "refId": "B"
+            },
+            {
+               "expr": "rate(notification_service_grpc_requests_total{method=\"SendPushNotification\"}[5m])",
+               "legendFormat": "SendPushNotification",
+               "refId": "C"
+            },
+            {
+               "expr": "rate(notification_service_grpc_requests_total{method=\"GetNotification\"}[5m])",
+               "legendFormat": "GetNotification",
+               "refId": "D"
+            },
+            {
+               "expr": "rate(notification_service_grpc_requests_total{method=\"GetNotificationHistory\"}[5m])",
+               "legendFormat": "GetNotificationHistory",
+               "refId": "E"
+            }
+         ],
+         "title": "gRPC Method Call Rate",
+         "type": "timeseries"
+      },
+      {
+         "datasource": "Prometheus",
+         "fieldConfig": {
+            "defaults": {
+               "color": {
+                  "mode": "thresholds"
+               },
+               "mappings": [],
+               "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                     {
+                        "color": "green",
+                        "value": null
+                     }
+                  ]
+               },
+               "unit": "short"
+            }
+         },
+         "gridPos": {
+            "h": 4,
+            "w": 6,
+            "x": 0,
+            "y": 16
+         },
+         "id": 6,
+         "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+               "values": false,
+               "calcs": ["sum"],
+               "fields": ""
+            },
+            "text": {},
+            "textMode": "auto"
+         },
+         "targets": [
+            {
+               "expr": "sum(increase(notification_service_emails_sent_total[24h]))",
+               "legendFormat": "Total Emails (24h)",
+               "refId": "A"
+            }
+         ],
+         "title": "Total Emails Sent (24h)",
+         "type": "stat"
+      },
+      {
+         "datasource": "Prometheus",
+         "fieldConfig": {
+            "defaults": {
+               "color": {
+                  "mode": "thresholds"
+               },
+               "mappings": [],
+               "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                     {
+                        "color": "green",
+                        "value": null
+                     }
+                  ]
+               },
+               "unit": "short"
+            }
+         },
+         "gridPos": {
+            "h": 4,
+            "w": 6,
+            "x": 6,
+            "y": 16
+         },
+         "id": 7,
+         "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+               "values": false,
+               "calcs": ["sum"],
+               "fields": ""
+            },
+            "text": {},
+            "textMode": "auto"
+         },
+         "targets": [
+            {
+               "expr": "sum(increase(notification_service_sms_sent_total[24h]))",
+               "legendFormat": "Total SMS (24h)",
+               "refId": "A"
+            }
+         ],
+         "title": "Total SMS Sent (24h)",
+         "type": "stat"
+      },
+      {
+         "datasource": "Prometheus",
+         "fieldConfig": {
+            "defaults": {
+               "color": {
+                  "mode": "thresholds"
+               },
+               "mappings": [],
+               "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                     {
+                        "color": "green",
+                        "value": null
+                     }
+                  ]
+               },
+               "unit": "short"
+            }
+         },
+         "gridPos": {
+            "h": 4,
+            "w": 6,
+            "x": 12,
+            "y": 16
+         },
+         "id": 8,
+         "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+               "values": false,
+               "calcs": ["sum"],
+               "fields": ""
+            },
+            "text": {},
+            "textMode": "auto"
+         },
+         "targets": [
+            {
+               "expr": "sum(increase(notification_service_push_notifications_sent_total[24h]))",
+               "legendFormat": "Total Push (24h)",
+               "refId": "A"
+            }
+         ],
+         "title": "Total Push Notifications (24h)",
+         "type": "stat"
+      },
+      {
+         "datasource": "Prometheus",
+         "fieldConfig": {
+            "defaults": {
+               "color": {
+                  "mode": "thresholds"
+               },
+               "mappings": [],
+               "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                     {
+                        "color": "red",
+                        "value": null
+                     },
+                     {
+                        "color": "yellow",
+                        "value": 100
+                     },
+                     {
+                        "color": "green",
+                        "value": 1000
+                     }
+                  ]
+               },
+               "unit": "short"
+            }
+         },
+         "gridPos": {
+            "h": 4,
+            "w": 6,
+            "x": 18,
+            "y": 16
+         },
+         "id": 9,
+         "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+               "values": false,
+               "calcs": ["lastNotNull"],
+               "fields": ""
+            },
+            "text": {},
+            "textMode": "auto"
+         },
+         "targets": [
+            {
+               "expr": "sum(increase(notification_service_emails_sent_total{status=\"failed\"}[1h]))",
+               "legendFormat": "Failed (1h)",
+               "refId": "A"
+            }
+         ],
+         "title": "Failed Notifications (1h)",
+         "type": "stat"
+      }
+   ],
+   "refresh": "10s",
+   "schemaVersion": 27,
+   "style": "dark",
+   "tags": ["ecommerce", "notification-service"],
+   "templating": {
+      "list": []
+   },
+   "time": {
+      "from": "now-6h",
+      "to": "now"
+   },
+   "timepicker": {},
+   "timezone": "",
+   "title": "E-Commerce - Notification Service",
+   "uid": "ecommerce-notification-service",
+   "version": 1
+}

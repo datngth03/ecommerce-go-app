@@ -5,7 +5,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 
+	"github.com/datngth03/ecommerce-go-app/services/user-service/internal/metrics"
 	"github.com/datngth03/ecommerce-go-app/services/user-service/internal/models"
 )
 
@@ -22,6 +24,11 @@ func NewSQLUserRepository(db *sql.DB) UserRepositoryInterface {
 }
 
 func (r *sqlUserRepository) Create(ctx context.Context, user *models.User) (*models.User, error) {
+	start := time.Now()
+	defer func() {
+		metrics.RecordDatabaseQuery("INSERT", "users", time.Since(start))
+	}()
+
 	query := `
 		INSERT INTO users (email, password_hash, name, phone, is_active)
 		VALUES ($1, $2, $3, $4, $5)
@@ -39,6 +46,11 @@ func (r *sqlUserRepository) Create(ctx context.Context, user *models.User) (*mod
 }
 
 func (r *sqlUserRepository) GetByID(ctx context.Context, id int64) (*models.User, error) {
+	start := time.Now()
+	defer func() {
+		metrics.RecordDatabaseQuery("SELECT", "users", time.Since(start))
+	}()
+
 	var user models.User
 	query := `
 		SELECT id, email, password_hash, name, phone, is_active, created_at, updated_at
@@ -60,6 +72,11 @@ func (r *sqlUserRepository) GetByID(ctx context.Context, id int64) (*models.User
 }
 
 func (r *sqlUserRepository) GetByEmail(ctx context.Context, email string) (*models.User, error) {
+	start := time.Now()
+	defer func() {
+		metrics.RecordDatabaseQuery("SELECT", "users", time.Since(start))
+	}()
+
 	var user models.User
 	query := `
 		SELECT id, email, password_hash, name, phone, is_active, created_at, updated_at
@@ -81,6 +98,11 @@ func (r *sqlUserRepository) GetByEmail(ctx context.Context, email string) (*mode
 }
 
 func (r *sqlUserRepository) Update(ctx context.Context, updateData *models.UserUpdateData) (*models.User, error) {
+	start := time.Now()
+	defer func() {
+		metrics.RecordDatabaseQuery("UPDATE", "users", time.Since(start))
+	}()
+
 	query := `
 		UPDATE users
 		SET name = $1, phone = $2, updated_at = NOW()
@@ -107,6 +129,11 @@ func (r *sqlUserRepository) Update(ctx context.Context, updateData *models.UserU
 // ... (giữ nguyên các hàm còn lại)
 
 func (r *sqlUserRepository) Delete(ctx context.Context, id int64) error {
+	start := time.Now()
+	defer func() {
+		metrics.RecordDatabaseQuery("UPDATE", "users", time.Since(start))
+	}()
+
 	query := "UPDATE users SET is_active = FALSE, updated_at = NOW() WHERE id = $1"
 	result, err := r.db.ExecContext(ctx, query, id)
 	if err != nil {
@@ -123,6 +150,11 @@ func (r *sqlUserRepository) Delete(ctx context.Context, id int64) error {
 }
 
 func (r *sqlUserRepository) UpdatePassword(ctx context.Context, userID int64, hashedPassword string) error {
+	start := time.Now()
+	defer func() {
+		metrics.RecordDatabaseQuery("UPDATE", "users", time.Since(start))
+	}()
+
 	query := "UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2"
 	result, err := r.db.ExecContext(ctx, query, hashedPassword, userID)
 	if err != nil {
@@ -139,6 +171,11 @@ func (r *sqlUserRepository) UpdatePassword(ctx context.Context, userID int64, ha
 }
 
 func (r *sqlUserRepository) ExistsByEmail(ctx context.Context, email string) (bool, error) {
+	start := time.Now()
+	defer func() {
+		metrics.RecordDatabaseQuery("SELECT", "users", time.Since(start))
+	}()
+
 	var exists bool
 	query := "SELECT EXISTS(SELECT 1 FROM users WHERE email = $1 AND is_active = TRUE)"
 	err := r.db.QueryRowContext(ctx, query, email).Scan(&exists)

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 
+	"github.com/datngth03/ecommerce-go-app/services/user-service/internal/metrics"
 	"github.com/datngth03/ecommerce-go-app/services/user-service/internal/models"
 	"github.com/datngth03/ecommerce-go-app/services/user-service/internal/repository"
 	"github.com/datngth03/ecommerce-go-app/services/user-service/pkg/utils"
@@ -71,6 +72,9 @@ func (s *UserService) CreateUser(ctx context.Context, user *models.User) (*model
 		log.Printf("UserService: Failed to create user: %v", err)
 		return nil, errors.New("failed to create user")
 	}
+
+	// Record successful user registration
+	metrics.RecordUserRegistration()
 
 	log.Printf("UserService: User created successfully with ID: %d", createdUser.ID)
 	return createdUser, nil

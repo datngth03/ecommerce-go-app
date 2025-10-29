@@ -3,8 +3,10 @@ package rpc
 import (
 	"context"
 	"strings"
+	"time"
 
 	pb "github.com/datngth03/ecommerce-go-app/proto/product_service"
+	"github.com/datngth03/ecommerce-go-app/services/product-service/internal/metrics"
 	"github.com/datngth03/ecommerce-go-app/services/product-service/internal/models"
 	"github.com/datngth03/ecommerce-go-app/services/product-service/internal/service"
 
@@ -45,6 +47,8 @@ func NewCategoryGRPCServer(categoryService *service.CategoryService) *CategoryGR
 // ==================== PRODUCT SERVICE METHODS ====================
 
 func (s *ProductGRPCServer) CreateProduct(ctx context.Context, req *pb.CreateProductRequest) (*pb.CreateProductResponse, error) {
+	start := time.Now()
+
 	createReq := &models.CreateProductRequest{
 		Name:        req.Name,
 		Description: req.Description,
@@ -54,7 +58,11 @@ func (s *ProductGRPCServer) CreateProduct(ctx context.Context, req *pb.CreatePro
 	}
 
 	product, err := s.productService.CreateProduct(ctx, createReq)
+
+	metricStatus := "success"
 	if err != nil {
+		metricStatus = "error"
+		metrics.RecordGRPCRequest("CreateProduct", metricStatus, time.Since(start))
 		if strings.Contains(err.Error(), "already exists") {
 			return nil, status.Errorf(codes.AlreadyExists, err.Error())
 		}
@@ -64,19 +72,28 @@ func (s *ProductGRPCServer) CreateProduct(ctx context.Context, req *pb.CreatePro
 		return nil, status.Errorf(codes.Internal, "failed to create product: %v", err)
 	}
 
+	metrics.RecordGRPCRequest("CreateProduct", metricStatus, time.Since(start))
 	return &pb.CreateProductResponse{
 		Product: productResponseToProto(product),
 	}, nil
 }
 
 func (s *ProductGRPCServer) GetProduct(ctx context.Context, req *pb.GetProductRequest) (*pb.GetProductResponse, error) {
+	start := time.Now()
+
 	product, err := s.productService.GetProduct(ctx, req.Id)
+
+	metricStatus := "success"
 	if err != nil {
+		metricStatus = "error"
+		metrics.RecordGRPCRequest("GetProduct", metricStatus, time.Since(start))
 		if strings.Contains(err.Error(), "not found") {
 			return nil, status.Errorf(codes.NotFound, "product with id %s not found", req.Id)
 		}
 		return nil, status.Error(codes.Internal, "failed to get product")
 	}
+
+	metrics.RecordGRPCRequest("GetProduct", metricStatus, time.Since(start))
 	return &pb.GetProductResponse{Product: productResponseToProto(product)}, nil
 }
 

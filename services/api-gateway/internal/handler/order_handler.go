@@ -3,9 +3,11 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	pb "github.com/datngth03/ecommerce-go-app/proto/order_service"
 	"github.com/datngth03/ecommerce-go-app/services/api-gateway/internal/clients"
+	"github.com/datngth03/ecommerce-go-app/services/api-gateway/internal/metrics"
 	"github.com/gin-gonic/gin"
 )
 
@@ -37,16 +39,21 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		return
 	}
 
+	start := time.Now()
 	resp, err := h.orderClient.CreateOrder(c.Request.Context(), &pb.CreateOrderRequest{
 		UserId:          userID.(int64),
 		ShippingAddress: req.ShippingAddress,
 		PaymentMethod:   req.PaymentMethod,
 	})
 
+	status := "success"
 	if err != nil {
+		status = "error"
+		metrics.RecordGRPCClientRequest("order-service", "CreateOrder", status, time.Since(start))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	metrics.RecordGRPCClientRequest("order-service", "CreateOrder", status, time.Since(start))
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "order created successfully",
@@ -62,14 +69,19 @@ func (h *OrderHandler) GetOrder(c *gin.Context) {
 		return
 	}
 
+	start := time.Now()
 	resp, err := h.orderClient.GetOrder(c.Request.Context(), &pb.GetOrderRequest{
 		Id: orderID,
 	})
 
+	status := "success"
 	if err != nil {
+		status = "error"
+		metrics.RecordGRPCClientRequest("order-service", "GetOrder", status, time.Since(start))
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
+	metrics.RecordGRPCClientRequest("order-service", "GetOrder", status, time.Since(start))
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "order retrieved successfully",
@@ -89,6 +101,7 @@ func (h *OrderHandler) ListOrders(c *gin.Context) {
 	pageSize, _ := strconv.ParseInt(c.DefaultQuery("page_size", "10"), 10, 32)
 	status := c.Query("status")
 
+	start := time.Now()
 	resp, err := h.orderClient.ListOrders(c.Request.Context(), &pb.ListOrdersRequest{
 		UserId:   userID.(int64),
 		Page:     int32(page),
@@ -96,10 +109,14 @@ func (h *OrderHandler) ListOrders(c *gin.Context) {
 		Status:   status,
 	})
 
+	statusMetric := "success"
 	if err != nil {
+		statusMetric = "error"
+		metrics.RecordGRPCClientRequest("order-service", "ListOrders", statusMetric, time.Since(start))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	metrics.RecordGRPCClientRequest("order-service", "ListOrders", statusMetric, time.Since(start))
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":   "orders retrieved successfully",
@@ -120,15 +137,20 @@ func (h *OrderHandler) CancelOrder(c *gin.Context) {
 
 	userID, _ := c.Get("user_id")
 
+	start := time.Now()
 	err := h.orderClient.CancelOrder(c.Request.Context(), &pb.CancelOrderRequest{
 		Id:     orderID,
 		UserId: userID.(int64),
 	})
 
+	status := "success"
 	if err != nil {
+		status = "error"
+		metrics.RecordGRPCClientRequest("order-service", "CancelOrder", status, time.Since(start))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	metrics.RecordGRPCClientRequest("order-service", "CancelOrder", status, time.Since(start))
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "order cancelled successfully",

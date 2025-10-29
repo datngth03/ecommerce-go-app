@@ -1,0 +1,251 @@
+groups:
+  - name: service_alerts
+    interval: 30s
+    rules:
+      - alert: ServiceDown
+        expr: up{job=~"api-gateway|.*-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "{{ $labels.job }} has been down for more than 1 minute."
+
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m])) by (job)
+          / sum(rate(http_requests_total[5m])) by (job) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate on {{ $labels.job }}"
+          description: "Error rate is {{ $value | humanizePercentage }} on {{ $labels.job }}"
+
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, job)
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High latency on {{ $labels.job }}"
+          description: "95th percentile latency is {{ $value }}s on {{ $labels.job }}"
+
+  - name: database_alerts
+    interval: 30s
+    rules:
+      - alert: DatabaseDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL is down"
+          description: "PostgreSQL database has been down for more than 1 minute."
+
+      - alert: HighDatabaseConnections
+        expr: |
+          sum(pg_stat_database_numbackends) 
+          / sum(pg_settings_max_connections) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High database connection usage"
+          description: "Database connection usage is above 80%"
+
+      - alert: SlowQueries
+        expr: rate(pg_stat_statements_mean_exec_time_seconds[5m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow database queries detected"
+          description: "Average query time is {{ $value }}s"
+
+  - name: business_alerts
+    interval: 30s
+    rules:
+      - alert: LowStock
+        expr: inventory_stock_available < 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low stock for product {{ $labels.product_id }}"
+          description: "Stock level is {{ $value }} for {{ $labels.product_id }}"
+
+      - alert: HighReservationExpiry
+        expr: |
+          rate(inventory_reservation_expired_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High reservation expiry rate"
+          description: "{{ $value }} reservations per second are expiring"
+
+      - alert: PaymentFailureSpike
+        expr: |
+          rate(payment_failed_total[5m]) 
+          / rate(payment_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Payment failure rate spike"
+          description: "Payment failure rate is {{ $value | humanizePercentage }}"
+
+  - name: order_service_alerts
+    interval: 30s
+    rules:
+      - alert: HighOrderCreationLatency
+        expr: |
+          histogram_quantile(0.95, 
+            rate(order_service_grpc_request_duration_seconds_bucket{method="CreateOrder"}[5m])
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High order creation latency"
+          description: "P95 latency for CreateOrder is {{ $value }}s"
+
+      - alert: OrderCreationFailureRate
+        expr: |
+          rate(order_service_grpc_requests_total{method="CreateOrder",status="error"}[5m])
+          / rate(order_service_grpc_requests_total{method="CreateOrder"}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High order creation failure rate"
+          description: "Order creation failure rate is {{ $value | humanizePercentage }}"
+
+      - alert: HighCancelledOrders
+        expr: |
+          rate(order_service_orders_total{status="cancelled"}[15m]) > 10
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High cancelled order rate"
+          description: "{{ $value }} orders per second are being cancelled"
+
+  - name: payment_service_alerts
+    interval: 30s
+    rules:
+      - alert: HighPaymentProcessingTime
+        expr: |
+          histogram_quantile(0.95, 
+            rate(payment_service_payment_duration_seconds_bucket[5m])
+          ) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High payment processing time"
+          description: "P95 payment processing time is {{ $value }}s"
+
+      - alert: PaymentSuccessRateLow
+        expr: |
+          sum(rate(payment_service_payments_total{status="success"}[5m]))
+          / sum(rate(payment_service_payments_total[5m])) < 0.90
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Low payment success rate"
+          description: "Payment success rate is {{ $value | humanizePercentage }}"
+
+      - alert: HighRefundRate
+        expr: |
+          rate(payment_service_refunds_total[15m]) > 5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High refund rate detected"
+          description: "{{ $value }} refunds per second are being processed"
+
+  - name: notification_service_alerts
+    interval: 30s
+    rules:
+      - alert: EmailDeliveryFailureHigh
+        expr: |
+          rate(notification_service_emails_sent_total{status="failed"}[5m])
+          / rate(notification_service_emails_sent_total[5m]) > 0.10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High email delivery failure rate"
+          description: "Email failure rate is {{ $value | humanizePercentage }}"
+
+      - alert: NotificationQueueBacklog
+        expr: notification_service_queue_size > 1000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Notification queue backlog"
+          description: "Notification queue size is {{ $value }}"
+
+      - alert: SMSDeliveryFailureHigh
+        expr: |
+          rate(notification_service_sms_sent_total{status="failed"}[5m])
+          / rate(notification_service_sms_sent_total[5m]) > 0.15
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High SMS delivery failure rate"
+          description: "SMS failure rate is {{ $value | humanizePercentage }}"
+
+      - alert: NotificationLatencyHigh
+        expr: |
+          histogram_quantile(0.95, 
+            rate(notification_service_notification_duration_seconds_bucket[5m])
+          ) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High notification delivery latency"
+          description: "P95 notification latency is {{ $value }}s"
+
+  - name: system_resource_alerts
+    interval: 30s
+    rules:
+      - alert: HighCPUUsage
+        expr: |
+          100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is {{ $value }}% on {{ $labels.instance }}"
+
+      - alert: HighMemoryUsage
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is {{ $value }}% on {{ $labels.instance }}"
+
+      - alert: DiskSpaceLow
+        expr: |
+          (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 15
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "Only {{ $value }}% disk space remaining on {{ $labels.instance }}"

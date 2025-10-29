@@ -1,6 +1,11 @@
 package config
 
 import (
+	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
 	sharedConfig "github.com/datngth03/ecommerce-go-app/shared/pkg/config"
 )
 
@@ -13,6 +18,27 @@ type Config struct {
 	RabbitMQ sharedConfig.RabbitMQConfig
 	Services sharedConfig.ExternalServices
 	Logging  sharedConfig.LoggingConfig
+	Security SecurityConfig
+}
+
+// SecurityConfig contains security middleware settings
+type SecurityConfig struct {
+	RateLimit      RateLimitConfig
+	CORS           CORSConfig
+	RequestTimeout time.Duration
+}
+
+// RateLimitConfig contains rate limiting settings
+type RateLimitConfig struct {
+	RequestsPerSecond float64
+	BurstSize         int
+	Enabled           bool
+}
+
+// CORSConfig contains CORS settings
+type CORSConfig struct {
+	AllowedOrigins []string
+	Enabled        bool
 }
 
 // Load loads configuration from environment variables
@@ -29,6 +55,7 @@ func Load() (*Config, error) {
 		RabbitMQ: sharedConfig.LoadRabbitMQConfig(),
 		Services: sharedConfig.LoadExternalServices(),
 		Logging:  sharedConfig.LoadLoggingConfig(),
+		Security: LoadSecurityConfig(),
 	}
 
 	return cfg, nil
@@ -64,4 +91,46 @@ func (c *Config) PrintConfig() {
 		Logging:  c.Logging,
 	}
 	baseConfig.PrintConfig()
+
+	// Print security config
+	fmt.Printf("Security:\n")
+	fmt.Printf("  Rate Limit:\n")
+	fmt.Printf("    Enabled: %v\n", c.Security.RateLimit.Enabled)
+	fmt.Printf("    Requests/Second: %.2f\n", c.Security.RateLimit.RequestsPerSecond)
+	fmt.Printf("    Burst Size: %d\n", c.Security.RateLimit.BurstSize)
+	fmt.Printf("  CORS:\n")
+	fmt.Printf("    Enabled: %v\n", c.Security.CORS.Enabled)
+	fmt.Printf("    Allowed Origins: %v\n", c.Security.CORS.AllowedOrigins)
+	fmt.Printf("  Request Timeout: %v\n", c.Security.RequestTimeout)
+}
+
+// LoadSecurityConfig loads security middleware configuration
+func LoadSecurityConfig() SecurityConfig {
+	rateLimitRPS := 100.0
+	if rpsStr := sharedConfig.GetEnv("RATE_LIMIT_RPS", "100.0"); rpsStr != "" {
+		if parsed, err := strconv.ParseFloat(rpsStr, 64); err == nil {
+			rateLimitRPS = parsed
+		}
+	}
+
+	// Load CORS allowed origins from environment
+	corsOriginsStr := sharedConfig.GetEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8080")
+	corsOrigins := strings.Split(corsOriginsStr, ",")
+	// Trim spaces
+	for i := range corsOrigins {
+		corsOrigins[i] = strings.TrimSpace(corsOrigins[i])
+	}
+
+	return SecurityConfig{
+		RateLimit: RateLimitConfig{
+			Enabled:           sharedConfig.GetEnvAsBool("RATE_LIMIT_ENABLED", true),
+			RequestsPerSecond: rateLimitRPS,
+			BurstSize:         sharedConfig.GetEnvAsInt("RATE_LIMIT_BURST", 200),
+		},
+		CORS: CORSConfig{
+			Enabled:        sharedConfig.GetEnvAsBool("CORS_ENABLED", true),
+			AllowedOrigins: corsOrigins,
+		},
+		RequestTimeout: sharedConfig.GetEnvAsDuration("REQUEST_TIMEOUT", 30*time.Second),
+	}
 }

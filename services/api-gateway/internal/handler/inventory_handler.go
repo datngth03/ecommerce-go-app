@@ -3,9 +3,11 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	pb "github.com/datngth03/ecommerce-go-app/proto/inventory_service"
 	"github.com/datngth03/ecommerce-go-app/services/api-gateway/internal/clients"
+	"github.com/datngth03/ecommerce-go-app/services/api-gateway/internal/metrics"
 	"github.com/gin-gonic/gin"
 )
 
@@ -27,14 +29,19 @@ func (h *InventoryHandler) GetStock(c *gin.Context) {
 		return
 	}
 
+	start := time.Now()
 	resp, err := h.inventoryClient.GetStock(c.Request.Context(), &pb.GetStockRequest{
 		ProductId: productID,
 	})
 
+	status := "success"
 	if err != nil {
+		status = "error"
+		metrics.RecordGRPCClientRequest("inventory-service", "GetStock", status, time.Since(start))
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
+	metrics.RecordGRPCClientRequest("inventory-service", "GetStock", status, time.Since(start))
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "stock retrieved successfully",

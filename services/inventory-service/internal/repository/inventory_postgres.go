@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/datngth03/ecommerce-go-app/services/inventory-service/internal/middleware"
 	"github.com/datngth03/ecommerce-go-app/services/inventory-service/internal/models"
 	"github.com/go-redis/redis/v8"
 	"gorm.io/gorm"
@@ -27,6 +28,11 @@ func NewInventoryRepository(db *gorm.DB, redisClient *redis.Client) InventoryRep
 
 // GetStock retrieves stock for a product (with Redis caching)
 func (r *inventoryRepository) GetStock(ctx context.Context, productID string) (*models.Stock, error) {
+	start := time.Now()
+	defer func() {
+		middleware.RecordDatabaseQuery("SELECT", "stocks", time.Since(start))
+	}()
+
 	// Try cache first
 	cacheKey := fmt.Sprintf("stock:%s", productID)
 	cached, err := r.redisClient.Get(ctx, cacheKey).Result()
@@ -62,11 +68,19 @@ func (r *inventoryRepository) GetStock(ctx context.Context, productID string) (*
 		r.redisClient.Set(ctx, cacheKey, data, 5*time.Minute)
 	}
 
+	// Record stock level metric
+	middleware.RecordStockLevel(stock.ProductID, stock.WarehouseID, stock.Available)
+
 	return &stock, nil
 }
 
 // UpdateStock updates stock quantity (with transaction)
 func (r *inventoryRepository) UpdateStock(ctx context.Context, productID string, quantity int32, reason string) (*models.Stock, error) {
+	start := time.Now()
+	defer func() {
+		middleware.RecordDatabaseQuery("UPDATE", "stocks", time.Since(start))
+	}()
+
 	tx := r.db.WithContext(ctx).Begin()
 	defer func() {
 		if r := recover(); r != nil {
@@ -148,11 +162,26 @@ func (r *inventoryRepository) UpdateStock(ctx context.Context, productID string,
 	cacheKey := fmt.Sprintf("stock:%s", productID)
 	r.redisClient.Del(ctx, cacheKey)
 
+	// Record stock movement metric
+	if quantity > 0 {
+		middleware.RecordStockMovement("inbound", productID)
+	} else {
+		middleware.RecordStockMovement("outbound", productID)
+	}
+
+	// Update stock level gauge
+	middleware.RecordStockLevel(stock.ProductID, stock.WarehouseID, stock.Available)
+
 	return &stock, nil
 }
 
 // CheckAvailability checks if product has enough stock
 func (r *inventoryRepository) CheckAvailability(ctx context.Context, productID string, quantity int32) (bool, error) {
+	start := time.Now()
+	defer func() {
+		middleware.RecordDatabaseQuery("SELECT", "stocks", time.Since(start))
+	}()
+
 	stock, err := r.GetStock(ctx, productID)
 	if err != nil {
 		return false, err
@@ -163,6 +192,11 @@ func (r *inventoryRepository) CheckAvailability(ctx context.Context, productID s
 
 // CreateReservation reserves stock for an order
 func (r *inventoryRepository) CreateReservation(ctx context.Context, orderID, productID string, quantity int32) (*models.Reservation, error) {
+	start := time.Now()
+	defer func() {
+		middleware.RecordDatabaseQuery("INSERT", "reservations", time.Since(start))
+	}()
+
 	tx := r.db.WithContext(ctx).Begin()
 	defer func() {
 		if r := recover(); r != nil {
@@ -235,11 +269,21 @@ func (r *inventoryRepository) CreateReservation(ctx context.Context, orderID, pr
 	cacheKey := fmt.Sprintf("stock:%s", productID)
 	r.redisClient.Del(ctx, cacheKey)
 
+	// Record reservation metric
+	middleware.RecordStockMovement("reserved", productID)
+	middleware.ReservationsActive.Inc()
+	middleware.RecordStockLevel(stock.ProductID, stock.WarehouseID, stock.Available)
+
 	return reservation, nil
 }
 
 // GetReservation retrieves reservations for an order
 func (r *inventoryRepository) GetReservation(ctx context.Context, orderID string) ([]*models.Reservation, error) {
+	start := time.Now()
+	defer func() {
+		middleware.RecordDatabaseQuery("SELECT", "reservations", time.Since(start))
+	}()
+
 	var reservations []*models.Reservation
 	if err := r.db.WithContext(ctx).Where("order_id = ?", orderID).Find(&reservations).Error; err != nil {
 		return nil, fmt.Errorf("failed to get reservations: %w", err)
@@ -249,6 +293,11 @@ func (r *inventoryRepository) GetReservation(ctx context.Context, orderID string
 
 // CommitReservation commits reserved stock (payment completed)
 func (r *inventoryRepository) CommitReservation(ctx context.Context, orderID string) error {
+	start := time.Now()
+	defer func() {
+		middleware.RecordDatabaseQuery("UPDATE", "reservations", time.Since(start))
+	}()
+
 	tx := r.db.WithContext(ctx).Begin()
 	defer func() {
 		if r := recover(); r != nil {
@@ -317,6 +366,11 @@ func (r *inventoryRepository) CommitReservation(ctx context.Context, orderID str
 		// Invalidate cache
 		cacheKey := fmt.Sprintf("stock:%s", res.ProductID)
 		r.redisClient.Del(ctx, cacheKey)
+
+		// Record metrics
+		middleware.RecordStockMovement("committed", res.ProductID)
+		middleware.ReservationsActive.Dec()
+		middleware.RecordStockLevel(stock.ProductID, stock.WarehouseID, stock.Available)
 	}
 
 	if err := tx.Commit().Error; err != nil {
@@ -328,6 +382,11 @@ func (r *inventoryRepository) CommitReservation(ctx context.Context, orderID str
 
 // ReleaseReservation releases reserved stock (order cancelled)
 func (r *inventoryRepository) ReleaseReservation(ctx context.Context, orderID string, reason string) error {
+	start := time.Now()
+	defer func() {
+		middleware.RecordDatabaseQuery("UPDATE", "reservations", time.Since(start))
+	}()
+
 	tx := r.db.WithContext(ctx).Begin()
 	defer func() {
 		if r := recover(); r != nil {
@@ -396,6 +455,11 @@ func (r *inventoryRepository) ReleaseReservation(ctx context.Context, orderID st
 		// Invalidate cache
 		cacheKey := fmt.Sprintf("stock:%s", res.ProductID)
 		r.redisClient.Del(ctx, cacheKey)
+
+		// Record metrics
+		middleware.RecordStockMovement("released", res.ProductID)
+		middleware.ReservationsActive.Dec()
+		middleware.RecordStockLevel(stock.ProductID, stock.WarehouseID, stock.Available)
 	}
 
 	if err := tx.Commit().Error; err != nil {

@@ -1,0 +1,134 @@
+name: CI/CD
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
+
+env:
+    GO_VERSION: "1.24"
+    REGISTRY: docker.io
+    IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+    lint:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Set up Go
+              uses: actions/setup-go@v4
+              with:
+                  go-version: ${{ env.GO_VERSION }}
+                  cache: true
+
+            - name: golangci-lint
+              uses: golangci/golangci-lint-action@v3
+              with:
+                  version: latest
+                  args: --timeout=5m
+
+            - name: Run go vet
+              run: go vet ./...
+
+    test:
+        runs-on: ubuntu-latest
+        services:
+            postgres:
+                image: postgres:15-alpine
+                env:
+                    POSTGRES_USER: postgres
+                    POSTGRES_PASSWORD: postgres
+                ports:
+                    - 5432:5432
+                options: >-
+                    --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 5
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Set up Go
+              uses: actions/setup-go@v4
+              with:
+                  go-version: ${{ env.GO_VERSION }}
+                  cache: true
+
+            - name: Install dependencies
+              run: go mod download
+
+            - name: Run tests
+              run: go test -v -race -coverprofile=coverage.out ./...
+
+            - name: Upload coverage
+              uses: codecov/codecov-action@v3
+              with:
+                  file: ./coverage.out
+
+    build:
+        needs: [lint, test]
+        runs-on: ubuntu-latest
+        if: github.ref == 'refs/heads/main'
+        strategy:
+            matrix:
+                service:
+                    - api-gateway
+                    - user-service
+                    - product-service
+                    - order-service
+                    - payment-service
+                    - inventory-service
+                    - notification-service
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
+
+            - name: Login to Docker Hub
+              uses: docker/login-action@v3
+              with:
+                  username: ${{ secrets.DOCKER_USERNAME }}
+                  password: ${{ secrets.DOCKER_PASSWORD }}
+
+            - name: Build and push
+              uses: docker/build-push-action@v5
+              with:
+                  context: ./services/${{ matrix.service }}
+                  push: true
+                  tags: |
+                      ${{ secrets.DOCKER_USERNAME }}/${{ matrix.service }}:latest
+                      ${{ secrets.DOCKER_USERNAME }}/${{ matrix.service }}:${{ env.IMAGE_TAG }}
+                  cache-from: type=gha
+                  cache-to: type=gha,mode=max
+
+    security-scan:
+        needs: build
+        runs-on: ubuntu-latest
+        if: github.ref == 'refs/heads/main'
+        strategy:
+            matrix:
+                service:
+                    - api-gateway
+                    - user-service
+                    - product-service
+                    - order-service
+                    - payment-service
+                    - inventory-service
+                    - notification-service
+
+        steps:
+            - name: Run Trivy vulnerability scanner
+              uses: aquasecurity/trivy-action@master
+              with:
+                  image-ref: ${{ secrets.DOCKER_USERNAME }}/${{ matrix.service }}:${{ env.IMAGE_TAG }}
+                  format: "sarif"
+                  output: "trivy-results.sarif"
+                  severity: "CRITICAL,HIGH"
+
+            - name: Upload Trivy results to GitHub Security
+              uses: github/codeql-action/upload-sarif@v2
+              if: always()
+              with:
+                  sarif_file: "trivy-results.sarif"

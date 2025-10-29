@@ -6,7 +6,7 @@ import (
 	"context"
 
 	pb "github.com/datngth03/ecommerce-go-app/proto/user_service"
-	"github.com/datngth03/ecommerce-go-app/services/user-service/internal/models"
+	// "github.com/datngth03/ecommerce-go-app/services/user-service/internal/models"
 	"github.com/datngth03/ecommerce-go-app/services/user-service/internal/service"
 )
 
@@ -38,12 +38,13 @@ func (s *GRPCServer) GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.U
 func (s *GRPCServer) UpdateUser(ctx context.Context, req *pb.UpdateUserRequest) (*pb.UserResponse, error) {
 	return s.UserServer.UpdateUser(ctx, req)
 }
-func (s *GRPCServer) validateCreateUserRequest(req *pb.CreateUserRequest) error {
-	return s.UserServer.validateCreateUserRequest(req)
-}
-func (s *GRPCServer) modelToProtoUser(user *models.User) *pb.User {
-	return s.UserServer.modelToProtoUser(user)
-}
+
+// func (s *GRPCServer) validateCreateUserRequest(req *pb.CreateUserRequest) error {
+// 	return s.UserServer.validateCreateUserRequest(req)
+// }
+// func (s *GRPCServer) modelToProtoUser(user *models.User) *pb.User {
+// 	return s.UserServer.modelToProtoUser(user)
+// }
 
 func (s *GRPCServer) ChangePassword(ctx context.Context, req *pb.ChangePasswordRequest) (*pb.ChangePasswordResponse, error) {
 	// Gọi một cách tường minh đến phiên bản "thật" mà bạn đã viết trong UserServer

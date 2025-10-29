@@ -1,0 +1,596 @@
+{
+   "annotations": {
+      "list": [
+         {
+            "builtIn": 1,
+            "datasource": "-- Grafana --",
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "type": "dashboard"
+         }
+      ]
+   },
+   "editable": true,
+   "gnetId": null,
+   "graphTooltip": 0,
+   "id": null,
+   "links": [],
+   "panels": [
+      {
+         "datasource": "Prometheus",
+         "fieldConfig": {
+            "defaults": {
+               "color": {
+                  "mode": "palette-classic"
+               },
+               "custom": {
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "drawStyle": "line",
+                  "fillOpacity": 10,
+                  "gradientMode": "none",
+                  "hideFrom": {
+                     "tooltip": false,
+                     "viz": false,
+                     "legend": false
+                  },
+                  "lineInterpolation": "linear",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                     "type": "linear"
+                  },
+                  "showPoints": "never",
+                  "spanNulls": true
+               },
+               "mappings": [],
+               "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                     {
+                        "color": "green",
+                        "value": null
+                     },
+                     {
+                        "color": "red",
+                        "value": 80
+                     }
+                  ]
+               },
+               "unit": "reqps"
+            },
+            "overrides": []
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 0
+         },
+         "id": 1,
+         "options": {
+            "legend": {
+               "calcs": ["mean", "max"],
+               "displayMode": "table",
+               "placement": "bottom"
+            },
+            "tooltip": {
+               "mode": "single"
+            }
+         },
+         "pluginVersion": "8.0.0",
+         "targets": [
+            {
+               "expr": "rate(api_gateway_http_requests_total[5m])",
+               "legendFormat": "API Gateway",
+               "refId": "A"
+            },
+            {
+               "expr": "rate(user_service_http_requests_total[5m])",
+               "legendFormat": "User Service",
+               "refId": "B"
+            },
+            {
+               "expr": "rate(product_service_http_requests_total[5m])",
+               "legendFormat": "Product Service",
+               "refId": "C"
+            },
+            {
+               "expr": "rate(order_service_http_requests_total[5m])",
+               "legendFormat": "Order Service",
+               "refId": "D"
+            },
+            {
+               "expr": "rate(payment_service_http_requests_total[5m])",
+               "legendFormat": "Payment Service",
+               "refId": "E"
+            },
+            {
+               "expr": "rate(notification_service_http_requests_total[5m])",
+               "legendFormat": "Notification Service",
+               "refId": "F"
+            },
+            {
+               "expr": "rate(inventory_service_http_requests_total[5m])",
+               "legendFormat": "Inventory Service",
+               "refId": "G"
+            }
+         ],
+         "title": "HTTP Requests Per Second (All Services)",
+         "type": "timeseries"
+      },
+      {
+         "datasource": "Prometheus",
+         "fieldConfig": {
+            "defaults": {
+               "color": {
+                  "mode": "thresholds"
+               },
+               "mappings": [],
+               "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                     {
+                        "color": "green",
+                        "value": null
+                     },
+                     {
+                        "color": "yellow",
+                        "value": 0.95
+                     },
+                     {
+                        "color": "red",
+                        "value": 0.99
+                     }
+                  ]
+               },
+               "unit": "percentunit"
+            },
+            "overrides": []
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 0
+         },
+         "id": 2,
+         "options": {
+            "orientation": "auto",
+            "reduceOptions": {
+               "values": false,
+               "calcs": ["lastNotNull"],
+               "fields": ""
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true,
+            "text": {}
+         },
+         "pluginVersion": "8.0.0",
+         "targets": [
+            {
+               "expr": "sum(rate(api_gateway_http_requests_total{status=~\"2..\"}[5m])) / sum(rate(api_gateway_http_requests_total[5m]))",
+               "legendFormat": "API Gateway",
+               "refId": "A"
+            },
+            {
+               "expr": "sum(rate(user_service_http_requests_total{status=~\"2..\"}[5m])) / sum(rate(user_service_http_requests_total[5m]))",
+               "legendFormat": "User Service",
+               "refId": "B"
+            },
+            {
+               "expr": "sum(rate(product_service_http_requests_total{status=~\"2..\"}[5m])) / sum(rate(product_service_http_requests_total[5m]))",
+               "legendFormat": "Product Service",
+               "refId": "C"
+            },
+            {
+               "expr": "sum(rate(order_service_http_requests_total{status=~\"2..\"}[5m])) / sum(rate(order_service_http_requests_total[5m]))",
+               "legendFormat": "Order Service",
+               "refId": "D"
+            },
+            {
+               "expr": "sum(rate(payment_service_http_requests_total{status=~\"2..\"}[5m])) / sum(rate(payment_service_http_requests_total[5m]))",
+               "legendFormat": "Payment Service",
+               "refId": "E"
+            },
+            {
+               "expr": "sum(rate(notification_service_http_requests_total{status=~\"2..\"}[5m])) / sum(rate(notification_service_http_requests_total[5m]))",
+               "legendFormat": "Notification Service",
+               "refId": "F"
+            }
+         ],
+         "title": "Success Rate (All Services)",
+         "type": "gauge"
+      },
+      {
+         "datasource": "Prometheus",
+         "fieldConfig": {
+            "defaults": {
+               "color": {
+                  "mode": "palette-classic"
+               },
+               "custom": {
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "drawStyle": "line",
+                  "fillOpacity": 10,
+                  "gradientMode": "none",
+                  "hideFrom": {
+                     "tooltip": false,
+                     "viz": false,
+                     "legend": false
+                  },
+                  "lineInterpolation": "linear",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                     "type": "linear"
+                  },
+                  "showPoints": "never",
+                  "spanNulls": true
+               },
+               "mappings": [],
+               "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                     {
+                        "color": "green",
+                        "value": null
+                     },
+                     {
+                        "color": "red",
+                        "value": 80
+                     }
+                  ]
+               },
+               "unit": "s"
+            },
+            "overrides": []
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 8
+         },
+         "id": 3,
+         "options": {
+            "legend": {
+               "calcs": ["mean", "max", "lastNotNull"],
+               "displayMode": "table",
+               "placement": "bottom"
+            },
+            "tooltip": {
+               "mode": "single"
+            }
+         },
+         "pluginVersion": "8.0.0",
+         "targets": [
+            {
+               "expr": "histogram_quantile(0.95, rate(api_gateway_http_request_duration_seconds_bucket[5m]))",
+               "legendFormat": "API Gateway P95",
+               "refId": "A"
+            },
+            {
+               "expr": "histogram_quantile(0.95, rate(user_service_http_request_duration_seconds_bucket[5m]))",
+               "legendFormat": "User Service P95",
+               "refId": "B"
+            },
+            {
+               "expr": "histogram_quantile(0.95, rate(product_service_http_request_duration_seconds_bucket[5m]))",
+               "legendFormat": "Product Service P95",
+               "refId": "C"
+            },
+            {
+               "expr": "histogram_quantile(0.95, rate(order_service_http_request_duration_seconds_bucket[5m]))",
+               "legendFormat": "Order Service P95",
+               "refId": "D"
+            },
+            {
+               "expr": "histogram_quantile(0.95, rate(payment_service_http_request_duration_seconds_bucket[5m]))",
+               "legendFormat": "Payment Service P95",
+               "refId": "E"
+            },
+            {
+               "expr": "histogram_quantile(0.95, rate(notification_service_http_request_duration_seconds_bucket[5m]))",
+               "legendFormat": "Notification Service P95",
+               "refId": "F"
+            }
+         ],
+         "title": "Request Latency P95 (All Services)",
+         "type": "timeseries"
+      },
+      {
+         "datasource": "Prometheus",
+         "fieldConfig": {
+            "defaults": {
+               "color": {
+                  "mode": "palette-classic"
+               },
+               "custom": {
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "drawStyle": "line",
+                  "fillOpacity": 10,
+                  "gradientMode": "none",
+                  "hideFrom": {
+                     "tooltip": false,
+                     "viz": false,
+                     "legend": false
+                  },
+                  "lineInterpolation": "linear",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                     "type": "linear"
+                  },
+                  "showPoints": "never",
+                  "spanNulls": true
+               },
+               "mappings": [],
+               "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                     {
+                        "color": "green",
+                        "value": null
+                     },
+                     {
+                        "color": "red",
+                        "value": 80
+                     }
+                  ]
+               },
+               "unit": "reqps"
+            },
+            "overrides": []
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 8
+         },
+         "id": 4,
+         "options": {
+            "legend": {
+               "calcs": ["mean", "max"],
+               "displayMode": "table",
+               "placement": "bottom"
+            },
+            "tooltip": {
+               "mode": "single"
+            }
+         },
+         "pluginVersion": "8.0.0",
+         "targets": [
+            {
+               "expr": "rate(api_gateway_grpc_requests_total[5m])",
+               "legendFormat": "API Gateway",
+               "refId": "A"
+            },
+            {
+               "expr": "rate(user_service_grpc_requests_total[5m])",
+               "legendFormat": "User Service",
+               "refId": "B"
+            },
+            {
+               "expr": "rate(product_service_grpc_requests_total[5m])",
+               "legendFormat": "Product Service",
+               "refId": "C"
+            },
+            {
+               "expr": "rate(order_service_grpc_requests_total[5m])",
+               "legendFormat": "Order Service",
+               "refId": "D"
+            },
+            {
+               "expr": "rate(payment_service_grpc_requests_total[5m])",
+               "legendFormat": "Payment Service",
+               "refId": "E"
+            },
+            {
+               "expr": "rate(notification_service_grpc_requests_total[5m])",
+               "legendFormat": "Notification Service",
+               "refId": "F"
+            }
+         ],
+         "title": "gRPC Requests Per Second (All Services)",
+         "type": "timeseries"
+      },
+      {
+         "datasource": "Prometheus",
+         "fieldConfig": {
+            "defaults": {
+               "color": {
+                  "mode": "palette-classic"
+               },
+               "custom": {
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "drawStyle": "line",
+                  "fillOpacity": 10,
+                  "gradientMode": "none",
+                  "hideFrom": {
+                     "tooltip": false,
+                     "viz": false,
+                     "legend": false
+                  },
+                  "lineInterpolation": "linear",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                     "type": "linear"
+                  },
+                  "showPoints": "never",
+                  "spanNulls": true
+               },
+               "mappings": [],
+               "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                     {
+                        "color": "green",
+                        "value": null
+                     },
+                     {
+                        "color": "red",
+                        "value": 80
+                     }
+                  ]
+               },
+               "unit": "s"
+            },
+            "overrides": []
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 16
+         },
+         "id": 5,
+         "options": {
+            "legend": {
+               "calcs": ["mean", "max"],
+               "displayMode": "table",
+               "placement": "bottom"
+            },
+            "tooltip": {
+               "mode": "single"
+            }
+         },
+         "pluginVersion": "8.0.0",
+         "targets": [
+            {
+               "expr": "rate(api_gateway_db_query_duration_seconds_sum[5m]) / rate(api_gateway_db_query_duration_seconds_count[5m])",
+               "legendFormat": "API Gateway",
+               "refId": "A"
+            },
+            {
+               "expr": "rate(user_service_db_query_duration_seconds_sum[5m]) / rate(user_service_db_query_duration_seconds_count[5m])",
+               "legendFormat": "User Service",
+               "refId": "B"
+            },
+            {
+               "expr": "rate(product_service_db_query_duration_seconds_sum[5m]) / rate(product_service_db_query_duration_seconds_count[5m])",
+               "legendFormat": "Product Service",
+               "refId": "C"
+            },
+            {
+               "expr": "rate(order_service_db_query_duration_seconds_sum[5m]) / rate(order_service_db_query_duration_seconds_count[5m])",
+               "legendFormat": "Order Service",
+               "refId": "D"
+            },
+            {
+               "expr": "rate(payment_service_db_query_duration_seconds_sum[5m]) / rate(payment_service_db_query_duration_seconds_count[5m])",
+               "legendFormat": "Payment Service",
+               "refId": "E"
+            },
+            {
+               "expr": "rate(notification_service_db_query_duration_seconds_sum[5m]) / rate(notification_service_db_query_duration_seconds_count[5m])",
+               "legendFormat": "Notification Service",
+               "refId": "F"
+            }
+         ],
+         "title": "Database Query Duration (All Services)",
+         "type": "timeseries"
+      },
+      {
+         "datasource": "Prometheus",
+         "fieldConfig": {
+            "defaults": {
+               "color": {
+                  "mode": "thresholds"
+               },
+               "mappings": [],
+               "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                     {
+                        "color": "green",
+                        "value": null
+                     }
+                  ]
+               }
+            },
+            "overrides": []
+         },
+         "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 16
+         },
+         "id": 6,
+         "options": {
+            "orientation": "auto",
+            "reduceOptions": {
+               "values": false,
+               "calcs": ["lastNotNull"],
+               "fields": ""
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true,
+            "text": {}
+         },
+         "pluginVersion": "8.0.0",
+         "targets": [
+            {
+               "expr": "order_service_orders_total{status=\"pending\"}",
+               "legendFormat": "Pending Orders",
+               "refId": "A"
+            },
+            {
+               "expr": "order_service_orders_total{status=\"processing\"}",
+               "legendFormat": "Processing Orders",
+               "refId": "B"
+            },
+            {
+               "expr": "order_service_orders_total{status=\"completed\"}",
+               "legendFormat": "Completed Orders",
+               "refId": "C"
+            },
+            {
+               "expr": "payment_service_payments_total",
+               "legendFormat": "Total Payments",
+               "refId": "D"
+            },
+            {
+               "expr": "notification_service_emails_sent_total",
+               "legendFormat": "Emails Sent",
+               "refId": "E"
+            },
+            {
+               "expr": "notification_service_sms_sent_total",
+               "legendFormat": "SMS Sent",
+               "refId": "F"
+            }
+         ],
+         "title": "Business Metrics",
+         "type": "stat"
+      }
+   ],
+   "refresh": "10s",
+   "schemaVersion": 27,
+   "style": "dark",
+   "tags": ["ecommerce", "microservices", "overview"],
+   "templating": {
+      "list": []
+   },
+   "time": {
+      "from": "now-6h",
+      "to": "now"
+   },
+   "timepicker": {},
+   "timezone": "",
+   "title": "E-Commerce - All Services Overview",
+   "uid": "ecommerce-all-services",
+   "version": 1
+}

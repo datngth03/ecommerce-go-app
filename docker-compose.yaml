@@ -133,15 +133,18 @@ services:
          - REFRESH_TOKEN_EXPIRATION_DAYS=7
          - ENABLE_AUTH=true
 
-         # Rate Limiting
+         # Rate Limiting (Legacy)
          - RATE_LIMIT_ENABLED=true
          - RATE_LIMIT_REQUESTS_PER_MIN=100
          - RATE_LIMIT_BURST_SIZE=50
 
-         # CORS
-         - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080
-         - CORS_ALLOWED_METHODS=GET,POST,PUT,DELETE,PATCH,OPTIONS
-         - CORS_ALLOWED_HEADERS=Origin,Content-Type,Authorization
+         # Security Configuration
+         - SECURITY_RATE_LIMIT_ENABLED=true
+         - SECURITY_RATE_LIMIT_RPS=50.0
+         - SECURITY_RATE_LIMIT_BURST=100
+         - SECURITY_CORS_ENABLED=true
+         - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080,http://localhost:8000
+         - SECURITY_REQUEST_TIMEOUT=30s
 
          # Logging
          - LOG_LEVEL=info
@@ -198,8 +201,9 @@ services:
          - DB_PASSWORD=postgres123
          - DB_NAME=users_db
          - DB_SSLMODE=disable
-         - DB_MAX_OPEN_CONNS=25
-         - DB_MAX_IDLE_CONNS=5
+         - DB_MAX_OPEN_CONNS=30
+         - DB_MAX_IDLE_CONNS=15
+         - DB_CONN_MAX_LIFETIME=300
 
          # Redis
          - REDIS_HOST=redis
@@ -211,6 +215,18 @@ services:
          - JWT_SECRET=your-super-secret-jwt-key-change-in-production-2025
          - JWT_EXPIRATION_HOURS=24
          - REFRESH_TOKEN_EXPIRATION_DAYS=7
+
+         # Security Configuration
+         - RATE_LIMIT_ENABLED=true
+         - RATE_LIMIT_RPS=10.0
+         - RATE_LIMIT_BURST=20
+         - CORS_ENABLED=true
+         - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080,http://localhost:8000
+         - REQUEST_TIMEOUT=30s
+
+         # Distributed Tracing Configuration
+         - TRACING_ENABLED=true
+         - JAEGER_ENDPOINT=jaeger:4317
 
          # Logging
          - LOG_LEVEL=info
@@ -266,8 +282,9 @@ services:
          - DB_PASSWORD=postgres123
          - DB_NAME=products_db
          - DB_SSLMODE=disable
-         - DB_MAX_OPEN_CONNS=25
-         - DB_MAX_IDLE_CONNS=5
+         - DB_MAX_OPEN_CONNS=30
+         - DB_MAX_IDLE_CONNS=15
+         - DB_CONN_MAX_LIFETIME=300
 
          # Redis
          - REDIS_HOST=redis
@@ -278,6 +295,18 @@ services:
          # Logging
          - LOG_LEVEL=info
          - LOG_FORMAT=json
+
+         # Distributed Tracing Configuration
+         - TRACING_ENABLED=true
+         - JAEGER_ENDPOINT=jaeger:4317
+
+         # Security Configuration
+         - SECURITY_RATE_LIMIT_ENABLED=true
+         - SECURITY_RATE_LIMIT_RPS=50.0
+         - SECURITY_RATE_LIMIT_BURST=100
+         - SECURITY_CORS_ENABLED=true
+         - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080,http://localhost:8000
+         - SECURITY_REQUEST_TIMEOUT=30s
       depends_on:
          postgres:
             condition: service_healthy
@@ -329,8 +358,9 @@ services:
          - DB_PASSWORD=postgres123
          - DB_NAME=orders_db
          - DB_SSLMODE=disable
-         - DB_MAX_OPEN_CONNS=25
-         - DB_MAX_IDLE_CONNS=5
+         - DB_MAX_OPEN_CONNS=50
+         - DB_MAX_IDLE_CONNS=25
+         - DB_CONN_MAX_LIFETIME=300
 
          # Redis
          - REDIS_HOST=redis
@@ -354,6 +384,18 @@ services:
          # Logging
          - LOG_LEVEL=info
          - LOG_FORMAT=json
+
+         # Distributed Tracing Configuration
+         - TRACING_ENABLED=true
+         - JAEGER_ENDPOINT=jaeger:4317
+
+         # Security Configuration
+         - SECURITY_RATE_LIMIT_ENABLED=true
+         - SECURITY_RATE_LIMIT_RPS=50.0
+         - SECURITY_RATE_LIMIT_BURST=100
+         - SECURITY_CORS_ENABLED=true
+         - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080,http://localhost:8000
+         - SECURITY_REQUEST_TIMEOUT=30s
       depends_on:
          postgres:
             condition: service_healthy
@@ -405,8 +447,9 @@ services:
          - DB_PASSWORD=postgres123
          - DB_NAME=payments_db
          - DB_SSLMODE=disable
-         - DB_MAX_OPEN_CONNS=25
-         - DB_MAX_IDLE_CONNS=5
+         - DB_MAX_OPEN_CONNS=20
+         - DB_MAX_IDLE_CONNS=10
+         - DB_CONN_MAX_LIFETIME=300
 
          # Redis
          - REDIS_HOST=redis
@@ -430,6 +473,18 @@ services:
          # Logging
          - LOG_LEVEL=info
          - LOG_FORMAT=json
+
+         # Distributed Tracing Configuration
+         - TRACING_ENABLED=true
+         - JAEGER_ENDPOINT=jaeger:4317
+
+         # Security Configuration
+         - SECURITY_RATE_LIMIT_ENABLED=true
+         - SECURITY_RATE_LIMIT_RPS=50.0
+         - SECURITY_RATE_LIMIT_BURST=100
+         - SECURITY_CORS_ENABLED=true
+         - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080,http://localhost:8000
+         - SECURITY_REQUEST_TIMEOUT=30s
       depends_on:
          postgres:
             condition: service_healthy
@@ -481,8 +536,9 @@ services:
          - DB_PASSWORD=postgres123
          - DB_NAME=inventory_db
          - DB_SSLMODE=disable
-         - DB_MAX_OPEN_CONNS=25
-         - DB_MAX_IDLE_CONNS=5
+         - DB_MAX_OPEN_CONNS=20
+         - DB_MAX_IDLE_CONNS=10
+         - DB_CONN_MAX_LIFETIME=300
 
          # Redis
          - REDIS_HOST=redis
@@ -498,9 +554,21 @@ services:
          - RABBITMQ_PASSWORD=admin123
          - RABBITMQ_VHOST=/
 
+         # Security Configuration
+         - RATE_LIMIT_ENABLED=true
+         - RATE_LIMIT_RPS=100.0
+         - RATE_LIMIT_BURST=200
+         - CORS_ENABLED=true
+         - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080,http://localhost:8000
+         - REQUEST_TIMEOUT=30s
+
          # Logging
          - LOG_LEVEL=info
          - LOG_FORMAT=json
+
+         # Distributed Tracing Configuration
+         - TRACING_ENABLED=true
+         - JAEGER_ENDPOINT=jaeger:4317
       depends_on:
          postgres:
             condition: service_healthy
@@ -552,8 +620,9 @@ services:
          - DB_PASSWORD=postgres123
          - DB_NAME=notifications_db
          - DB_SSLMODE=disable
-         - DB_MAX_OPEN_CONNS=25
-         - DB_MAX_IDLE_CONNS=5
+         - DB_MAX_OPEN_CONNS=20
+         - DB_MAX_IDLE_CONNS=10
+         - DB_CONN_MAX_LIFETIME=300
 
          # RabbitMQ (for event-driven notifications)
          - RABBITMQ_HOST=rabbitmq
@@ -578,6 +647,18 @@ services:
          # Logging
          - LOG_LEVEL=info
          - LOG_FORMAT=json
+
+         # Security Configuration
+         - SECURITY_RATE_LIMIT_ENABLED=true
+         - SECURITY_RATE_LIMIT_RPS=50.0
+         - SECURITY_RATE_LIMIT_BURST=100
+         - SECURITY_CORS_ENABLED=true
+         - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080,http://localhost:8000
+         - SECURITY_REQUEST_TIMEOUT=30s
+
+         # Distributed Tracing Configuration
+         - TRACING_ENABLED=true
+         - JAEGER_ENDPOINT=jaeger:4317
       depends_on:
          postgres:
             condition: service_healthy
@@ -599,62 +680,6 @@ services:
          timeout: 10s
          retries: 3
          start_period: 40s
-
-   # ================================
-   # Monitoring & Observability
-   # ================================
-
-   # Prometheus
-   prometheus:
-      image: prom/prometheus:latest
-      container_name: ecommerce-prometheus
-      restart: unless-stopped
-      ports:
-         - "9090:9090"
-      volumes:
-         - ./infrastructure/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-         - prometheus_data:/prometheus
-      command:
-         - "--config.file=/etc/prometheus/prometheus.yml"
-         - "--storage.tsdb.path=/prometheus"
-         - "--web.console.libraries=/etc/prometheus/console_libraries"
-         - "--web.console.templates=/etc/prometheus/consoles"
-         - "--storage.tsdb.retention.time=200h"
-         - "--web.enable-lifecycle"
-      networks:
-         - ecommerce-network
-
-   # Grafana
-   grafana:
-      image: grafana/grafana:latest
-      container_name: ecommerce-grafana
-      restart: unless-stopped
-      ports:
-         - "3000:3000"
-      environment:
-         - GF_SECURITY_ADMIN_USER=admin
-         - GF_SECURITY_ADMIN_PASSWORD=admin123
-         - GF_USERS_ALLOW_SIGN_UP=false
-      volumes:
-         - grafana_data:/var/lib/grafana
-         - ./infrastructure/monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
-      depends_on:
-         - prometheus
-      networks:
-         - ecommerce-network
-
-   # Jaeger (Distributed Tracing)
-   jaeger:
-      image: jaegertracing/all-in-one:latest
-      container_name: ecommerce-jaeger
-      restart: unless-stopped
-      ports:
-         - "16686:16686"
-         - "14268:14268"
-      environment:
-         - COLLECTOR_OTLP_ENABLED=true
-      networks:
-         - ecommerce-network
 
    # ================================
    # Load Balancer (Optional)
@@ -690,8 +715,4 @@ volumes:
    redis_data:
       driver: local
    rabbitmq_data:
-      driver: local
-   prometheus_data:
-      driver: local
-   grafana_data:
       driver: local

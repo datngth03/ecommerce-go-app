@@ -2,8 +2,10 @@ package rpc
 
 import (
 	"context"
+	"time"
 
 	pb "github.com/datngth03/ecommerce-go-app/proto/payment_service"
+	"github.com/datngth03/ecommerce-go-app/services/payment-service/internal/metrics"
 	"github.com/datngth03/ecommerce-go-app/services/payment-service/internal/service"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -24,6 +26,8 @@ func NewPaymentServer(svc *service.PaymentService) *PaymentServer {
 
 // ProcessPayment processes a new payment
 func (s *PaymentServer) ProcessPayment(ctx context.Context, req *pb.ProcessPaymentRequest) (*pb.ProcessPaymentResponse, error) {
+	start := time.Now()
+
 	payment, clientSecret, err := s.service.ProcessPayment(
 		ctx,
 		req.OrderId,
@@ -33,9 +37,22 @@ func (s *PaymentServer) ProcessPayment(ctx context.Context, req *pb.ProcessPayme
 		req.Method,
 		req.Metadata,
 	)
+
+	duration := time.Since(start)
+	grpcStatus := "success"
+	paymentStatus := "success"
+
 	if err != nil {
+		grpcStatus = "error"
+		paymentStatus = "failed"
+		metrics.RecordGRPCRequest("ProcessPayment", grpcStatus, duration)
+		metrics.RecordPayment(req.Method, paymentStatus, req.Amount, req.Currency, duration)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+
+	// Record successful payment
+	metrics.RecordGRPCRequest("ProcessPayment", grpcStatus, duration)
+	metrics.RecordPayment(req.Method, payment.Status, req.Amount, req.Currency, duration)
 
 	return &pb.ProcessPaymentResponse{
 		Payment: &pb.Payment{
@@ -61,10 +78,18 @@ func (s *PaymentServer) ProcessPayment(ctx context.Context, req *pb.ProcessPayme
 
 // ConfirmPayment confirms a pending payment
 func (s *PaymentServer) ConfirmPayment(ctx context.Context, req *pb.ConfirmPaymentRequest) (*pb.ConfirmPaymentResponse, error) {
+	start := time.Now()
+
 	payment, err := s.service.ConfirmPayment(ctx, req.PaymentId, req.PaymentIntentId)
+
+	grpcStatus := "success"
 	if err != nil {
+		grpcStatus = "error"
+		metrics.RecordGRPCRequest("ConfirmPayment", grpcStatus, time.Since(start))
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+
+	metrics.RecordGRPCRequest("ConfirmPayment", grpcStatus, time.Since(start))
 
 	return &pb.ConfirmPaymentResponse{
 		Payment: &pb.Payment{
@@ -83,10 +108,22 @@ func (s *PaymentServer) ConfirmPayment(ctx context.Context, req *pb.ConfirmPayme
 
 // RefundPayment processes a refund
 func (s *PaymentServer) RefundPayment(ctx context.Context, req *pb.RefundPaymentRequest) (*pb.RefundPaymentResponse, error) {
+	start := time.Now()
+
 	refund, err := s.service.RefundPayment(ctx, req.PaymentId, req.Amount, req.Reason)
+
+	grpcStatus := "success"
+	refundStatus := "success"
 	if err != nil {
+		grpcStatus = "error"
+		refundStatus = "failed"
+		metrics.RecordGRPCRequest("RefundPayment", grpcStatus, time.Since(start))
+		metrics.RecordRefund(refundStatus)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+
+	metrics.RecordGRPCRequest("RefundPayment", grpcStatus, time.Since(start))
+	metrics.RecordRefund(refund.Status)
 
 	return &pb.RefundPaymentResponse{
 		Refund: &pb.Refund{
@@ -106,10 +143,18 @@ func (s *PaymentServer) RefundPayment(ctx context.Context, req *pb.RefundPayment
 
 // GetPayment retrieves payment details
 func (s *PaymentServer) GetPayment(ctx context.Context, req *pb.GetPaymentRequest) (*pb.GetPaymentResponse, error) {
+	start := time.Now()
+
 	payment, err := s.service.GetPayment(ctx, req.PaymentId)
+
+	grpcStatus := "success"
 	if err != nil {
+		grpcStatus = "error"
+		metrics.RecordGRPCRequest("GetPayment", grpcStatus, time.Since(start))
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
+
+	metrics.RecordGRPCRequest("GetPayment", grpcStatus, time.Since(start))
 
 	// Convert transactions
 	var transactions []*pb.Transaction

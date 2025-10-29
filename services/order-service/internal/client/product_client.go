@@ -6,6 +6,8 @@ import (
 
 	pb "github.com/datngth03/ecommerce-go-app/proto/product_service"
 	sharedConfig "github.com/datngth03/ecommerce-go-app/shared/pkg/config"
+	"github.com/datngth03/ecommerce-go-app/shared/pkg/grpcpool"
+	sharedTracing "github.com/datngth03/ecommerce-go-app/shared/pkg/tracing"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -13,10 +15,16 @@ import (
 type ProductClient struct {
 	conn   *grpc.ClientConn
 	client pb.ProductServiceClient
+	pool   *grpcpool.ConnectionPool // Connection pool support
 }
 
 func NewProductClient(endpoint sharedConfig.ServiceEndpoint) (*ProductClient, error) {
-	conn, err := grpc.Dial(endpoint.GRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	opts := []grpc.DialOption{
+		grpc.WithUnaryInterceptor(sharedTracing.UnaryClientInterceptor()),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	}
+
+	conn, err := grpc.Dial(endpoint.GRPCAddr, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to product service: %w", err)
 	}
@@ -27,13 +35,51 @@ func NewProductClient(endpoint sharedConfig.ServiceEndpoint) (*ProductClient, er
 	}, nil
 }
 
+// NewProductClientWithPool creates a new product client with connection pooling support
+func NewProductClientWithPool(endpoint sharedConfig.ServiceEndpoint, poolManager *grpcpool.Manager) (*ProductClient, error) {
+	pool, exists := poolManager.Get("product")
+	if !exists {
+		poolConfig := grpcpool.DefaultPoolConfig(endpoint.GRPCAddr)
+		var err error
+		pool, err = poolManager.GetOrCreate("product", poolConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create product service pool: %w", err)
+		}
+	}
+
+	return &ProductClient{
+		pool: pool,
+	}, nil
+}
+
 func (c *ProductClient) Close() error {
-	return c.conn.Close()
+	// If using pool, don't close individual connections
+	if c.pool != nil {
+		return nil
+	}
+	if c.conn != nil {
+		return c.conn.Close()
+	}
+	return nil
+}
+
+// getClient returns a gRPC client, using pool if available
+func (c *ProductClient) getClient() (pb.ProductServiceClient, error) {
+	if c.pool != nil {
+		conn := c.pool.Get()
+		return pb.NewProductServiceClient(conn), nil
+	}
+	return c.client, nil
 }
 
 // GetProduct retrieves product details by ID
 func (c *ProductClient) GetProduct(ctx context.Context, productID string) (*pb.Product, error) {
-	resp, err := c.client.GetProduct(ctx, &pb.GetProductRequest{
+	client, err := c.getClient()
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := client.GetProduct(ctx, &pb.GetProductRequest{
 		Id: productID,
 	})
 	if err != nil {

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	pb "github.com/datngth03/ecommerce-go-app/proto/user_service"
+	sharedTracing "github.com/datngth03/ecommerce-go-app/shared/pkg/tracing"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
@@ -27,6 +28,9 @@ func NewGRPCClient(serverAddress string) (*GRPCClient, error) {
 
 	// Set up connection options
 	opts := []grpc.DialOption{
+		// Tracing interceptor for distributed tracing
+		grpc.WithUnaryInterceptor(sharedTracing.UnaryClientInterceptor()),
+
 		// Use insecure connection (for development)
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 

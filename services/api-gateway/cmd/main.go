@@ -10,12 +10,18 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"golang.org/x/time/rate"
 
 	"github.com/datngth03/ecommerce-go-app/services/api-gateway/internal/clients"
 	"github.com/datngth03/ecommerce-go-app/services/api-gateway/internal/config"
 	"github.com/datngth03/ecommerce-go-app/services/api-gateway/internal/handler"
+	"github.com/datngth03/ecommerce-go-app/services/api-gateway/internal/metrics"
 	"github.com/datngth03/ecommerce-go-app/services/api-gateway/internal/middleware"
 	"github.com/datngth03/ecommerce-go-app/services/api-gateway/internal/proxy"
+
+	sharedMiddleware "github.com/datngth03/ecommerce-go-app/shared/pkg/middleware"
+	sharedTracing "github.com/datngth03/ecommerce-go-app/shared/pkg/tracing"
 )
 
 func main() {
@@ -32,6 +38,25 @@ func main() {
 	if cfg.IsDevelopment() {
 		cfg.PrintConfig()
 	}
+
+	// 2. Initialize Distributed Tracing
+	tracerCleanup, err := sharedTracing.InitTracer(sharedTracing.TracerConfig{
+		ServiceName:    cfg.Service.Name,
+		ServiceVersion: cfg.Service.Version,
+		Environment:    cfg.Service.Environment,
+		JaegerEndpoint: os.Getenv("JAEGER_ENDPOINT"),
+		Enabled:        os.Getenv("TRACING_ENABLED") == "true",
+	})
+	if err != nil {
+		log.Fatalf("Failed to initialize tracer: %v", err)
+	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := tracerCleanup(ctx); err != nil {
+			log.Printf("Error shutting down tracer: %v", err)
+		}
+	}()
 
 	// Initialize gRPC clients
 	grpcClients, err := clients.NewClients(cfg)
@@ -51,10 +76,11 @@ func main() {
 	orderHandler := handler.NewOrderHandler(grpcClients.Order)
 	paymentHandler := handler.NewPaymentHandler(grpcClients.Payment)
 	inventoryHandler := handler.NewInventoryHandler(grpcClients.Inventory)
+	healthHandler := handler.NewHealthHandler(grpcClients)
 	log.Println("✅ Handlers initialized")
 
 	// Setup HTTP server
-	router := setupRouter(cfg, userHandler, productHandler, orderHandler, paymentHandler, inventoryHandler, userProxy)
+	router := setupRouter(cfg, userHandler, productHandler, orderHandler, paymentHandler, inventoryHandler, healthHandler, userProxy)
 
 	// Create HTTP server
 	srv := &http.Server{
@@ -101,6 +127,7 @@ func setupRouter(
 	orderHandler *handler.OrderHandler,
 	paymentHandler *handler.PaymentHandler,
 	inventoryHandler *handler.InventoryHandler,
+	healthHandler *handler.HealthHandler,
 	userProxy *proxy.UserProxy,
 ) *gin.Engine {
 	// Set Gin mode
@@ -110,22 +137,58 @@ func setupRouter(
 
 	router := gin.New()
 
+	// Add tracing middleware FIRST (to capture all requests)
+	router.Use(sharedTracing.GinMiddleware(cfg.Service.Name))
+
+	// Initialize security middleware
+	var securityMiddlewares []gin.HandlerFunc
+
+	// Rate limiting middleware
+	if cfg.Security.RateLimit.Enabled {
+		rateLimiter := sharedMiddleware.NewIPRateLimiter(
+			rate.Limit(cfg.Security.RateLimit.RequestsPerSecond),
+			cfg.Security.RateLimit.BurstSize,
+		)
+		securityMiddlewares = append(securityMiddlewares, sharedMiddleware.RateLimitMiddleware(rateLimiter))
+	}
+
+	// Security headers middleware
+	securityMiddlewares = append(securityMiddlewares, sharedMiddleware.SecurityHeadersMiddleware())
+
+	// CORS middleware
+	if cfg.Security.CORS.Enabled {
+		securityMiddlewares = append(securityMiddlewares, sharedMiddleware.CORSMiddleware(cfg.Security.CORS.AllowedOrigins))
+	}
+
+	// Timeout middleware
+	securityMiddlewares = append(securityMiddlewares, sharedMiddleware.TimeoutMiddleware(cfg.Security.RequestTimeout))
+
+	// Add security middleware first
+	for _, mw := range securityMiddlewares {
+		router.Use(mw)
+	}
+
+	// Enhanced input validation middlewares (10MB max request size)
+	for _, mw := range sharedMiddleware.EnhancedValidationMiddlewares(10 * 1024 * 1024) {
+		router.Use(mw)
+	}
+
+	// Response compression middleware (after security, before business logic)
+	router.Use(sharedMiddleware.CompressionMiddleware())
+
 	// Global middleware
 	router.Use(gin.Recovery())
 	router.Use(gin.Logger())
-	router.Use(middleware.CORSMiddleware())
+	router.Use(metrics.PrometheusMiddleware())
 
 	// Health endpoints
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"status":  "healthy",
-			"service": "api-gateway",
-		})
-	})
+	router.GET("/health", healthHandler.HealthCheck)
+	router.GET("/ready", healthHandler.ReadinessCheck)
+	router.GET("/health/pools", healthHandler.PoolsHealth)
+	router.GET("/health/pools/detailed", healthHandler.DetailedPoolsHealth)
 
-	router.GET("/ready", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ready"})
-	})
+	// Prometheus metrics endpoint
+	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// API v1 routes
 	v1 := router.Group("/api/v1")

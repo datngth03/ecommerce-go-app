@@ -1,7 +1,12 @@
 package config
 
 import (
-	sharedConfig "github.com/ecommerce-go-app/shared/pkg/config"
+	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
+	sharedConfig "github.com/datngth03/ecommerce-go-app/shared/pkg/config"
 )
 
 // Config holds API Gateway specific configuration
@@ -13,6 +18,27 @@ type Config struct {
 	RateLimit RateLimitConfig
 	Logging   sharedConfig.LoggingConfig
 	External  ExternalConfig
+	Security  SecurityConfig
+}
+
+// SecurityConfig contains security middleware settings
+type SecurityConfig struct {
+	RateLimit      SecurityRateLimitConfig
+	CORS           CORSConfig
+	RequestTimeout time.Duration
+}
+
+// SecurityRateLimitConfig contains rate limiting settings for security middleware
+type SecurityRateLimitConfig struct {
+	RequestsPerSecond float64
+	BurstSize         int
+	Enabled           bool
+}
+
+// CORSConfig contains CORS settings
+type CORSConfig struct {
+	AllowedOrigins []string
+	Enabled        bool
 }
 
 // RateLimitConfig contains rate limiting settings
@@ -82,9 +108,45 @@ func Load() (*Config, error) {
 				AuthToken:  sharedConfig.GetEnv("TWILIO_AUTH_TOKEN", ""),
 			},
 		},
+		Security: LoadSecurityConfig(),
 	}
 
 	return cfg, nil
+}
+
+// LoadSecurityConfig loads security middleware configuration
+func LoadSecurityConfig() SecurityConfig {
+	rateLimitRPS := 50.0
+	if rpsStr := sharedConfig.GetEnv("RATE_LIMIT_RPS", "50.0"); rpsStr != "" {
+		if parsed, err := strconv.ParseFloat(rpsStr, 64); err == nil {
+			rateLimitRPS = parsed
+		}
+	}
+
+	// Load CORS origins from environment
+	corsOrigins := []string{"http://localhost:3000", "http://localhost:8080"}
+	if corsEnv := sharedConfig.GetEnv("CORS_ALLOWED_ORIGINS", ""); corsEnv != "" {
+		origins := strings.Split(corsEnv, ",")
+		corsOrigins = make([]string, 0, len(origins))
+		for _, origin := range origins {
+			if trimmed := strings.TrimSpace(origin); trimmed != "" {
+				corsOrigins = append(corsOrigins, trimmed)
+			}
+		}
+	}
+
+	return SecurityConfig{
+		RateLimit: SecurityRateLimitConfig{
+			Enabled:           sharedConfig.GetEnvAsBool("SECURITY_RATE_LIMIT_ENABLED", true),
+			RequestsPerSecond: rateLimitRPS,
+			BurstSize:         sharedConfig.GetEnvAsInt("SECURITY_RATE_LIMIT_BURST", 100),
+		},
+		CORS: CORSConfig{
+			Enabled:        sharedConfig.GetEnvAsBool("SECURITY_CORS_ENABLED", true),
+			AllowedOrigins: corsOrigins,
+		},
+		RequestTimeout: sharedConfig.GetEnvAsDuration("SECURITY_REQUEST_TIMEOUT", 30*time.Second),
+	}
 }
 
 // IsProduction returns true if running in production mode
@@ -112,4 +174,15 @@ func (c *Config) PrintConfig() {
 		Logging:  c.Logging,
 	}
 	baseConfig.PrintConfig()
+
+	// Print security config
+	fmt.Printf("Security:\n")
+	fmt.Printf("  Rate Limit:\n")
+	fmt.Printf("    Enabled: %v\n", c.Security.RateLimit.Enabled)
+	fmt.Printf("    Requests/Second: %.2f\n", c.Security.RateLimit.RequestsPerSecond)
+	fmt.Printf("    Burst Size: %d\n", c.Security.RateLimit.BurstSize)
+	fmt.Printf("  CORS:\n")
+	fmt.Printf("    Enabled: %v\n", c.Security.CORS.Enabled)
+	fmt.Printf("    Allowed Origins: %v\n", c.Security.CORS.AllowedOrigins)
+	fmt.Printf("  Request Timeout: %v\n", c.Security.RequestTimeout)
 }
