@@ -10,7 +10,6 @@ import (
 	sharedTracing "github.com/datngth03/ecommerce-go-app/shared/pkg/tracing"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/keepalive"
 )
 
 // ProductClient wraps the gRPC client for product-service with connection pooling
@@ -30,11 +29,6 @@ func NewProductClient(addr string, timeout time.Duration) (*ProductClient, error
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()), // TODO: Use TLS in production
 		grpc.WithBlock(),
-		grpc.WithKeepaliveParams(keepalive.ClientParameters{
-			Time:                10 * time.Second,
-			Timeout:             3 * time.Second,
-			PermitWithoutStream: true,
-		}),
 		grpc.WithUnaryInterceptor(sharedTracing.UnaryClientInterceptor()),
 	}
 

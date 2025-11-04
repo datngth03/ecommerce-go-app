@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/datngth03/ecommerce-go-app/services/order-service/internal/models"
 	"github.com/google/uuid"
@@ -181,7 +182,7 @@ func (r *OrderPostgresRepository) Cancel(ctx context.Context, id string, userID 
 }
 
 // ConnectPostgres creates a PostgreSQL database connection
-func ConnectPostgres(dsn string) (*sql.DB, error) {
+func ConnectPostgres(dsn string, maxOpenConns, maxIdleConns int) (*sql.DB, error) {
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
@@ -191,8 +192,16 @@ func ConnectPostgres(dsn string) (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
+	// Configure connection pool from config
+	if maxOpenConns > 0 {
+		db.SetMaxOpenConns(maxOpenConns)
+	}
+	if maxIdleConns > 0 {
+		db.SetMaxIdleConns(maxIdleConns)
+	}
+	// Set connection lifetime
+	db.SetConnMaxLifetime(time.Hour)
+	db.SetConnMaxIdleTime(10 * time.Minute)
 
 	return db, nil
 }

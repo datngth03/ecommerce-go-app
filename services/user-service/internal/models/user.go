@@ -11,7 +11,7 @@ type User struct {
 	Email     string    `json:"email" gorm:"type:varchar(255);uniqueIndex;not null"`
 	Name      string    `json:"name" gorm:"type:varchar(100);not null"`
 	Phone     string    `json:"phone" gorm:"type:varchar(20)"`
-	Password  string    `json:"-" gorm:"column:password_hash;type:varchar(255);not null"` // Never expose password in JSON
+	Password  string    `json:"password_hash" gorm:"column:password_hash;type:varchar(255);not null"` // Changed from json:"-" to allow Redis cache serialization
 	IsActive  bool      `json:"is_active" gorm:"default:true;not null"`
 	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`

@@ -19,6 +19,7 @@ WORKDIR /app/services/order-service
 
 # Download dependencies
 RUN go mod download
+# RUN go mod tidy
 RUN go mod tidy
 
 # Copy source code is already done above

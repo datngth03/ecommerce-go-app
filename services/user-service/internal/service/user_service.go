@@ -239,3 +239,11 @@ func (s *UserService) UpdatePasswordByEmail(ctx context.Context, email, newPassw
 	log.Printf("UserService: Password updated successfully for email: %s", email)
 	return nil
 }
+
+// Helper function
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}

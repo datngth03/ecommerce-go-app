@@ -239,11 +239,19 @@ func (r *ProductPostgresRepository) Delete(ctx context.Context, id string) error
 
 // List retrieves a paginated list of products
 func (r *ProductPostgresRepository) List(ctx context.Context, req *models.ListProductsRequest) ([]models.Product, int64, error) {
+	// Convert empty category_id to nil for proper SQL handling
+	var categoryIDParam interface{}
+	if req.CategoryID == "" {
+		categoryIDParam = nil
+	} else {
+		categoryIDParam = req.CategoryID
+	}
+
 	// Count total products
-	countQuery := `SELECT COUNT(*) FROM products WHERE ($1 = '' OR category_id = $1)`
+	countQuery := `SELECT COUNT(*) FROM products WHERE ($1::uuid IS NULL OR category_id = $1::uuid)`
 
 	var total int64
-	err := r.db.QueryRowContext(ctx, countQuery, req.CategoryID).Scan(&total)
+	err := r.db.QueryRowContext(ctx, countQuery, categoryIDParam).Scan(&total)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to count products: %w", err)
 	}
@@ -258,12 +266,12 @@ func (r *ProductPostgresRepository) List(ctx context.Context, req *models.ListPr
 		       c.id, c.name, c.slug, c.created_at, c.updated_at
 		FROM products p
 		LEFT JOIN categories c ON p.category_id = c.id
-		WHERE ($1 = '' OR p.category_id = $1)
+		WHERE ($1::uuid IS NULL OR p.category_id = $1::uuid)
 		ORDER BY p.created_at DESC
 		LIMIT $2 OFFSET $3
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, req.CategoryID, req.PageSize, offset)
+	rows, err := r.db.QueryContext(ctx, query, categoryIDParam, req.PageSize, offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to list products: %w", err)
 	}

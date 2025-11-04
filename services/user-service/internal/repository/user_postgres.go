@@ -85,7 +85,7 @@ func (r *sqlUserRepository) GetByEmail(ctx context.Context, email string) (*mode
 
 	err := r.db.QueryRowContext(ctx, query, email).Scan(
 		&user.ID, &user.Email, &user.Password, &user.Name,
-		&user.Phone, &user.IsActive, &user.CreatedAt, &user.UpdatedAt, // Dùng user.IsActive
+		&user.Phone, &user.IsActive, &user.CreatedAt, &user.UpdatedAt,
 	)
 
 	if err != nil {

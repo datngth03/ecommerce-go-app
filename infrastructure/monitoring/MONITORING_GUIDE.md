@@ -359,36 +359,4 @@ docker-compose -f docker-compose-monitoring.yaml restart grafana
 
 ---
 
-## 🤝 Contributing
 
-When adding new dashboards:
-
-1. **Naming Convention:** `service-name-dashboard.json` or `feature-dashboard.json`
-2. **Include Metadata:**
-   ```json
-   {
-     "title": "Service Name Dashboard",
-     "tags": ["ecommerce", "service-name"],
-     "uid": "unique-dashboard-id"
-   }
-   ```
-3. **Add Documentation:** Update this README with dashboard description
-4. **Test Queries:** Verify all PromQL queries return data
-5. **Set Refresh Rate:** Use `10s` or `30s` for real-time, `1m` for historical
-
----
-
-## 📝 Changelog
-
-### 2025-10-28
-- ✅ Added **All Services Overview Dashboard** - Unified view of all microservices
-- ✅ Added **Order Service Dashboard** - Complete order and cart monitoring
-- ✅ Added **Payment Service Dashboard** - Financial transaction tracking
-- ✅ Added **Notification Service Dashboard** - Multi-channel notification monitoring
-- ✅ Updated **Alert Rules** - Added service-specific alerts
-
----
-
-## 📄 License
-
-Part of the E-Commerce Go Application project.

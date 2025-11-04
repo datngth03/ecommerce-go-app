@@ -35,14 +35,61 @@ export const options = {
 
 // Test data
 const BASE_URL = __ENV.BASE_URL || "http://localhost:8000";
-const TEST_USER_EMAIL = "loadtest@example.com";
-const TEST_USER_PASSWORD = "testpassword123";
+// Use VU-specific user to avoid cart race conditions
+// Each VU gets its own user: loadtest1@example.com, loadtest2@example.com, etc.
+const getVUEmail = () => `loadtest${__VU}@example.com`;
+const TEST_USER_PASSWORD = "TestPass123";
 
-// Sample product IDs (should exist in database)
-const PRODUCT_IDS = ["prod-1", "prod-2", "prod-3", "prod-4", "prod-5"];
+// Cache tokens per VU to avoid repeated logins
+const vuTokenCache = {};
+
+/**
+ * Get or create auth token for current VU
+ * Tokens are cached to avoid expensive bcrypt operations on every iteration
+ */
+function getVUToken() {
+   const vuId = __VU;
+
+   // Return cached token if exists
+   if (vuTokenCache[vuId]) {
+      return vuTokenCache[vuId];
+   }
+
+   // Login and cache token
+   const vuEmail = getVUEmail();
+   const loginRes = http.post(
+      `${BASE_URL}/api/v1/auth/login`,
+      JSON.stringify({
+         email: vuEmail,
+         password: TEST_USER_PASSWORD,
+      }),
+      {
+         headers: { "Content-Type": "application/json" },
+         timeout: "10s",
+      }
+   );
+
+   if (loginRes.status !== 200) {
+      console.log(`❌ VU ${vuId} login failed: ${loginRes.status}`);
+      return null;
+   }
+
+   const body = JSON.parse(loginRes.body);
+   const token = body.data?.access_token;
+
+   if (!token) {
+      console.log(`❌ VU ${vuId} no token in response`);
+      return null;
+   }
+
+   // Cache token for future iterations
+   vuTokenCache[vuId] = token;
+   return token;
+}
 
 /**
  * Setup phase - runs once before load test
+ * Creates test users for all VUs to avoid cart race conditions
  */
 export function setup() {
    console.log("🚀 Starting Order Service Load Test");
@@ -50,11 +97,51 @@ export function setup() {
    console.log("⚡ Testing connection pool performance improvements");
    console.log("");
 
-   // Try to login with test user
+   // Get max VUs from options
+   const maxVUs = 100; // Match the max VUs in options.stages
+
+   console.log(`� Creating ${maxVUs} test users (one per VU)...`);
+
+   // Create users for all VUs
+   let created = 0,
+      existing = 0,
+      failed = 0;
+
+   for (let vu = 1; vu <= maxVUs; vu++) {
+      const email = `loadtest${vu}@example.com`;
+      const registerRes = http.post(
+         `${BASE_URL}/api/v1/auth/register`,
+         JSON.stringify({
+            email: email,
+            password: TEST_USER_PASSWORD,
+            name: `Load Test User ${vu}`,
+         }),
+         {
+            headers: { "Content-Type": "application/json" },
+            timeout: "10s",
+         }
+      );
+
+      if (registerRes.status === 201) {
+         created++;
+      } else if (
+         registerRes.status === 409 ||
+         (registerRes.body && registerRes.body.includes("already exists"))
+      ) {
+         existing++;
+      } else {
+         failed++;
+      }
+   }
+
+   console.log(`✅ Users ready: ${created} created, ${existing} existing, ${failed} failed`);
+
+   // Login with first user to get token structure and test auth
+   console.log("🔐 Testing authentication...");
    const loginRes = http.post(
-      `${BASE_URL}/auth/login`,
+      `${BASE_URL}/api/v1/auth/login`,
       JSON.stringify({
-         email: TEST_USER_EMAIL,
+         email: "loadtest1@example.com",
          password: TEST_USER_PASSWORD,
       }),
       {
@@ -64,36 +151,99 @@ export function setup() {
 
    let token = null;
    if (loginRes.status === 200) {
-      const body = JSON.parse(loginRes.body);
-      token = body.access_token || body.data?.access_token;
-      console.log("✅ Test user authenticated");
+      try {
+         const body = JSON.parse(loginRes.body);
+         token = body.access_token || body.data?.access_token;
+         if (token) {
+            console.log("✅ Test user authenticated");
+         } else {
+            console.log("❌ Token not found in response body");
+            console.log(`Response: ${loginRes.body}`);
+         }
+      } catch (e) {
+         console.log(`❌ Failed to parse login response: ${e}`);
+      }
    } else {
-      console.log("⚠️  Test user not authenticated - some tests may fail");
+      console.log(`❌ Login failed with status ${loginRes.status}: ${loginRes.body}`);
+      console.log("⚠️  Load test will fail - cannot authenticate user");
    }
 
-   return { token };
+   // Step 3: Get actual product IDs from database
+   console.log("📦 Fetching available products...");
+   const productsRes = http.get(`${BASE_URL}/api/v1/products?page=1&page_size=10`, {
+      headers: {
+         "Content-Type": "application/json",
+         Authorization: token ? `Bearer ${token}` : "",
+      },
+   });
+
+   let productIds = [];
+   if (productsRes.status === 200) {
+      try {
+         const body = JSON.parse(productsRes.body);
+         const products = body.data?.products || body.products || [];
+         if (products.length > 0) {
+            productIds = products.map((p) => p.id);
+            console.log(`✅ Found ${productIds.length} products in database`);
+         } else {
+            console.log("❌ No products found in database - test will fail");
+            console.log("⚠️  Please seed products first!");
+         }
+      } catch (e) {
+         console.log(`❌ Failed to parse products: ${e}`);
+      }
+   } else {
+      console.log(
+         `❌ Failed to fetch products (status ${productsRes.status}): ${productsRes.body}`
+      );
+   }
+
+   if (productIds.length === 0) {
+      console.log("❌ FATAL: No products available - load test cannot proceed");
+   }
+
+   return { token, productIds };
 }
 
 /**
  * Main test scenario
+ * Each VU uses its own user to avoid cart race conditions
  */
 export default function (data) {
+   // Get cached token for this VU (login only once per VU)
+   const token = getVUToken();
+
+   if (!token) {
+      console.log(`❌ VU ${__VU} failed to get token - skipping iteration`);
+      return;
+   }
+
    const headers = {
       "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
    };
 
-   if (data.token) {
-      headers["Authorization"] = `Bearer ${data.token}`;
+   // Use actual product IDs from setup
+   const productIds = data.productIds;
+
+   // Skip test if no products available
+   if (!productIds || productIds.length === 0) {
+      console.log("❌ No products available - skipping iteration");
+      return;
    }
 
    group("Order Creation Flow", function () {
       // Step 1: Get product details (tests connection pool to Product Service)
-      const productId = PRODUCT_IDS[Math.floor(Math.random() * PRODUCT_IDS.length)];
+      const productId = productIds[Math.floor(Math.random() * productIds.length)];
 
       group("1. Get Product Details", function () {
          const startTime = Date.now();
-         const productRes = http.get(`${BASE_URL}/products/${productId}`, { headers });
+         const productRes = http.get(`${BASE_URL}/api/v1/products/${productId}`, { headers });
          const duration = Date.now() - startTime;
+
+         if (productRes.status !== 200) {
+            console.log(`⚠️  Product fetch failed: ${productRes.status} - ${productRes.body}`);
+         }
 
          const success = check(productRes, {
             "product fetch status is 200": (r) => r.status === 200,
@@ -106,11 +256,14 @@ export default function (data) {
       sleep(0.5); // Simulate user thinking time
 
       // Step 2: Add to cart (tests Redis cache)
+      // IMPORTANT: Always add items to cart before creating order
+      // because order creation clears the cart
       let cartItemId = null;
+      let cartAddSuccess = false;
       group("2. Add to Cart", function () {
          const startTime = Date.now();
          const cartRes = http.post(
-            `${BASE_URL}/cart/items`,
+            `${BASE_URL}/api/v1/cart`,
             JSON.stringify({
                product_id: productId,
                quantity: Math.floor(Math.random() * 3) + 1, // 1-3 items
@@ -119,22 +272,28 @@ export default function (data) {
          );
          const duration = Date.now() - startTime;
 
-         const success = check(cartRes, {
-            "add to cart status is 201": (r) => r.status === 201,
+         cartAddSuccess = check(cartRes, {
+            "add to cart status is 200": (r) => r.status === 200,
             "add to cart time < 50ms": () => duration < 50, // Should be fast (Redis)
          });
 
-         if (success && cartRes.body) {
+         if (cartAddSuccess && cartRes.body) {
             try {
                const body = JSON.parse(cartRes.body);
-               cartItemId = body.cart_item?.id || body.data?.id;
+               cartItemId = body.cart?.id || body.data?.id;
             } catch (e) {
                // Ignore parse errors
             }
          }
 
-         errorRate.add(!success);
+         errorRate.add(!cartAddSuccess);
       });
+
+      // Skip order creation if cart add failed
+      if (!cartAddSuccess) {
+         console.log("⚠️  Skipping order creation - cart add failed");
+         return;
+      }
 
       sleep(1); // Simulate user reviewing cart
 
@@ -144,22 +303,9 @@ export default function (data) {
          const orderStartTime = Date.now();
 
          const orderRes = http.post(
-            `${BASE_URL}/orders`,
+            `${BASE_URL}/api/v1/orders`,
             JSON.stringify({
-               items: [
-                  {
-                     product_id: productId,
-                     quantity: 2,
-                     price: 29.99,
-                  },
-               ],
-               shipping_address: {
-                  street: "123 Test St",
-                  city: "Test City",
-                  state: "TS",
-                  zip_code: "12345",
-                  country: "US",
-               },
+               shipping_address: "123 Test St, Test City, TS 12345, US",
                payment_method: "credit_card",
             }),
             { headers }
@@ -186,7 +332,11 @@ export default function (data) {
             console.log(`✅ Order created in ${orderDuration}ms (target: <200ms)`);
          } else {
             orderCreationFailure.add(1);
-            console.log(`❌ Order creation failed or too slow: ${orderDuration}ms`);
+            if (orderRes.status !== 201) {
+               console.log(`❌ Order creation failed: ${orderRes.status} - ${orderRes.body}`);
+            } else {
+               console.log(`❌ Order creation too slow: ${orderDuration}ms`);
+            }
          }
 
          errorRate.add(!success);
@@ -198,7 +348,7 @@ export default function (data) {
    // Additional scenario: List orders (tests caching)
    group("Order History", function () {
       const startTime = Date.now();
-      const ordersRes = http.get(`${BASE_URL}/orders?limit=10`, { headers });
+      const ordersRes = http.get(`${BASE_URL}/api/v1/orders?page=1&page_size=10`, { headers });
       const duration = Date.now() - startTime;
 
       const success = check(ordersRes, {

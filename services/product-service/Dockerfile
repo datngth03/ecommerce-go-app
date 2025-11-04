@@ -18,6 +18,7 @@ WORKDIR /app/services/product-service
 
 # Download dependencies
 RUN go mod download
+# RUN go mod tidy
 RUN go mod tidy
 
 # Build binary

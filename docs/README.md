@@ -1,10 +1,3 @@
-# Documentation & Testing - Quick Reference
-
-## 📋 Overview
-
-This directory contains all deliverables for **Phase 3: Documentation & Testing** of the E-Commerce microservices platform.
-
----
 
 ## 📚 Documentation Index
 
@@ -48,39 +41,6 @@ This directory contains all deliverables for **Phase 3: Documentation & Testing*
 - **[End-to-End Tests](../tests/e2e/)** - Go end-to-end test suite
   - End-to-end service testing
   - Script: `.\tests\e2e\test-simple.ps1`
-
----
-
-## 🚀 Quick Start
-
-### For Developers
-
-```bash
-# 1. Set up development environment
-cd ecommerce-go-app
-docker-compose up -d
-
-# 2. Run integration tests
-cd tests/integration
-go test -v
-
-# 3. Test API with Postman
-# Import: docs/api/postman/ecommerce.postman_collection.json
-# Import: docs/api/postman/ecommerce-local.postman_environment.json
-```
-
-### For DevOps
-
-```bash
-# 1. Review deployment guide
-cat docs/deployment/deployment_guide.md
-
-# 2. Set up production environment
-# Follow Kubernetes deployment section
-
-# 3. Configure monitoring
-# Follow Monitoring & Health Checks section
-```
 
 ---
 
@@ -132,21 +92,6 @@ cat docs/deployment/deployment_guide.md
 
 ---
 
-## 🎯 Usage Examples
-
-### Run Complete Test Suite
-
-```bash
-# E2E tests
-cd tests/e2e
-./test-simple.ps1
-
-# Integration tests
-cd tests/integration
-go test -v ./...
-
-```
-
 ### Deploy to Production
 
 ```bash
@@ -160,8 +105,3 @@ docker-compose -f docker-compose.prod.yaml up -d
 
 ---
 
-
-
-**Last Updated**: October 21, 2025  
-**Version**: 1.0.0  
-**Maintained by**: DatGuru

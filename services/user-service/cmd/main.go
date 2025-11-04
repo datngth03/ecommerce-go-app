@@ -98,18 +98,28 @@ func main() {
 	}
 	log.Println("✓ Database connection verified")
 
-	// 4. Initialize Redis Connection
+	// 4. Initialize Redis Connection with connection pooling from config
 	redisClient := redis.NewClient(&redis.Options{
 		Addr:     cfg.GetRedisAddr(),
 		Password: cfg.Redis.Password,
 		DB:       cfg.Redis.DB,
+
+		// Connection pool settings from config for high concurrency
+		PoolSize:     cfg.Redis.PoolSize,     // Maximum number of socket connections
+		MinIdleConns: cfg.Redis.MinIdleConns, // Minimum number of idle connections
+		MaxRetries:   3,                      // Maximum number of retries before giving up
+		DialTimeout:  5 * time.Second,        // Timeout for establishing new connections
+		ReadTimeout:  3 * time.Second,        // Timeout for socket reads
+		WriteTimeout: 3 * time.Second,        // Timeout for socket writes
+		PoolTimeout:  4 * time.Second,        // Amount of time client waits for connection if all are busy
 	})
 
 	ctx := context.Background()
 	if _, err := redisClient.Ping(ctx).Result(); err != nil {
 		log.Fatalf("Failed to connect to Redis: %v", err)
 	}
-	log.Println("✓ Redis connection established")
+	log.Printf("✓ Redis connection established (pool: %d max, %d min idle)",
+		cfg.Redis.PoolSize, cfg.Redis.MinIdleConns)
 
 	defer func() {
 		if err := redisClient.Close(); err != nil {
@@ -165,6 +175,9 @@ func main() {
 	)
 	userService := service.NewUserService(finalUserRepo, authService)
 	log.Println("✓ Services initialized")
+
+	// Initialize metrics middleware
+	// middleware.InitMetrics()
 
 	// 7. Initialize gRPC Server with Tracing Interceptor and TLS
 	var grpcServerOpts []grpc.ServerOption

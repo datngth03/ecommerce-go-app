@@ -19,6 +19,7 @@ WORKDIR /app/services/user-service
 
 # Download dependencies
 RUN go mod download
+# RUN go mod tidy
 RUN go mod tidy
 
 # Build the application

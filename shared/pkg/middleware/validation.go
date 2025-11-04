@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/datngth03/ecommerce-go-app/shared/pkg/validation"
+	"github.com/datngth03/ecommerce-go-app/shared/pkg/validator"
 
 	"github.com/gin-gonic/gin"
 )
@@ -15,7 +15,7 @@ func InputSanitizationMiddleware() gin.HandlerFunc {
 		// Sanitize query parameters
 		for key, values := range c.Request.URL.Query() {
 			for i, value := range values {
-				c.Request.URL.Query()[key][i] = validation.SanitizeHTML(value)
+				c.Request.URL.Query()[key][i] = validator.SanitizeHTML(value)
 			}
 		}
 

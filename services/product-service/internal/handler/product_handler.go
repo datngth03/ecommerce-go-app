@@ -8,6 +8,7 @@ import (
 	"github.com/datngth03/ecommerce-go-app/services/product-service/internal/client"
 	"github.com/datngth03/ecommerce-go-app/services/product-service/internal/models"
 	"github.com/datngth03/ecommerce-go-app/services/product-service/internal/service"
+	"github.com/datngth03/ecommerce-go-app/shared/pkg/validator"
 	"github.com/gin-gonic/gin"
 )
 
@@ -119,6 +120,44 @@ func (h *ProductHandler) CreateProduct(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body: " + err.Error()})
 		return
 	}
+
+	// ✅ Validate product name
+	if err := validator.ValidateRequired(req.Name, "name"); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := validator.ValidateLength(req.Name, 3, 200, "name"); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// ✅ Validate description (if provided)
+	if req.Description != "" {
+		if err := validator.ValidateLength(req.Description, 10, 5000, "description"); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	// ✅ Validate category ID
+	if err := validator.ValidateRequired(req.CategoryID, "category_id"); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// ✅ Validate price
+	if err := validator.ValidatePositiveFloat(req.Price, "price"); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if req.Price > 10000000 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "price cannot exceed 10,000,000"})
+		return
+	}
+
+	// ✅ Sanitize text inputs
+	req.Name = validator.SanitizeString(req.Name)
+	req.Description = validator.SanitizeHTML(req.Description)
 
 	product, err := h.service.CreateProduct(c.Request.Context(), &req)
 	if err != nil {

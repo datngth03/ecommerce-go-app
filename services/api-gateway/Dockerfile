@@ -21,6 +21,7 @@ WORKDIR /build/services/api-gateway
 
 # Download dependencies
 RUN go mod download
+# RUN go mod tidy
 RUN go mod tidy
 
 # Build the application

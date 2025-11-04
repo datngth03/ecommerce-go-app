@@ -60,12 +60,17 @@ func main() {
 		}
 	}()
 
-	// 3. Initialize Database Connection
-	db, err := repository.ConnectPostgres(cfg.GetDatabaseDSN())
+	// 3. Initialize Database Connection with connection pool from config
+	db, err := repository.ConnectPostgres(
+		cfg.GetDatabaseDSN(),
+		cfg.Database.MaxOpenConns,
+		cfg.Database.MaxIdleConns,
+	)
 	if err != nil {
 		log.Fatalf("Failed to connect to PostgreSQL: %v", err)
 	}
-	log.Println("✓ PostgreSQL connection established")
+	log.Printf("✓ PostgreSQL connection established (pool: %d max open, %d max idle)",
+		cfg.Database.MaxOpenConns, cfg.Database.MaxIdleConns)
 
 	defer func() {
 		if err := db.Close(); err != nil {
@@ -107,9 +112,11 @@ func main() {
 		}()
 	}
 
-	// 4. Initialize Repository (with caching if available)
+	// 4. Initialize Repository with config-based connection pooling
 	repos, err := repository.NewPostgresRepository(&repository.RepositoryOptions{
-		Database: db,
+		Database:     db,
+		MaxOpenConns: cfg.Database.MaxOpenConns,
+		MaxIdleConns: cfg.Database.MaxIdleConns,
 	})
 	if err != nil {
 		log.Fatalf("Failed to initialize repositories: %v", err)

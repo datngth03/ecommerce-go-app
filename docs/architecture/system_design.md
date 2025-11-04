@@ -271,7 +271,7 @@ Code → Git → Build → Test → Docker Build → Registry → Deploy → Mon
 
 | Component | Technology | Purpose |
 |-----------|------------|---------|
-| Language | Go 1.21+ | High performance, concurrent |
+| Language | Go 1.24+ | High performance, concurrent |
 | Framework | Gin/Echo | HTTP web framework |
 | Database | PostgreSQL | Relational data storage |
 | Cache | Redis | In-memory caching |

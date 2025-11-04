@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/datngth03/ecommerce-go-app/services/order-service/internal/service"
+	"github.com/datngth03/ecommerce-go-app/shared/pkg/validator"
 	"github.com/gin-gonic/gin"
 )
 
@@ -32,12 +33,38 @@ func NewOrderHandler(orderService *service.OrderService) *OrderHandler {
 func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	var req CreateOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format: " + err.Error()})
 		return
 	}
 
 	// Get user ID from context (set by auth middleware)
 	userID := getUserIDFromContext(c)
+
+	// ✅ Validate user ID
+	if userID <= 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user_id"})
+		return
+	}
+
+	// ✅ Validate shipping address
+	if err := validator.ValidateRequired(req.ShippingAddress, "shipping_address"); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := validator.ValidateLength(req.ShippingAddress, 10, 500, "shipping_address"); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// ✅ Validate payment method
+	allowedPaymentMethods := []string{"credit_card", "debit_card", "paypal", "bank_transfer", "cash_on_delivery"}
+	if err := validator.ValidateEnum(req.PaymentMethod, allowedPaymentMethods, "payment_method"); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// ✅ Sanitize inputs to prevent XSS
+	req.ShippingAddress = validator.SanitizeString(req.ShippingAddress)
 
 	order, err := h.orderService.CreateOrder(c.Request.Context(), userID, req.ShippingAddress, req.PaymentMethod)
 	if err != nil {
@@ -93,6 +120,21 @@ func (h *OrderHandler) ListOrders(c *gin.Context) {
 	pageSize, _ := strconv.ParseInt(c.DefaultQuery("page_size", "10"), 10, 32)
 	status := c.Query("status")
 
+	// ✅ Validate pagination parameters
+	if err := validator.ValidatePaginationParams(int(page), int(pageSize)); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// ✅ Validate status if provided
+	if status != "" {
+		allowedStatuses := []string{"pending", "confirmed", "processing", "shipped", "delivered", "cancelled"}
+		if err := validator.ValidateEnum(status, allowedStatuses, "status"); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
 	orders, total, err := h.orderService.ListOrders(c.Request.Context(), userID, int32(page), int32(pageSize), status)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -127,6 +169,18 @@ func (h *OrderHandler) UpdateOrderStatus(c *gin.Context) {
 
 	var req UpdateOrderStatusRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format: " + err.Error()})
+		return
+	}
+
+	// ✅ Validate order ID
+	if err := validator.ValidateRequired(orderID, "order_id"); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// ✅ Validate status
+	if err := validator.ValidateUpdateOrderStatusRequest(orderID, req.Status); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

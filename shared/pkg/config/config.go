@@ -336,8 +336,8 @@ func LoadDatabaseConfig(defaultDBName string) DatabaseConfig {
 		Password:        GetEnv("DB_PASSWORD", "postgres123"),
 		DBName:          GetEnv("DB_NAME", defaultDBName),
 		SSLMode:         GetEnv("DB_SSL_MODE", "disable"),
-		MaxOpenConns:    GetEnvAsInt("DB_MAX_OPEN_CONNS", 25),
-		MaxIdleConns:    GetEnvAsInt("DB_MAX_IDLE_CONNS", 5),
+		MaxOpenConns:    GetEnvAsInt("DB_MAX_OPEN_CONNS", 100), // Increased from 25 for load testing
+		MaxIdleConns:    GetEnvAsInt("DB_MAX_IDLE_CONNS", 25),  // Increased from 5 for load testing
 		ConnMaxLifetime: GetEnvAsDurationMinutes("DB_CONN_MAX_LIFETIME", 5*time.Minute),
 	}
 }

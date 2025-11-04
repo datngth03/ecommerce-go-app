@@ -315,17 +315,19 @@ func initDB(cfg *config.Config) (*gorm.DB, error) {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	// Set connection pool settings
+	// Set connection pool settings from config
 	sqlDB, err := db.DB()
 	if err != nil {
 		return nil, err
 	}
 
-	sqlDB.SetMaxIdleConns(10)
-	sqlDB.SetMaxOpenConns(100)
+	sqlDB.SetMaxIdleConns(cfg.Database.MaxIdleConns)
+	sqlDB.SetMaxOpenConns(cfg.Database.MaxOpenConns)
 	sqlDB.SetConnMaxLifetime(time.Hour)
+	sqlDB.SetConnMaxIdleTime(10 * time.Minute)
 
-	log.Println("Connected to PostgreSQL database")
+	log.Printf("✓ PostgreSQL connection established (pool: %d max open, %d max idle)",
+		cfg.Database.MaxOpenConns, cfg.Database.MaxIdleConns)
 	return db, nil
 }
 

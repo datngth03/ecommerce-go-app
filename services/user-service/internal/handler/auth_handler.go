@@ -9,6 +9,7 @@ import (
 	"time"
 
 	pb "github.com/datngth03/ecommerce-go-app/proto/user_service"
+	"github.com/datngth03/ecommerce-go-app/shared/pkg/validator"
 	"github.com/gin-gonic/gin"
 )
 
@@ -71,6 +72,16 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, APIResponse{
 			Success: false,
 			Message: "Invalid request body",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	// ✅ Validate login credentials
+	if err := validator.ValidateLoginRequest(req.Email, req.Password); err != nil {
+		c.JSON(http.StatusBadRequest, APIResponse{
+			Success: false,
+			Message: "Validation failed",
 			Error:   err.Error(),
 		})
 		return

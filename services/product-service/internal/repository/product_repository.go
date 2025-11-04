@@ -5,6 +5,7 @@ package repository
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	// "github.com/datngth03/ecommerce-go-app/services/product-service/internal/repository/postgres"
 	_ "github.com/lib/pq"
@@ -29,15 +30,22 @@ func NewPostgresRepository(opts *RepositoryOptions) (*Repository, error) {
 }
 
 // ConnectPostgres creates a new PostgreSQL database connection
-func ConnectPostgres(databaseURL string) (*sql.DB, error) {
+func ConnectPostgres(databaseURL string, maxOpenConns, maxIdleConns int) (*sql.DB, error) {
 	db, err := sql.Open("postgres", databaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database connection: %w", err)
 	}
 
-	// Configure connection pool
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
+	// Configure connection pool from config
+	if maxOpenConns > 0 {
+		db.SetMaxOpenConns(maxOpenConns)
+	}
+	if maxIdleConns > 0 {
+		db.SetMaxIdleConns(maxIdleConns)
+	}
+	// Set connection lifetime
+	db.SetConnMaxLifetime(time.Hour)
+	db.SetConnMaxIdleTime(10 * time.Minute)
 
 	// Test the connection
 	if err := db.Ping(); err != nil {

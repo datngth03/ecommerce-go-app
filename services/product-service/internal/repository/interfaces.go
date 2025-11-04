@@ -41,7 +41,9 @@ type Repository struct {
 
 // RepositoryOptions contains options for repository initialization
 type RepositoryOptions struct {
-	Database interface{} // Can be *sql.DB, *gorm.DB, etc.
+	Database     interface{} // Can be *sql.DB, *gorm.DB, etc.
+	MaxOpenConns int         // Maximum number of open database connections
+	MaxIdleConns int         // Maximum number of idle database connections
 }
 
 // NewRepository creates a new repository instance
