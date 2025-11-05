@@ -1,9 +1,9 @@
 # Hướng Dẫn Khởi Động Hệ Thống - Quick Start Guide
 
 ## Yêu Cầu
-- ✅ Docker Desktop đang chạy
-- ✅ Go 1.24+ đã cài đặt
-- ✅ Port 5432, 6379, 5672, 8000-8006, 9001-9006 không bị chiếm dụng
+- Docker Desktop đang chạy
+- Go 1.24+ đã cài đặt
+- Port 5432, 6379, 5672, 8000-8006, 9001-9006 không bị chiếm dụng
 
 ## Cách 1: Khởi Động Với Docker Compose (Khuyến Nghị)
 

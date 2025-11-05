@@ -86,10 +86,10 @@ Execute requests in this order for a complete E2E test:
 ### Automated Tests
 
 Each request includes automated tests that:
-- ✅ Verify response status codes
-- ✅ Validate response structure
-- ✅ Extract and save important IDs
-- ✅ Check data consistency
+- Verify response status codes
+- Validate response structure
+- Extract and save important IDs
+- Check data consistency
 
 Example test script (included in requests):
 ```javascript

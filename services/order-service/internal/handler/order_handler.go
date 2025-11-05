@@ -40,13 +40,13 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	// Get user ID from context (set by auth middleware)
 	userID := getUserIDFromContext(c)
 
-	// ✅ Validate user ID
+	// Validate user ID
 	if userID <= 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user_id"})
 		return
 	}
 
-	// ✅ Validate shipping address
+	// Validate shipping address
 	if err := validator.ValidateRequired(req.ShippingAddress, "shipping_address"); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -56,14 +56,14 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		return
 	}
 
-	// ✅ Validate payment method
+	// Validate payment method
 	allowedPaymentMethods := []string{"credit_card", "debit_card", "paypal", "bank_transfer", "cash_on_delivery"}
 	if err := validator.ValidateEnum(req.PaymentMethod, allowedPaymentMethods, "payment_method"); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// ✅ Sanitize inputs to prevent XSS
+	// Sanitize inputs to prevent XSS
 	req.ShippingAddress = validator.SanitizeString(req.ShippingAddress)
 
 	order, err := h.orderService.CreateOrder(c.Request.Context(), userID, req.ShippingAddress, req.PaymentMethod)
@@ -120,13 +120,13 @@ func (h *OrderHandler) ListOrders(c *gin.Context) {
 	pageSize, _ := strconv.ParseInt(c.DefaultQuery("page_size", "10"), 10, 32)
 	status := c.Query("status")
 
-	// ✅ Validate pagination parameters
+	// Validate pagination parameters
 	if err := validator.ValidatePaginationParams(int(page), int(pageSize)); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// ✅ Validate status if provided
+	// Validate status if provided
 	if status != "" {
 		allowedStatuses := []string{"pending", "confirmed", "processing", "shipped", "delivered", "cancelled"}
 		if err := validator.ValidateEnum(status, allowedStatuses, "status"); err != nil {
@@ -173,13 +173,13 @@ func (h *OrderHandler) UpdateOrderStatus(c *gin.Context) {
 		return
 	}
 
-	// ✅ Validate order ID
+	// Validate order ID
 	if err := validator.ValidateRequired(orderID, "order_id"); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// ✅ Validate status
+	// Validate status
 	if err := validator.ValidateUpdateOrderStatusRequest(orderID, req.Status); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

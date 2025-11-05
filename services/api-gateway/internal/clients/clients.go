@@ -98,9 +98,9 @@ func NewClients(cfg *config.Config) (*Clients, error) {
 	}
 
 	if cfg.Server.TLS.Enabled {
-		log.Println("✅ Connection pools created for all services (with TLS)")
+		log.Println("Connection pools created for all services (with TLS)")
 	} else {
-		log.Println("✅ Connection pools created for all services (insecure)")
+		log.Println("Connection pools created for all services (insecure)")
 	}
 
 	// Initialize User Client with connection pool
@@ -114,7 +114,7 @@ func NewClients(cfg *config.Config) (*Clients, error) {
 		poolManager.Close()
 		return nil, fmt.Errorf("failed to create user client: %w", err)
 	}
-	log.Printf("✅ User client initialized with pool (%s)", cfg.Services.UserService.GRPCAddr)
+	log.Printf("User client initialized with pool (%s)", cfg.Services.UserService.GRPCAddr)
 
 	// Initialize Product Client with connection pool
 	productPool, exists := poolManager.Get("product-service")
@@ -127,7 +127,7 @@ func NewClients(cfg *config.Config) (*Clients, error) {
 		poolManager.Close()
 		return nil, fmt.Errorf("failed to create product client: %w", err)
 	}
-	log.Printf("✅ Product client initialized with pool (%s)", cfg.Services.ProductService.GRPCAddr)
+	log.Printf("Product client initialized with pool (%s)", cfg.Services.ProductService.GRPCAddr)
 
 	// Initialize Order Client with connection pool
 	orderPool, exists := poolManager.Get("order-service")
@@ -140,7 +140,7 @@ func NewClients(cfg *config.Config) (*Clients, error) {
 		poolManager.Close()
 		return nil, fmt.Errorf("failed to create order client: %w", err)
 	}
-	log.Printf("✅ Order client initialized with pool (%s)", cfg.Services.OrderService.GRPCAddr)
+	log.Printf("Order client initialized with pool (%s)", cfg.Services.OrderService.GRPCAddr)
 
 	// Initialize Payment Client with connection pool
 	paymentPool, exists := poolManager.Get("payment-service")
@@ -153,7 +153,7 @@ func NewClients(cfg *config.Config) (*Clients, error) {
 		poolManager.Close()
 		return nil, fmt.Errorf("failed to create payment client: %w", err)
 	}
-	log.Printf("✅ Payment client initialized with pool (%s)", cfg.Services.PaymentService.GRPCAddr)
+	log.Printf("Payment client initialized with pool (%s)", cfg.Services.PaymentService.GRPCAddr)
 
 	// Initialize Inventory Client with connection pool
 	inventoryPool, exists := poolManager.Get("inventory-service")
@@ -166,7 +166,7 @@ func NewClients(cfg *config.Config) (*Clients, error) {
 		poolManager.Close()
 		return nil, fmt.Errorf("failed to create inventory client: %w", err)
 	}
-	log.Printf("✅ Inventory client initialized with pool (%s)", cfg.Services.InventoryService.GRPCAddr)
+	log.Printf("Inventory client initialized with pool (%s)", cfg.Services.InventoryService.GRPCAddr)
 
 	// Initialize Notification Client with connection pool
 	notificationPool, exists := poolManager.Get("notification-service")
@@ -179,9 +179,9 @@ func NewClients(cfg *config.Config) (*Clients, error) {
 		poolManager.Close()
 		return nil, fmt.Errorf("failed to create notification client: %w", err)
 	}
-	log.Printf("✅ Notification client initialized with pool (%s)", cfg.Services.NotificationService.GRPCAddr)
+	log.Printf("Notification client initialized with pool (%s)", cfg.Services.NotificationService.GRPCAddr)
 
-	log.Println("✅ All gRPC clients initialized successfully with connection pooling")
+	log.Println("All gRPC clients initialized successfully with connection pooling")
 
 	return &Clients{
 		User:         userClient,
@@ -206,7 +206,7 @@ func (c *Clients) Close() error {
 		}
 	}
 
-	log.Println("✅ All gRPC clients and pools closed")
+	log.Println("All gRPC clients and pools closed")
 	return nil
 }
 

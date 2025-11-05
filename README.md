@@ -22,25 +22,25 @@ A production-ready, scalable e-commerce platform built with **Go microservices a
 
 - **gRPC Communication**: High-performance inter-service communication
 
-- ✅ **Microservices Architecture** - 6 independent services with clear separation of concerns- **Clean Architecture**: Following Domain-Driven Design principles
+- **Microservices Architecture** - 6 independent services with clear separation of concerns- **Clean Architecture**: Following Domain-Driven Design principles
 
-- ✅ **API Gateway** - Centralized routing, authentication, and rate limiting
+- **API Gateway** - Centralized routing, authentication, and rate limiting
 
-- ✅ **Event-Driven** - Asynchronous communication using RabbitMQ## 🏗️ Architecture
+- **Event-Driven** - Asynchronous communication using RabbitMQ## 🏗️ Architecture
 
-- ✅ **Database per Service** - PostgreSQL with isolated databases for each service
+- **Database per Service** - PostgreSQL with isolated databases for each service
 
-- ✅ **gRPC Communication** - High-performance inter-service communication```
+- **gRPC Communication** - High-performance inter-service communication```
 
-- ✅ **RESTful APIs** - Clean REST API design with OpenAPI documentation┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+- **RESTful APIs** - Clean REST API design with OpenAPI documentation┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 
-- ✅ **Docker & Kubernetes** - Containerized deployment with orchestration support│   Web Client    │    │   Mobile App    │    │  Admin Portal   │
+- **Docker & Kubernetes** - Containerized deployment with orchestration support│   Web Client    │    │   Mobile App    │    │  Admin Portal   │
 
-- ✅ **Monitoring & Tracing** - Prometheus, Grafana, and Jaeger integration└─────────┬───────┘    └─────────┬───────┘    └─────────┬───────┘
+- **Monitoring & Tracing** - Prometheus, Grafana, and Jaeger integration└─────────┬───────┘    └─────────┬───────┘    └─────────┬───────┘
 
-- ✅ **Comprehensive Testing** - Unit, integration, and E2E tests          │                      │                      │
+- **Comprehensive Testing** - Unit, integration, and E2E tests          │                      │                      │
 
-- ✅ **Clean Architecture** - Following DDD and SOLID principles          └──────────────────────┼──────────────────────┘
+- **Clean Architecture** - Following DDD and SOLID principles          └──────────────────────┼──────────────────────┘
 
                                  │
 
@@ -202,17 +202,17 @@ A production-ready, scalable e-commerce platform built with **Go microservices a
 
 ## 🚀 Quick StartThis will:
 
-1. ✅ Check Docker is running
+1. Check Docker is running
 
-### Prerequisites2. ✅ Start infrastructure (PostgreSQL, Redis, RabbitMQ)
+### Prerequisites2. Start infrastructure (PostgreSQL, Redis, RabbitMQ)
 
-3. ✅ Run database migrations
+3. Run database migrations
 
-- ✅ [Docker Desktop](https://www.docker.com/products/docker-desktop) installed and running4. ✅ Start all 7 microservices
+- [Docker Desktop](https://www.docker.com/products/docker-desktop) installed and running4. Start all 7 microservices
 
-- ✅ [Go 1.24+](https://go.dev/dl/) (for local development)5. ✅ Verify health of all services
+- [Go 1.24+](https://go.dev/dl/) (for local development)5. Verify health of all services
 
-- ✅ [Git](https://git-scm.com/) for version control6. ✅ Run automated tests (with `-RunTests` flag)
+- [Git](https://git-scm.com/) for version control6. Run automated tests (with `-RunTests` flag)
 
 
 
@@ -360,17 +360,17 @@ curl http://localhost:8003/health  # Order Service
 
 **Test Coverage:**
 
-```bash- ✅ User Service (Register, Login, Profile)
+```bash- User Service (Register, Login, Profile)
 
-# Integration tests- ✅ Product Service (CRUD operations)
+# Integration tests- Product Service (CRUD operations)
 
-cd tests/integration- ✅ Inventory Service (Stock management)
+cd tests/integration- Inventory Service (Stock management)
 
-go test -v- ✅ Order Service (Cart, Orders)
+go test -v- Order Service (Cart, Orders)
 
-- ✅ Payment Service (Process, Confirm, Refund)
+- Payment Service (Process, Confirm, Refund)
 
-# E2E tests (PowerShell)- ✅ End-to-End E-Commerce Flow
+# E2E tests (PowerShell)- End-to-End E-Commerce Flow
 
 .\tests\e2e\test-simple.ps1
 
@@ -422,17 +422,17 @@ curl -X POST http://localhost:8000/api/v1/auth/register \## 🧪 Testing
 
   }'# Expected output:
 
-# ✅ User Service (3 tests)
+# User Service (3 tests)
 
-# Login (get token)# ✅ Product Service (3 tests)
+# Login (get token)# Product Service (3 tests)
 
-curl -X POST http://localhost:8000/api/v1/auth/login \# ✅ Inventory Service (2 tests)
+curl -X POST http://localhost:8000/api/v1/auth/login \# Inventory Service (2 tests)
 
-  -H "Content-Type: application/json" \# ✅ Order Service (5 tests)
+  -H "Content-Type: application/json" \# Order Service (5 tests)
 
-  -d '{# ✅ Payment Service (6 tests)
+  -d '{# Payment Service (6 tests)
 
-    "email": "user@example.com",# ✅ Inventory Verification (1 test)
+    "email": "user@example.com",# Inventory Verification (1 test)
 
     "password": "SecurePass123!"# 
 
@@ -868,7 +868,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - GitHub: [@datngth03](https://github.com/datngth03)
 
-- LinkedIn: [datngth9903](https://linkedin.com/in/datngth9903)- ✅ **MVP**: Core e-commerce functionality
+- LinkedIn: [datngth9903](https://linkedin.com/in/datngth9903)- **MVP**: Core e-commerce functionality
 
 - Email: datnt9903@gmail.com- 🚧 **In Progress**: Advanced analytics, recommendation engine
 
@@ -894,9 +894,9 @@ If you find this project helpful, please consider giving it a star! It helps oth
 
 ## 📈 Project Status
 
-- ✅ **Core Features**: Complete and production-ready
-- ✅ **Documentation**: Comprehensive API and deployment docs
-- ✅ **Testing**: Unit, integration, and E2E tests implemented
+- **Core Features**: Complete and production-ready
+- **Documentation**: Comprehensive API and deployment docs
+- **Testing**: Unit, integration, and E2E tests implemented
 - 🚧 **In Progress**: Advanced analytics, recommendation engine
 - 📋 **Planned**: Multi-tenant support, advanced search (Elasticsearch)
 

@@ -41,7 +41,7 @@ func main() {
 		fmt.Printf("❌ Failed to generate CA: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Printf("✅ CA Certificate generated: %s\n", filepath.Join(caDir, "ca-cert.pem"))
+	fmt.Printf("CA Certificate generated: %s\n", filepath.Join(caDir, "ca-cert.pem"))
 	fmt.Println()
 
 	// Services to generate certificates for
@@ -84,7 +84,7 @@ func main() {
 			continue
 		}
 
-		fmt.Printf("✅ Certificate generated for %s\n", service)
+		fmt.Printf("Certificate generated for %s\n", service)
 		fmt.Printf("   Cert: %s\n", filepath.Join(serviceDir, "server-cert.pem"))
 		fmt.Printf("   Key:  %s\n", filepath.Join(serviceDir, "server-key.pem"))
 		fmt.Println()

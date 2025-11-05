@@ -121,7 +121,7 @@ func (h *ProductHandler) CreateProduct(c *gin.Context) {
 		return
 	}
 
-	// ✅ Validate product name
+	// Validate product name
 	if err := validator.ValidateRequired(req.Name, "name"); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -131,7 +131,7 @@ func (h *ProductHandler) CreateProduct(c *gin.Context) {
 		return
 	}
 
-	// ✅ Validate description (if provided)
+	// Validate description (if provided)
 	if req.Description != "" {
 		if err := validator.ValidateLength(req.Description, 10, 5000, "description"); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -139,13 +139,13 @@ func (h *ProductHandler) CreateProduct(c *gin.Context) {
 		}
 	}
 
-	// ✅ Validate category ID
+	// Validate category ID
 	if err := validator.ValidateRequired(req.CategoryID, "category_id"); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// ✅ Validate price
+	// Validate price
 	if err := validator.ValidatePositiveFloat(req.Price, "price"); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -155,7 +155,7 @@ func (h *ProductHandler) CreateProduct(c *gin.Context) {
 		return
 	}
 
-	// ✅ Sanitize text inputs
+	// Sanitize text inputs
 	req.Name = validator.SanitizeString(req.Name)
 	req.Description = validator.SanitizeHTML(req.Description)
 

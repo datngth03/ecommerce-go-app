@@ -63,7 +63,7 @@ export function setup() {
    if (loginRes.status === 200) {
       const body = JSON.parse(loginRes.body);
       token = body.access_token || body.data?.access_token;
-      console.log("✅ Test user authenticated");
+      console.log("Test user authenticated");
    }
 
    return { token };
@@ -167,7 +167,7 @@ export default function (data) {
 
          if (success) {
             paymentSuccess.add(1);
-            console.log(`✅ Payment processed in ${paymentDuration}ms (E2E: ${totalDuration}ms)`);
+            console.log(`Payment processed in ${paymentDuration}ms (E2E: ${totalDuration}ms)`);
          } else {
             paymentFailure.add(1);
             console.log(`❌ Payment failed: ${paymentDuration}ms (E2E: ${totalDuration}ms)`);

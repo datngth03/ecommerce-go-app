@@ -143,10 +143,10 @@ curl http://localhost:8004/metrics  # notification-service
 ```
 infrastructure/monitoring/grafana/
 ├── dashboards/                          # Dashboard JSON definitions
-│   ├── all-services-overview.json       # ✅ All services in one view
-│   ├── order-service.json               # ✅ Order & cart metrics
-│   ├── payment-service.json             # ✅ Payment transactions
-│   ├── notification-service.json        # ✅ Notification delivery
+│   ├── all-services-overview.json       # All services in one view
+│   ├── order-service.json               # Order & cart metrics
+│   ├── payment-service.json             # Payment transactions
+│   ├── notification-service.json        # Notification delivery
 │   ├── inventory-service.json           # Inventory & stock
 │   └── services-overview.json           # Service health overview
 ├── provisioning/                        # Auto-provisioning configs

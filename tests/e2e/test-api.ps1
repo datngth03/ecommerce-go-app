@@ -14,7 +14,7 @@ $loginBody = @{
 
 $loginResult = Invoke-RestMethod -Uri "$BASE_URL/auth/login" -Method Post -Body $loginBody -ContentType "application/json"
 $TOKEN = $loginResult.data.access_token
-Write-Host "   ✅ Login successful. Token: $($TOKEN.Substring(0,20))..." -ForegroundColor Green
+Write-Host "   Login successful. Token: $($TOKEN.Substring(0,20))..." -ForegroundColor Green
 
 # Step 2: Create Product
 Write-Host "`n2. Testing Create Product..." -ForegroundColor Yellow
@@ -32,13 +32,13 @@ $productBody = @{
 
 $productResult = Invoke-RestMethod -Uri "$BASE_URL/products" -Method Post -Body $productBody -Headers $headers
 $PRODUCT_ID = $productResult.data.id
-Write-Host "   ✅ Product created. ID: $PRODUCT_ID" -ForegroundColor Green
+Write-Host "   Product created. ID: $PRODUCT_ID" -ForegroundColor Green
 Write-Host "   Name: $($productResult.data.name)" -ForegroundColor Gray
 
 # Step 3: Check Inventory
 Write-Host "`n3. Testing Check Inventory..." -ForegroundColor Yellow
 $inventoryResult = Invoke-RestMethod -Uri "$BASE_URL/inventory/$PRODUCT_ID" -Method Get -Headers $headers
-Write-Host "   ✅ Inventory checked" -ForegroundColor Green
+Write-Host "   Inventory checked" -ForegroundColor Green
 Write-Host "   Available: $($inventoryResult.data.available)" -ForegroundColor Gray
 Write-Host "   Reserved: $($inventoryResult.data.reserved)" -ForegroundColor Gray
 
@@ -55,7 +55,7 @@ $availabilityBody = @{
 
 try {
     $availabilityResult = Invoke-RestMethod -Uri "$BASE_URL/inventory/check-availability" -Method Post -Body $availabilityBody -Headers $headers
-    Write-Host "   ✅ Availability checked" -ForegroundColor Green
+    Write-Host "   Availability checked" -ForegroundColor Green
     Write-Host "   Available: $($availabilityResult.available)" -ForegroundColor Gray
     if (-not $availabilityResult.available) {
         Write-Host "   Note: Product has no stock" -ForegroundColor Yellow
@@ -75,7 +75,7 @@ $cartBody = @{
 
 try {
     $cartResult = Invoke-RestMethod -Uri "$BASE_URL/cart" -Method Post -Body $cartBody -Headers $headers
-    Write-Host "   ✅ Added to cart" -ForegroundColor Green
+    Write-Host "   Added to cart" -ForegroundColor Green
 }
 catch {
     Write-Host "   ❌ Add to cart failed: $($_.Exception.Message)" -ForegroundColor Red
@@ -91,7 +91,7 @@ $orderBody = @{
 try {
     $orderResult = Invoke-RestMethod -Uri "$BASE_URL/orders" -Method Post -Body $orderBody -Headers $headers
     $ORDER_ID = $orderResult.data.id
-    Write-Host "   ✅ Order created. ID: $ORDER_ID" -ForegroundColor Green
+    Write-Host "   Order created. ID: $ORDER_ID" -ForegroundColor Green
     Write-Host "   Total: $($orderResult.data.total_amount)" -ForegroundColor Gray
     
     # Step 7: Process Payment
@@ -104,7 +104,7 @@ try {
     } | ConvertTo-Json
     
     $paymentResult = Invoke-RestMethod -Uri "$BASE_URL/payments" -Method Post -Body $paymentBody -Headers $headers
-    Write-Host "   ✅ Payment processed. ID: $($paymentResult.data.id)" -ForegroundColor Green
+    Write-Host "   Payment processed. ID: $($paymentResult.data.id)" -ForegroundColor Green
     Write-Host "   Status: $($paymentResult.data.status)" -ForegroundColor Gray
 }
 catch {

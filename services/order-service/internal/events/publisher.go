@@ -49,7 +49,7 @@ func NewPublisher(amqpURL string) (*Publisher, error) {
 		return nil, fmt.Errorf("failed to declare exchange: %w", err)
 	}
 
-	log.Printf("✅ Connected to RabbitMQ and declared exchange: %s", ExchangeName)
+	log.Printf("Connected to RabbitMQ and declared exchange: %s", ExchangeName)
 
 	return &Publisher{
 		conn:    conn,

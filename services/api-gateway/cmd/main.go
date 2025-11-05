@@ -33,7 +33,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("❌ Failed to load config: %v", err)
 	}
-	log.Println("✅ Configuration loaded")
+	log.Println("Configuration loaded")
 
 	// Print config in development mode
 	if cfg.IsDevelopment() {
@@ -69,7 +69,7 @@ func main() {
 	// Initialize proxies
 	userProxy := proxy.NewUserProxy(grpcClients.User)
 	productProxy := proxy.NewProductProxy(grpcClients.Product)
-	log.Println("✅ Proxies initialized")
+	log.Println("Proxies initialized")
 
 	// Initialize handlers
 	userHandler := handler.NewUserHandler(userProxy)
@@ -78,7 +78,7 @@ func main() {
 	paymentHandler := handler.NewPaymentHandler(grpcClients.Payment)
 	inventoryHandler := handler.NewInventoryHandler(grpcClients.Inventory)
 	healthHandler := handler.NewHealthHandler(grpcClients)
-	log.Println("✅ Handlers initialized")
+	log.Println("Handlers initialized")
 
 	// Setup HTTP server
 	router := setupRouter(cfg, userHandler, productHandler, orderHandler, paymentHandler, inventoryHandler, healthHandler, userProxy)
@@ -116,7 +116,7 @@ func main() {
 		}
 	}()
 
-	log.Println("✅ API Gateway is ready to handle requests")
+	log.Println("API Gateway is ready to handle requests")
 
 	// Wait for interrupt signal for graceful shutdown
 	quit := make(chan os.Signal, 1)
@@ -133,7 +133,7 @@ func main() {
 		log.Printf("❌ Server forced to shutdown: %v", err)
 	}
 
-	log.Println("✅ API Gateway stopped gracefully")
+	log.Println("API Gateway stopped gracefully")
 }
 
 // setupRouter configures all routes and middleware

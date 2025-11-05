@@ -77,7 +77,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// ✅ Validate login credentials
+	// Validate login credentials
 	if err := validator.ValidateLoginRequest(req.Email, req.Password); err != nil {
 		c.JSON(http.StatusBadRequest, APIResponse{
 			Success: false,

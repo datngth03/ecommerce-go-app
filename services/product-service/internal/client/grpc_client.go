@@ -81,7 +81,7 @@ func newUserServiceClient(addr string) (UserServiceClient, error) {
 		return nil, fmt.Errorf("failed to connect to user service at %s: %w", addr, err)
 	}
 
-	log.Printf("✅ Successfully connected to user service at %s", addr)
+	log.Printf("Successfully connected to user service at %s", addr)
 
 	return &userServiceClientImpl{
 		conn:   conn,
@@ -184,7 +184,7 @@ func (c *userServiceClientImpl) Close() error {
 		if err := c.conn.Close(); err != nil {
 			return fmt.Errorf("failed to close user service connection: %w", err)
 		}
-		log.Println("✅ User service client connection closed")
+		log.Println("User service client connection closed")
 	}
 	return nil
 }
@@ -203,7 +203,7 @@ func (g *GRPCClients) CloseAll() error {
 		return fmt.Errorf("errors closing gRPC clients: %v", errs)
 	}
 
-	log.Println("✅ All gRPC client connections closed")
+	log.Println("All gRPC client connections closed")
 	return nil
 }
 

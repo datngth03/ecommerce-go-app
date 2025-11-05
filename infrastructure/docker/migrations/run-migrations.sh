@@ -14,7 +14,7 @@ DB_PORT="${DB_PORT:-5432}"
 echo "⏳ Waiting for PostgreSQL to be ready..."
 for i in $(seq 1 15); do
     if pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" > /dev/null 2>&1; then
-        echo "✅ PostgreSQL is ready!"
+        echo "PostgreSQL is ready!"
         break
     fi
     echo "Waiting... ($i/15)"
@@ -36,7 +36,7 @@ run_migration() {
         migrate -path "$MIGRATION_PATH" -database "$DB_URL" up || {
             echo "⚠️  Migration failed or already applied for $SERVICE"
         }
-        echo "✅ $SERVICE migration completed"
+        echo "$SERVICE migration completed"
     else
         echo "⚠️  No migrations found for $SERVICE at $MIGRATION_PATH"
     fi

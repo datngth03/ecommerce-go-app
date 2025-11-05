@@ -134,7 +134,7 @@ export function setup() {
       }
    }
 
-   console.log(`✅ Users ready: ${created} created, ${existing} existing, ${failed} failed`);
+   console.log(`Users ready: ${created} created, ${existing} existing, ${failed} failed`);
 
    // Login with first user to get token structure and test auth
    console.log("🔐 Testing authentication...");
@@ -155,7 +155,7 @@ export function setup() {
          const body = JSON.parse(loginRes.body);
          token = body.access_token || body.data?.access_token;
          if (token) {
-            console.log("✅ Test user authenticated");
+            console.log("Test user authenticated");
          } else {
             console.log("❌ Token not found in response body");
             console.log(`Response: ${loginRes.body}`);
@@ -184,7 +184,7 @@ export function setup() {
          const products = body.data?.products || body.products || [];
          if (products.length > 0) {
             productIds = products.map((p) => p.id);
-            console.log(`✅ Found ${productIds.length} products in database`);
+            console.log(`Found ${productIds.length} products in database`);
          } else {
             console.log("❌ No products found in database - test will fail");
             console.log("⚠️  Please seed products first!");
@@ -329,7 +329,7 @@ export default function (data) {
 
          if (success) {
             orderCreationSuccess.add(1);
-            console.log(`✅ Order created in ${orderDuration}ms (target: <200ms)`);
+            console.log(`Order created in ${orderDuration}ms (target: <200ms)`);
          } else {
             orderCreationFailure.add(1);
             if (orderRes.status !== 201) {
